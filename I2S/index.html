@@ -1,0 +1,1466 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>I²S 协议详解 · 交互式时序图解</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%23070b09'/><path d='M2 22 h6 v-12 h6 v12 h6 v-12 h6 v12 h4' stroke='%2334e08a' stroke-width='2.5' fill='none'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#070b09;
+  --bg2:#0a100c;
+  --panel:#0d1510;
+  --panel2:#101a13;
+  --line:#1d2c22;
+  --line2:#27392d;
+  --ink:#dcebe1;
+  --dim:#8aa294;
+  --faint:#5c7264;
+  --green:#34e08a;
+  --green-dim:#1d8a55;
+  --amber:#ffb02e;
+  --cyan:#57d8f2;
+  --red:#ff6478;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --disp:'Chakra Petch','Noto Sans SC',sans-serif;
+  --sans:'Noto Sans SC',-apple-system,sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--sans);
+  font-weight:300;
+  line-height:1.8;
+  letter-spacing:.01em;
+  overflow-x:hidden;
+}
+/* 全局网格纸背景 */
+body::before{
+  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:
+    linear-gradient(rgba(52,224,138,.028) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(52,224,138,.028) 1px,transparent 1px),
+    linear-gradient(rgba(52,224,138,.014) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(52,224,138,.014) 1px,transparent 1px);
+  background-size:120px 120px,120px 120px,24px 24px,24px 24px;
+}
+body::after{ /* 轻微暗角 */
+  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(ellipse 120% 90% at 50% 0%,transparent 60%,rgba(0,0,0,.5));
+}
+main{position:relative;z-index:1}
+::selection{background:rgba(52,224,138,.3)}
+
+/* ============ 导航 ============ */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  display:flex;align-items:center;gap:22px;
+  padding:0 26px;height:52px;
+  background:rgba(7,11,9,.82);backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--line);
+}
+nav .logo{font-family:var(--disp);font-weight:700;font-size:17px;color:var(--green);letter-spacing:.04em}
+nav .logo sup{font-size:.62em}
+nav a{
+  color:var(--dim);text-decoration:none;font-size:12.5px;
+  font-family:var(--mono);letter-spacing:.05em;
+  transition:color .2s;
+}
+nav a:hover{color:var(--green)}
+nav .spacer{flex:1}
+nav .live{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11px;color:var(--faint)}
+nav .live i{width:7px;height:7px;border-radius:50%;background:var(--green);animation:blink 1.6s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+
+/* ============ Hero ============ */
+.hero{
+  min-height:92vh;display:flex;flex-direction:column;justify-content:center;
+  padding:110px 6vw 40px;position:relative;
+}
+.hero .eyebrow{
+  font-family:var(--mono);font-size:12px;color:var(--amber);
+  letter-spacing:.32em;margin-bottom:22px;
+  display:flex;align-items:center;gap:14px;
+}
+.hero .eyebrow::before{content:"";width:44px;height:1px;background:var(--amber)}
+.hero h1{
+  font-family:var(--disp);font-weight:700;
+  font-size:clamp(56px,11vw,148px);
+  line-height:.95;letter-spacing:-.01em;
+  color:var(--ink);
+}
+.hero h1 sup{color:var(--green);font-size:.55em}
+.hero h1 .zh{
+  display:block;font-family:var(--sans);font-weight:300;
+  font-size:clamp(18px,2.4vw,30px);color:var(--dim);
+  letter-spacing:.42em;margin-top:18px;
+}
+.hero p.lede{
+  max-width:640px;margin-top:34px;font-size:16px;color:var(--dim);
+}
+.hero p.lede b{color:var(--ink);font-weight:500}
+.hero .chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:30px}
+.hero .chips span{
+  font-family:var(--mono);font-size:11.5px;padding:5px 12px;
+  border:1px solid var(--line2);border-radius:3px;color:var(--dim);
+  background:rgba(13,21,16,.6);
+}
+.hero .chips span b{color:var(--green);font-weight:500}
+.hero .scope-wrap{
+  margin-top:52px;border:1px solid var(--line);border-radius:6px;
+  overflow:hidden;background:rgba(9,14,11,.75);position:relative;
+}
+.hero .scope-wrap::after{ /* 扫描线 */
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.16) 3px 4px);
+}
+.hero canvas{display:block;width:100%;height:118px}
+.hero .scroll-hint{
+  margin-top:40px;font-family:var(--mono);font-size:11px;color:var(--faint);
+  letter-spacing:.2em;display:flex;align-items:center;gap:10px;
+}
+.hero .scroll-hint svg{animation:bounce 1.8s infinite}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(6px)}}
+
+/* ============ 通用 section ============ */
+section{padding:96px 6vw;max-width:1280px;margin:0 auto;position:relative}
+.sec-head{display:flex;align-items:baseline;gap:20px;margin-bottom:16px}
+.sec-head .no{
+  font-family:var(--mono);font-size:13px;color:var(--green);
+  letter-spacing:.1em;border:1px solid var(--green-dim);
+  padding:3px 10px;border-radius:3px;white-space:nowrap;
+}
+.sec-head h2{
+  font-family:var(--disp);font-weight:600;font-size:clamp(26px,3.6vw,40px);
+  letter-spacing:.01em;
+}
+.sec-head .en{
+  font-family:var(--mono);font-size:12px;color:var(--faint);letter-spacing:.24em;
+  text-transform:uppercase;margin-left:auto;white-space:nowrap;
+}
+.sec-sub{color:var(--dim);max-width:760px;margin-bottom:44px;font-size:15px}
+.sec-sub b{color:var(--ink);font-weight:500}
+.reveal{opacity:0;transform:translateY(26px);transition:opacity .7s ease,transform .7s ease}
+.reveal.in{opacity:1;transform:none}
+
+/* ============ §01 是什么 ============ */
+.two-col{display:grid;grid-template-columns:1.25fr .9fr;gap:44px;align-items:start}
+.prose p{margin-bottom:18px;color:var(--dim);font-size:15px}
+.prose p b{color:var(--ink);font-weight:500}
+.prose .kw{color:var(--green);font-family:var(--mono);font-size:.92em}
+.prose .kw2{color:var(--amber);font-family:var(--mono);font-size:.92em}
+.cmp-table{width:100%;border-collapse:collapse;font-size:13px}
+.cmp-table th{
+  font-family:var(--mono);font-weight:500;color:var(--faint);text-align:left;
+  padding:9px 12px;border-bottom:1px solid var(--line2);font-size:11.5px;letter-spacing:.06em;
+}
+.cmp-table td{
+  padding:10px 12px;border-bottom:1px solid var(--line);color:var(--dim);vertical-align:top;
+}
+.cmp-table td:first-child{color:var(--ink);font-weight:400;white-space:nowrap}
+.cmp-table .yes{color:var(--green)}
+.cmp-table .no{color:var(--red)}
+.fact-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:36px}
+.fact{
+  border:1px solid var(--line);border-radius:6px;padding:20px 20px 18px;
+  background:linear-gradient(160deg,var(--panel) 0%,rgba(13,21,16,.4) 100%);
+  transition:border-color .25s,transform .25s;
+}
+.fact:hover{border-color:var(--green-dim);transform:translateY(-3px)}
+.fact .f-no{font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.14em}
+.fact h4{font-family:var(--disp);font-size:16.5px;font-weight:600;margin:8px 0 8px}
+.fact h4 code{font-family:var(--mono);font-size:.85em;color:var(--green)}
+.fact p{font-size:12.8px;color:var(--dim);line-height:1.7}
+
+/* ============ §02 信号线 ============ */
+.sig-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+.sig-card{
+  border:1px solid var(--line);border-radius:8px;overflow:hidden;
+  background:var(--panel);display:flex;flex-direction:column;
+  transition:border-color .25s;
+}
+.sig-card:hover{border-color:var(--line2)}
+.sig-card .scope{background:#080d0a;border-bottom:1px solid var(--line);position:relative}
+.sig-card .scope::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.18) 3px 4px);
+}
+.sig-card canvas{display:block;width:100%;height:84px}
+.sig-card .body{padding:20px 22px 22px}
+.sig-card .names{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.sig-card .names .main{font-family:var(--disp);font-size:21px;font-weight:600}
+.sig-card .names .alias{font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.06em}
+.sig-card .names .pin{
+  margin-left:auto;font-family:var(--mono);font-size:10px;letter-spacing:.1em;
+  padding:2px 8px;border-radius:3px;
+}
+.sig-card p{font-size:13px;color:var(--dim);margin-top:10px;line-height:1.75}
+.sig-card p b{color:var(--ink);font-weight:500}
+.sig-card .formula{
+  font-family:var(--mono);font-size:12px;color:var(--green);
+  margin-top:12px;padding:8px 12px;background:rgba(52,224,138,.06);
+  border-left:2px solid var(--green-dim);border-radius:0 3px 3px 0;
+}
+.c-bck .main,.c-bck .pin{color:var(--green)} .c-bck .pin{background:rgba(52,224,138,.1);border:1px solid var(--green-dim)}
+.c-ws .main,.c-ws .pin{color:var(--amber)} .c-ws .pin{background:rgba(255,176,46,.08);border:1px solid rgba(255,176,46,.35)}
+.c-sd .main,.c-sd .pin{color:var(--cyan)} .c-sd .pin{background:rgba(87,216,242,.08);border:1px solid rgba(87,216,242,.3)}
+.c-mck .main,.c-mck .pin{color:var(--dim)} .c-mck .pin{background:rgba(140,162,148,.08);border:1px dashed var(--faint)}
+.c-mck{border-style:dashed}
+
+/* ============ §03 主时序动画 ============ */
+.lab{
+  border:1px solid var(--line);border-radius:10px;background:var(--panel);
+  overflow:hidden;
+}
+.lab-bar{
+  display:flex;flex-wrap:wrap;align-items:center;gap:18px;
+  padding:16px 20px;border-bottom:1px solid var(--line);background:rgba(10,16,12,.7);
+}
+.ctrl{display:flex;align-items:center;gap:9px}
+.ctrl label{font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.1em}
+.seg{display:flex;border:1px solid var(--line2);border-radius:5px;overflow:hidden}
+.seg button{
+  font-family:var(--mono);font-size:12px;padding:7px 13px;border:none;cursor:pointer;
+  background:transparent;color:var(--dim);border-right:1px solid var(--line2);
+  transition:all .18s;letter-spacing:.02em;
+}
+.seg button:last-child{border-right:none}
+.seg button:hover{color:var(--ink);background:rgba(52,224,138,.06)}
+.seg button.on{background:var(--green);color:#06231613;color:#052013;font-weight:600}
+.icon-btn{
+  width:32px;height:32px;border:1px solid var(--line2);border-radius:5px;background:transparent;
+  color:var(--dim);cursor:pointer;font-family:var(--mono);font-size:14px;
+  transition:all .18s;display:flex;align-items:center;justify-content:center;
+}
+.icon-btn:hover{color:var(--green);border-color:var(--green-dim)}
+.icon-btn.play.on{color:var(--green);border-color:var(--green-dim);background:rgba(52,224,138,.08)}
+input[type=range]{
+  -webkit-appearance:none;width:120px;height:2px;background:var(--line2);border-radius:2px;outline:none;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--green);
+  cursor:pointer;box-shadow:0 0 8px rgba(52,224,138,.5);
+}
+.lab-body{display:grid;grid-template-columns:1fr 264px;gap:0}
+.scope-main{position:relative;background:#080d0a;min-width:0}
+.scope-main::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.14) 3px 4px);
+}
+.scope-main canvas{display:block;width:100%;height:360px}
+.readout{
+  border-left:1px solid var(--line);background:#0a110d;
+  padding:18px 18px 14px;display:flex;flex-direction:column;gap:0;min-width:0;
+}
+.readout .r-title{
+  font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.22em;
+  margin-bottom:14px;display:flex;align-items:center;gap:8px;
+}
+.readout .r-title::before{content:"";width:6px;height:6px;background:var(--red);border-radius:50%;animation:blink 1.4s infinite}
+.r-row{
+  display:flex;justify-content:space-between;align-items:baseline;
+  font-family:var(--mono);padding:7px 0;border-bottom:1px dashed var(--line);
+}
+.r-row .k{font-size:11px;color:var(--faint);letter-spacing:.08em}
+.r-row .v{font-size:13px;color:var(--ink);text-align:right}
+.r-row .v.g{color:var(--green)} .r-row .v.a{color:var(--amber)} .r-row .v.c{color:var(--cyan)}
+.r-note{font-size:11px;color:var(--faint);line-height:1.65;margin-top:12px;font-family:var(--mono)}
+.r-note b{color:var(--dim);font-weight:500}
+.decode-box{margin-top:14px}
+.decode-box .d-title{font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.18em;margin-bottom:8px}
+.decode-box canvas{display:block;width:100%;height:86px;background:#070c09;border:1px solid var(--line);border-radius:4px}
+.lab-foot{
+  padding:14px 20px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:10px 28px;
+  background:rgba(10,16,12,.6);
+}
+.legend{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;color:var(--dim)}
+.legend i{width:18px;height:2px;border-radius:2px}
+.rule-callout{
+  margin-top:26px;display:grid;grid-template-columns:auto 1fr;gap:22px;align-items:center;
+  border:1px solid rgba(255,176,46,.3);border-radius:8px;padding:20px 26px;
+  background:linear-gradient(120deg,rgba(255,176,46,.06),transparent 60%);
+}
+.rule-callout .mnemonic{
+  font-family:var(--disp);font-weight:700;font-size:clamp(19px,2.6vw,26px);
+  color:var(--amber);letter-spacing:.08em;white-space:nowrap;
+}
+.rule-callout .mnemonic small{display:block;font-size:11px;font-weight:500;color:var(--faint);letter-spacing:.24em;margin-top:6px;font-family:var(--mono)}
+.rule-callout p{font-size:13.5px;color:var(--dim)}
+.rule-callout p b{color:var(--ink);font-weight:500}
+
+/* ============ §04 格式对比 ============ */
+.fmt-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+.fmt-card{border:1px solid var(--line);border-radius:8px;background:var(--panel);overflow:hidden}
+.fmt-card .fh{
+  display:flex;align-items:baseline;gap:12px;padding:16px 20px 12px;border-bottom:1px solid var(--line);
+}
+.fmt-card .fh .tag{
+  font-family:var(--mono);font-size:10px;letter-spacing:.14em;padding:3px 8px;border-radius:3px;
+}
+.fmt-card .fh h4{font-family:var(--disp);font-size:17px;font-weight:600}
+.fmt-card .fh .en{font-family:var(--mono);font-size:10.5px;color:var(--faint);margin-left:auto}
+.fmt-card svg{display:block;width:100%;height:auto;background:#080d0a}
+.fmt-card .fb{padding:14px 20px 18px;font-size:12.8px;color:var(--dim);line-height:1.75}
+.fmt-card .fb b{color:var(--ink);font-weight:500}
+.t-i2s .tag{color:var(--green);border:1px solid var(--green-dim);background:rgba(52,224,138,.07)}
+.t-lj  .tag{color:var(--cyan);border:1px solid rgba(87,216,242,.3);background:rgba(87,216,242,.06)}
+.t-rj  .tag{color:var(--amber);border:1px solid rgba(255,176,46,.35);background:rgba(255,176,46,.06)}
+.t-dsp .tag{color:var(--red);border:1px solid rgba(255,100,120,.35);background:rgba(255,100,120,.06)}
+.fmt-note{
+  margin-top:26px;padding:18px 22px;border-left:2px solid var(--red);
+  background:rgba(255,100,120,.05);border-radius:0 6px 6px 0;font-size:13.5px;color:var(--dim);
+}
+.fmt-note b{color:var(--red);font-weight:500}
+
+/* ============ §05 主从 ============ */
+.ms-grid{display:grid;grid-template-columns:1.1fr 1fr;gap:40px;align-items:start}
+.ms-diagram{
+  border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:26px;
+}
+.ms-diagram svg{width:100%;height:auto;display:block}
+.arch-cards{display:flex;flex-direction:column;gap:14px}
+.arch{
+  border:1px solid var(--line);border-radius:6px;padding:18px 22px;background:var(--panel);
+}
+.arch h5{font-family:var(--disp);font-size:15px;font-weight:600;display:flex;align-items:center;gap:10px}
+.arch h5 .b{font-family:var(--mono);font-size:10px;color:var(--green);border:1px solid var(--green-dim);padding:1px 7px;border-radius:3px}
+.arch p{font-size:12.8px;color:var(--dim);margin-top:8px;line-height:1.7}
+.arch p b{color:var(--ink);font-weight:500}
+
+/* ============ §06 计算器 ============ */
+.calc{
+  border:1px solid var(--line);border-radius:10px;background:var(--panel);
+  display:grid;grid-template-columns:1fr 1fr;overflow:hidden;
+}
+.calc .inputs{padding:30px 32px;border-right:1px solid var(--line)}
+.calc .outputs{padding:30px 32px;background:#0a110d}
+.calc h5{font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.22em;margin-bottom:18px}
+.field{margin-bottom:20px}
+.field label{display:block;font-family:var(--mono);font-size:11.5px;color:var(--dim);margin-bottom:8px;letter-spacing:.06em}
+.field select{
+  width:100%;font-family:var(--mono);font-size:14px;color:var(--ink);
+  background:#080d0a;border:1px solid var(--line2);border-radius:5px;padding:10px 12px;outline:none;
+  cursor:pointer;transition:border-color .2s;
+}
+.field select:focus{border-color:var(--green-dim)}
+.out-row{
+  display:flex;justify-content:space-between;align-items:baseline;
+  padding:13px 0;border-bottom:1px dashed var(--line);
+}
+.out-row .ok{font-size:12.5px;color:var(--dim)}
+.out-row .ok small{display:block;font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.08em}
+.out-row .ov{font-family:var(--mono);font-size:19px;font-weight:600;color:var(--green)}
+.out-row .ov small{font-size:11px;color:var(--faint);font-weight:400;margin-left:4px}
+.out-row.big .ov{font-size:26px;color:var(--amber)}
+.calc-formula{
+  grid-column:1/-1;padding:15px 32px;border-top:1px solid var(--line);
+  font-family:var(--mono);font-size:12.5px;color:var(--dim);background:rgba(10,17,13,.8);
+}
+.calc-formula b{color:var(--green);font-weight:500}
+
+/* ============ §07 Linux 终端 ============ */
+.term-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+.term{
+  border:1px solid var(--line);border-radius:8px;background:#070c09;
+  overflow:hidden;display:flex;flex-direction:column;min-width:0;
+  transition:border-color .25s;
+}
+.term:hover{border-color:var(--line2)}
+.term.wide{grid-column:1/-1}
+.term-bar{
+  display:flex;align-items:center;gap:7px;padding:10px 14px;
+  border-bottom:1px solid var(--line);background:rgba(10,16,12,.85);
+}
+.term-bar i{width:10px;height:10px;border-radius:50%}
+.term-bar .d1{background:rgba(255,100,120,.55)}
+.term-bar .d2{background:rgba(255,176,46,.5)}
+.term-bar .d3{background:rgba(52,224,138,.5)}
+.term-bar span{margin-left:8px;font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.12em}
+.term-body{
+  padding:15px 18px 17px;font-family:var(--mono);font-size:12.3px;
+  line-height:1.95;overflow-x:auto;flex:1;
+}
+.term-body div{white-space:pre;min-height:1.35em}
+.t-ps{color:#3f5247;user-select:none}
+.t-cmd{
+  color:var(--green);cursor:pointer;font-family:inherit;
+  border-bottom:1px dotted transparent;transition:border-color .15s;
+}
+.t-cmd:hover{border-bottom-color:var(--green)}
+.t-cmd.copied{color:#052013;background:var(--green);border-radius:2px;padding:0 4px}
+.t-out{color:var(--dim)}
+.t-hl{color:var(--amber)}
+.t-cmt{color:#516657}
+.t-tag{color:var(--cyan)}
+.lnx-note{
+  margin-top:26px;padding:18px 22px;border-left:2px solid var(--cyan);
+  background:rgba(87,216,242,.05);border-radius:0 6px 6px 0;font-size:13.5px;color:var(--dim);
+}
+.lnx-note b{color:var(--cyan);font-weight:500}
+.lnx-note code{font-family:var(--mono);font-size:.9em;color:var(--amber)}
+
+/* ============ §08 调试指南 ============ */
+.dbg-steps{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.dbg-step{
+  flex:1;min-width:138px;display:flex;align-items:center;gap:10px;
+  padding:11px 14px;border:1px solid var(--line2);border-radius:6px;
+  background:var(--panel);cursor:pointer;transition:all .18s;text-align:left;
+  font-family:inherit;color:var(--dim);font-size:13px;
+}
+.dbg-step .n{
+  font-family:var(--mono);font-size:15px;font-weight:600;color:var(--faint);
+  width:1.2em;transition:color .18s;
+}
+.dbg-step:hover{border-color:var(--green-dim);color:var(--ink)}
+.dbg-step.on{border-color:var(--green);background:rgba(52,224,138,.08);color:var(--ink)}
+.dbg-step.on .n{color:var(--green)}
+.dbg-verdict{
+  border-left:2px solid var(--amber);background:rgba(255,176,46,.06);
+  padding:13px 18px;border-radius:0 5px 5px 0;font-size:13.2px;color:var(--dim);
+  margin-bottom:16px;line-height:1.75;
+}
+.dbg-verdict b{color:var(--amber);font-weight:500}
+.dbg-cols{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.eq-table{width:100%;border-collapse:collapse;font-size:12.3px;margin-top:30px}
+.eq-table th{
+  font-family:var(--mono);font-weight:500;color:var(--faint);text-align:left;
+  padding:9px 12px;border-bottom:1px solid var(--line2);font-size:11px;letter-spacing:.08em;
+}
+.eq-table td{padding:10px 12px;border-bottom:1px solid var(--line);color:var(--dim);vertical-align:top}
+.eq-table td:first-child{color:var(--ink);white-space:nowrap}
+.eq-table td code{font-family:var(--mono);font-size:11.5px;color:var(--cyan);word-break:break-all}
+.eq-table tr td:nth-child(2) code{color:var(--green)}
+.and-note{
+  margin-top:26px;padding:18px 22px;border-left:2px solid var(--red);
+  background:rgba(255,100,120,.05);border-radius:0 6px 6px 0;font-size:13.5px;color:var(--dim);
+}
+.and-note b{color:var(--red);font-weight:500}
+.and-note code{font-family:var(--mono);font-size:.9em;color:var(--amber)}
+
+/* ============ §09 踩坑 ============ */
+.pit-list{display:flex;flex-direction:column;gap:12px}
+.pit{
+  display:grid;grid-template-columns:44px 1fr;gap:18px;align-items:start;
+  border:1px solid var(--line);border-radius:6px;padding:17px 20px;background:var(--panel);
+  transition:border-color .2s;
+}
+.pit:hover{border-color:rgba(255,100,120,.4)}
+.pit .symptom{
+  font-family:var(--mono);font-size:10px;letter-spacing:.06em;color:var(--red);
+  border:1px solid rgba(255,100,120,.35);border-radius:4px;padding:5px 7px;text-align:center;
+  line-height:1.5;background:rgba(255,100,120,.05);height:fit-content;
+}
+.pit .fix b{display:block;font-size:14px;font-weight:500;color:var(--ink);margin-bottom:4px}
+.pit .fix b code{font-family:var(--mono);font-size:.88em;color:var(--green)}
+.pit .fix p{font-size:12.8px;color:var(--dim);line-height:1.7}
+.pit .fix p code{font-family:var(--mono);font-size:.9em;color:var(--amber)}
+
+/* ============ footer ============ */
+footer{
+  border-top:1px solid var(--line);padding:44px 6vw 60px;margin-top:40px;
+  display:flex;flex-wrap:wrap;gap:24px;align-items:baseline;justify-content:space-between;
+}
+footer .f-l{font-family:var(--mono);font-size:11.5px;color:var(--faint);line-height:2.1}
+footer .f-l b{color:var(--dim);font-weight:500}
+footer a{color:var(--faint);text-decoration:none;border-bottom:1px dotted var(--faint)}
+footer a:hover{color:var(--green);border-color:var(--green)}
+footer .f-r{font-family:var(--disp);font-weight:700;font-size:22px;color:var(--green)}
+footer .f-r sup{font-size:.6em}
+
+/* ============ 响应式 ============ */
+@media (max-width:1000px){
+  .two-col,.ms-grid{grid-template-columns:1fr}
+  .lab-body{grid-template-columns:1fr}
+  .readout{border-left:none;border-top:1px solid var(--line)}
+  .calc{grid-template-columns:1fr}
+  .calc .inputs{border-right:none;border-bottom:1px solid var(--line)}
+  .dbg-cols{grid-template-columns:1fr}
+}
+@media (max-width:720px){
+  .sig-grid,.fmt-grid,.fact-grid,.term-grid{grid-template-columns:1fr}
+  nav a{display:none}
+  section{padding:70px 5vw}
+  .sec-head .en{display:none}
+}
+</style>
+</head>
+<body>
+<nav>
+  <div class="logo">I²S</div>
+  <a href="#s1">概述</a><a href="#s2">信号线</a><a href="#s3">时序动画</a><a href="#s4">数据格式</a><a href="#s5">主从模式</a><a href="#s6">时钟计算</a><a href="#s7">Linux 实战</a><a href="#s8">调试指南</a><a href="#s9">踩坑指南</a>
+  <div class="spacer"></div>
+  <div class="live"><i></i>LOGIC&nbsp;ANALYZER</div>
+</nav>
+
+<main>
+<!-- ================= HERO ================= -->
+<header class="hero">
+  <div class="eyebrow">EMBEDDED AUDIO BUS · 图解硬件协议</div>
+  <h1>I²S<sup>※</sup>
+    <span class="zh">协 议 详 解 · 交 互 式 图 解</span>
+  </h1>
+  <p class="lede">
+    三根信号线，传遍整个 Hi-Fi 世界。I²S 是飞利浦（Philips，1986）为<b>芯片间数字音频</b>定下的串行总线标准——
+    ADC、DAC、Codec、MCU 之间的音频数据都靠它流动。<b>往下滚动，看比特如何被一位一位地搬进扬声器。</b>
+  </p>
+  <div class="chips">
+    <span><b>3</b> 根必备信号线</span>
+    <span>原生<b>立体声</b> PCM</span>
+    <span><b>MSB</b> 先行 · 二进制补码</span>
+    <span>Philips <b>1986</b></span>
+  </div>
+  <div class="scope-wrap"><canvas id="heroScope"></canvas></div>
+  <div class="scroll-hint">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+    SCROLL · 时序动画在 03 节
+  </div>
+</header>
+
+<!-- ================= §01 ================= -->
+<section id="s1">
+  <div class="sec-head reveal"><span class="no">01</span><h2>它是什么，为什么需要它</h2><span class="en">What &amp; Why</span></div>
+  <p class="sec-sub reveal">一句话：<b>I²S 是专门为数字音频优化过的同步串行接口</b>——把「数据」和「时钟」分开走，让音频流不需要任何帧头、地址和握手就能连续传输。</p>
+  <div class="two-col">
+    <div class="prose reveal">
+      <p>
+        I²S（<b>Inter-IC Sound</b>，集成电路内置音频总线）是飞利浦 1986 年定义、1996 年修订的芯片间音频标准，
+        用来在 PCB 上的芯片之间搬运 <b>PCM 音频采样数据</b>。你手机里的音频 Codec、蓝牙耳机的 DAC、开发板上的
+        <span class="kw">ES8388</span> / <span class="kw">WM8978</span> / <span class="kw">SGTL5000</span>，对外说的都是这门「方言」。
+      </p>
+      <p>
+        为什么不用现成的 SPI / UART？因为音频是<b>持续的、等时的数据流</b>：SPI 每次传输都要片选和帧同步开销，
+        UART 又是异步的、靠双方波特率猜。I²S 干脆把位时钟 <span class="kw">BCK</span> 单独拉一根线连续跑，
+        接收方「看见时钟沿就采一个比特」，零协议开销；再用 <span class="kw2">WS</span> 一根线区分左右声道，
+        立体声天然免费。音量、静音、采样率这些<b>控制</b>则交给并行的 I²C/SPI 控制总线——控制平面与数据平面分离。
+      </p>
+      <p>
+        数据本身是<b>二进制补码</b>的音频采样值，<b>MSB 在前</b>，左右声道交替出现——正是 DAC 想要的格式，无需任何转换。
+      </p>
+    </div>
+    <table class="cmp-table reveal">
+      <tr><th></th><th>I²S</th><th>SPI</th><th>UART</th></tr>
+      <tr><td>时钟方式</td><td class="yes">专用连续位时钟</td><td class="no">随传输突发</td><td class="no">无时钟（异步）</td></tr>
+      <tr><td>帧头/地址开销</td><td class="yes">无（WS 即帧）</td><td class="no">CS + 帧</td><td class="no">起始/停止位</td></tr>
+      <tr><td>原生立体声</td><td class="yes">WS 区分 L/R</td><td class="no">自己定义</td><td class="no">自己定义</td></tr>
+      <tr><td>持续等时流</td><td class="yes">设计目标</td><td>勉强</td><td>勉强</td></tr>
+      <tr><td>典型用途</td><td>音频数据面</td><td>音频控制面</td><td>调试/低速</td></tr>
+    </table>
+  </div>
+  <div class="fact-grid reveal">
+    <div class="fact"><div class="f-no">FACT / A</div><h4>时钟与数据分离 <code>BCK</code></h4><p>接收方只在时钟沿采样数据线，不数位数、不等帧头，天生抗字节对齐问题。</p></div>
+    <div class="fact"><div class="f-no">FACT / B</div><h4>一根线选声道 <code>WS</code></h4><p>WS 电平直接指示当前传的是左还是右，左右声道严格等宽交替，构成一帧。</p></div>
+    <div class="fact"><div class="f-no">FACT / C</div><h4>MSB 先行 · 补码 <code>SD</code></h4><p>数据格式与 DAC 内部一致，高位先传意味着即使收发位宽不一致，也能保住音频动态范围。</p></div>
+    <div class="fact"><div class="f-no">FACT / D</div><h4>只管数据，不管控制 <code>CTRL</code></h4><p>音量、静音、滤波器配置走旁边的 I²C。I²S 总线上永远是纯粹的音频流。</p></div>
+  </div>
+</section>
+
+<!-- ================= §02 ================= -->
+<section id="s2">
+  <div class="sec-head reveal"><span class="no">02</span><h2>三根信号线（+1 根可选）</h2><span class="en">Signals</span></div>
+  <p class="sec-sub reveal">记住三条线的「身份」，I²S 就懂了一大半。每张卡片里都是<b>正在运行的实时波形</b>。</p>
+  <div class="sig-grid">
+    <div class="sig-card c-bck reveal">
+      <div class="scope"><canvas data-scope="bck"></canvas></div>
+      <div class="body">
+        <div class="names"><span class="main">BCK</span><span class="alias">SCK / BCLK / 位时钟</span><span class="pin">CLOCK</span></div>
+        <p>位时钟，<b>每一个脉冲搬一个比特</b>。它是总线的「心跳」，永远由<b>主机</b>产生、连续不断。频率由采样率和位宽决定：</p>
+        <div class="formula">f(BCK) = fs × 槽宽(slot) × 2声道</div>
+      </div>
+    </div>
+    <div class="sig-card c-ws reveal">
+      <div class="scope"><canvas data-scope="ws"></canvas></div>
+      <div class="body">
+        <div class="names"><span class="main">WS</span><span class="alias">LRCK / LRCLK / 字选择</span><span class="pin">FRAME</span></div>
+        <p>字选择（帧时钟），电平指示当前声道——<b>低电平 = 左声道，高电平 = 右声道</b>（Philips 定义）。一个完整 L+R 周期 = 音频的一帧：</p>
+        <div class="formula">f(WS) = fs（即采样率）</div>
+      </div>
+    </div>
+    <div class="sig-card c-sd reveal">
+      <div class="scope"><canvas data-scope="sd"></canvas></div>
+      <div class="body">
+        <div class="names"><span class="main">SD</span><span class="alias">SDATA / DIN / DOUT / 串行数据</span><span class="pin">DATA</span></div>
+        <p>串行数据，左右声道<b>时分复用</b>在同一根线上。每个采样值以<b>二进制补码、MSB 在前</b>发送；发送端在 BCK <b>下降沿</b>更新，接收端在<b>上升沿</b>锁存。</p>
+      </div>
+    </div>
+    <div class="sig-card c-mck reveal">
+      <div class="scope"><canvas data-scope="mck"></canvas></div>
+      <div class="body">
+        <div class="names"><span class="main">MCLK</span><span class="alias">SYSCLK / 主时钟（可选）</span><span class="pin">AUX</span></div>
+        <p>不是 I²S 规范的正式成员，但<b>很多 Codec 离了它活不了</b>：内部 Δ-Σ 调制器、PLL、滤波器都靠它吃饭。通常由主控提供，且必须与 fs 同步：</p>
+        <div class="formula">f(MCLK) = 256 × fs（最常见）</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= §03 交互时序 ================= -->
+<section id="s3">
+  <div class="sec-head reveal"><span class="no">03</span><h2>时序动画 · 看比特被逐个采样</h2><span class="en">Interactive Timing</span></div>
+  <p class="sec-sub reveal">
+    下面是一台「虚拟逻辑分析仪」：三路信号向左滚动，<b style="color:var(--red)">红色探针</b>是接收端的采样点。
+    切换格式与字长，观察 MSB 相对 WS 边沿的位置如何变化；右侧面板是接收端按协议规则<b>实时解码</b>出的音频波形。
+  </p>
+  <div class="lab reveal">
+    <div class="lab-bar">
+      <div class="ctrl"><label>格式</label>
+        <div class="seg" id="fmtSeg">
+          <button data-fmt="i2s" class="on">标准 I²S</button>
+          <button data-fmt="lj">左对齐 LJ</button>
+          <button data-fmt="rj">右对齐 RJ</button>
+          <button data-fmt="dsp">DSP/PCM</button>
+        </div>
+      </div>
+      <div class="ctrl"><label>字长</label>
+        <div class="seg" id="wSeg">
+          <button data-w="16" class="on">16 bit</button>
+          <button data-w="24">24 bit</button>
+          <button data-w="32">32 bit</button>
+        </div>
+      </div>
+      <div class="ctrl"><label>速度</label><input type="range" id="speed" min="4" max="90" value="26"></div>
+      <div class="ctrl">
+        <button class="icon-btn" id="zoomOut" title="缩小">−</button>
+        <button class="icon-btn" id="zoomIn" title="放大">＋</button>
+        <button class="icon-btn play on" id="playBtn" title="暂停/播放">❚❚</button>
+      </div>
+    </div>
+    <div class="lab-body">
+      <div class="scope-main"><canvas id="mainScope"></canvas></div>
+      <div class="readout">
+        <div class="r-title">RECEIVER · 实时解码</div>
+        <div class="r-row"><span class="k">BCK 沿</span><span class="v g" id="rEdge">↑ RISING</span></div>
+        <div class="r-row"><span class="k">WS 声道</span><span class="v a" id="rWs">LEFT</span></div>
+        <div class="r-row"><span class="k">锁存位</span><span class="v c" id="rBit">B14 · 1</span></div>
+        <div class="r-row"><span class="k">发送样本 L</span><span class="v" id="rL">0x0000</span></div>
+        <div class="r-row"><span class="k">发送样本 R</span><span class="v" id="rR">0x0000</span></div>
+        <div class="decode-box">
+          <div class="d-title">解码输出 · 左/右声道</div>
+          <canvas id="decodeScope"></canvas>
+        </div>
+        <div class="r-note">
+          <b>规则</b>：发送端在 BCK <b>下降沿</b>切换 WS 与 SD；接收端在 <b>上升沿</b>锁存 SD。边沿错开半个周期，建立/保持时间天然满足。
+        </div>
+      </div>
+    </div>
+    <div class="lab-foot">
+      <div class="legend"><i style="background:var(--green)"></i>BCK 位时钟</div>
+      <div class="legend"><i style="background:var(--amber)"></i>WS 字选择（低=左 · 高=右）</div>
+      <div class="legend"><i style="background:var(--cyan)"></i>SD 串行数据（MSB 先行）</div>
+      <div class="legend"><i style="background:var(--red);height:8px;width:8px;border-radius:50%"></i>采样探针（BCK 上升沿）</div>
+    </div>
+  </div>
+  <div class="rule-callout reveal">
+    <div class="mnemonic">低左高右 · 降变升采<small>TWELVE-CHAR MNEMONIC</small></div>
+    <p>
+      <b>WS 低电平是左声道，高电平是右声道</b>；发送端在 BCK <b>下降沿</b>改变 WS 和 SD，接收端在<b>上升沿</b>采样——
+      这半拍错位就是 I²S 全部时序规则的地基。标准格式下，MSB 会再<b>多延迟 1 个 BCK</b> 才出现（04 节详解）。
+    </p>
+  </div>
+</section>
+
+<!-- ================= §04 ================= -->
+<section id="s4">
+  <div class="sec-head reveal"><span class="no">04</span><h2>四种数据格式 · 只差一个「对齐」</h2><span class="en">Data Formats</span></div>
+  <p class="sec-sub reveal">
+    收发双方都要回答同一个问题：<b>数据字段相对于 WS 边沿放在哪？</b>答案不同，就是不同的「格式」。下面以
+    <b>槽宽 32 BCK、字长 16 bit</b> 为例（最常见的配置之一）。
+  </p>
+  <div class="fmt-grid">
+    <div class="fmt-card t-i2s reveal"><div class="fh"><span class="tag">PHILIPS</span><h4>标准 I²S</h4><span class="en">I²S STANDARD</span></div><div id="svgI2S"></div>
+      <div class="fb">官方格式：<b>MSB 延迟 1 个 BCK</b> 出现在 WS 边沿之后，剩余槽位补 0（或符号扩展）。兼容性最好，是「不说格式时」的默认假设。</div></div>
+    <div class="fmt-card t-lj reveal"><div class="fh"><span class="tag">LJ</span><h4>左对齐</h4><span class="en">LEFT-JUSTIFIED</span></div><div id="svgLJ"></div>
+      <div class="fb"><b>MSB 与 WS 边沿严格对齐</b>，没有那 1 拍延迟。省掉一个时钟、更简单，很多 DAC 的原生格式。与标准 I²S <b>仅差 1 BCK</b>——听感却是「满噪声」。</div></div>
+    <div class="fmt-card t-rj reveal"><div class="fh"><span class="tag">RJ</span><h4>右对齐</h4><span class="en">RIGHT-JUSTIFIED</span></div><div id="svgRJ"></div>
+      <div class="fb"><b>LSB 对齐槽位末端</b>，数据靠右停放，前面补 0。当字长 = 槽宽时与左对齐完全相同；较少见，部分老 Codec 支持。</div></div>
+    <div class="fmt-card t-dsp reveal"><div class="fh"><span class="tag">DSP</span><h4>DSP / PCM 模式</h4><span class="en">TDM READY</span></div><div id="svgDSP"></div>
+      <div class="fb">WS 变成<b>仅 1 个 BCK 宽的帧同步脉冲</b>，脉冲后紧跟数据，没有「左右」概念——通道按时隙依次排开。TDM 多通道共享总线（2/4/8 声道）都基于它。</div></div>
+  </div>
+  <div class="fmt-note reveal">
+    <b>致命细节：</b>主控与 Codec 的格式必须一致。配置里叫 <code>I2S / LJ / RJ / DSP / PCM</code>（STM32）、
+    <code>Standard / MSB / LSB</code>（ESP-IDF）、<code>fmt</code>（Linux ASoC）。错配的典型症状：满「沙沙」噪声、
+    音量减半、直流偏移，或左右声道互换。若双方格式寄存器都有，逐项核对「延迟几个 BCK + 对齐方向」。
+  </div>
+</section>
+
+<!-- ================= §05 ================= -->
+<section id="s5">
+  <div class="sec-head reveal"><span class="no">05</span><h2>主从模式 · 谁给时钟谁说了算</h2><span class="en">Master / Slave</span></div>
+  <p class="sec-sub reveal">I²S 里「主机」的定义极其朴素：<b>谁输出 BCK 和 WS，谁就是主机</b>。SD 的方向与主从身份无关。</p>
+  <div class="ms-grid">
+    <div class="ms-diagram reveal" id="msDiagram"></div>
+    <div class="arch-cards reveal">
+      <div class="arch">
+        <h5><span class="b">架构 A</span>MCU 做主机</h5>
+        <p>MCU 的 I²S 外设产生 BCK/WS，Codec 只听令。最常见于嵌入式：<span>ESP32、STM32、树莓派</span> 驱动 ES8388 等小板。
+        MCU 若无 MCLK 引脚，可用 <b>PLL 或独立晶振</b>喂给 Codec。</p>
+      </div>
+      <div class="arch">
+        <h5><span class="b">架构 B</span>Codec 做主机</h5>
+        <p>USB 音频解码器、蓝牙模块常用：专用音频芯片自产自销 BCK/WS，<b>MCU 退化为从机</b>只收发数据。
+        好处是时钟抖动（jitter）更小，DAC 信噪比更高。</p>
+      </div>
+      <div class="arch">
+        <h5><span class="b">铁律</span>一总线一主机</h5>
+        <p>两边都当主机 = 时钟打架，波形畸变；两边都当从机 = 总线死寂无声。调试「完全没声」时<b>先用示波器看 BCK 是否在跳</b>、再看方向对不对。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= §06 ================= -->
+<section id="s6">
+  <div class="sec-head reveal"><span class="no">06</span><h2>时钟计算器</h2><span class="en">Clock Math</span></div>
+  <p class="sec-sub reveal">所有时钟都从采样率 fs 推出来。选一选，算一算——配置寄存器前先在心里过一遍这套乘法。</p>
+  <div class="calc reveal">
+    <div class="inputs">
+      <h5>INPUT · 输入</h5>
+      <div class="field"><label>采样率 fs（每秒帧数 = 每秒左右声道对数）</label>
+        <select id="cFs">
+          <option value="8000">8 kHz · 电话</option>
+          <option value="16000">16 kHz · 语音</option>
+          <option value="22050">22.05 kHz · 半 CD</option>
+          <option value="32000">32 kHz · miniDV</option>
+          <option value="44100" selected>44.1 kHz · CD</option>
+          <option value="48000">48 kHz · 专业/视频</option>
+          <option value="96000">96 kHz · Hi-Res</option>
+          <option value="192000">192 kHz · Hi-Res+</option>
+        </select>
+      </div>
+      <div class="field"><label>槽宽 slot（每声道比特数）</label>
+        <select id="cSlot">
+          <option value="16">16 bit</option>
+          <option value="24">24 bit</option>
+          <option value="32" selected>32 bit</option>
+        </select>
+      </div>
+    </div>
+    <div class="outputs">
+      <h5>OUTPUT · 输出</h5>
+      <div class="out-row big"><span class="ok">BCK 位时钟<small>BIT CLOCK</small></span><span class="ov" id="oBck">2.822<small>MHz</small></span></div>
+      <div class="out-row"><span class="ok">WS 帧时钟 = fs<small>WORD SELECT</small></span><span class="ov" id="oWs">44.1<small>kHz</small></span></div>
+      <div class="out-row"><span class="ok">MCLK（256×fs）<small>MASTER CLOCK</small></span><span class="ov" id="oMck">11.289<small>MHz</small></span></div>
+      <div class="out-row"><span class="ok">有效数据速率 ×2ch<small>PAYLOAD</small></span><span class="ov" id="oData">1.411<small>Mbps</small></span></div>
+    </div>
+    <div class="calc-formula">BCK = fs × slot × 2 = <b id="fExpr">44100 × 32 × 2</b> → 每帧（L+R）共 <b id="fFrame">64</b> 个 BCK 周期</div>
+  </div>
+</section>
+
+<!-- ================= §07 Linux ================= -->
+<section id="s7">
+  <div class="sec-head reveal"><span class="no">07</span><h2>Linux 上的 I2S · 命令实战</h2><span class="en">Linux Cheat Sheet</span></div>
+  <p class="sec-sub reveal">
+    树莓派和绝大多数嵌入式 ARM Linux 的 I2S 都由 <b>ALSA / ASoC</b> 子系统管理：数据面（本页 03 节的波形）走 I2S 驱动，
+    控制面（音量、格式寄存器）走 I2C——正好对应 01 节「控制平面与数据平面分离」。
+    <b>点击任意命令行即可复制。</b>（以下在树莓派 / 通用嵌入式 Linux 上适用；桌面 x86 的板载声卡一般不走 I2S。）
+  </p>
+  <div class="term-grid">
+    <div class="term reveal">
+      <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span>ls — 你的 I2S 声卡在哪</span></div>
+      <div class="term-body">
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="aplay -l">aplay -l</code><span class="t-cmt">          # 列出播放设备</span></div>
+        <div class="t-out">card 1: VoiceHat [snd_rpi_googlevoice_hat], device 0</div>
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="arecord -l">arecord -l</code><span class="t-cmt">         # 列出录音设备</span></div>
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="cat /proc/asound/cards">cat /proc/asound/cards</code><span class="t-cmt"> # 声卡总览</span></div>
+        <div class="t-out"> 0 [HDMI    ]: hdmi - HDMI Audio</div>
+        <div class="t-hl"> 1 [VoiceHat]: snd_rpi_googlevoice_hat - Voice Hat</div>
+      </div>
+    </div>
+    <div class="term reveal">
+      <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span>play / rec — 数据面收发</span></div>
+      <div class="term-body">
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="speaker-test -c 2 -r 48000 -D plughw:CARD=1">speaker-test -c 2 -r 48000 -D plughw:CARD=1</code></div>
+        <div class="t-cmt">  # 轮流报 "front left / front right" —— 验证 WS 左右声道是否正确</div>
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="aplay -D plughw:CARD=1 test48k.wav">aplay -D plughw:CARD=1 test48k.wav</code></div>
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="arecord -D hw:1,0 -f S16_LE -r 48000 -c 2 rec.wav">arecord -D hw:1,0 -f S16_LE -r 48000 -c 2 rec.wav</code></div>
+        <div class="t-cmt">  # -f S16_LE / S24_LE / S32_LE ←→ 03 节的「字长」</div>
+      </div>
+    </div>
+    <div class="term reveal">
+      <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span>hw_params — 验证协议参数</span></div>
+      <div class="term-body">
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="cat /proc/asound/card1/pcm0p/sub0/hw_params">cat /proc/asound/card1/pcm0p/sub0/hw_params</code></div>
+        <div class="t-out">status: RUNNING</div>
+        <div class="t-out">format: <span class="t-hl">S32_LE</span>     ← 字长 / 槽宽 32 bit</div>
+        <div class="t-out">rate: <span class="t-hl">48000</span> (48.000 kHz)</div>
+        <div class="t-out">channels: 2</div>
+        <div class="t-hl">→ BCK = 48000 × 32 × 2 = 3.072 MHz，拿示波器对！</div>
+      </div>
+    </div>
+    <div class="term reveal">
+      <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span>amixer — 控制面走 I2C</span></div>
+      <div class="term-body">
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="alsamixer -c 1">alsamixer -c 1</code><span class="t-cmt">              # 交互调音量（= I2C 写 codec 寄存器）</span></div>
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="amixer -c 1 scontrols">amixer -c 1 scontrols</code><span class="t-cmt">        # 列出该 codec 的控件</span></div>
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="amixer -c 1 cset name='Master Playback Volume' 80%">amixer -c 1 cset name='Master Playback Volume' 80%</code></div>
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="i2cdetect -y 1">i2cdetect -y 1</code><span class="t-cmt">           # 扫 I2C 总线找 codec 地址</span></div>
+        <div class="t-out">     0  1  2  …  f</div>
+        <div class="t-out">10: <span class="t-hl">10</span> -- -- -- -- -- --   # 0x10=ES8388 · 0x1A=WM8978 · 0x0A=SGTL5000</div>
+      </div>
+    </div>
+    <div class="term reveal">
+      <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span>树莓派 — 启用 I2S 接口</span></div>
+      <div class="term-body">
+        <div class="t-cmt"># /boot/firmware/config.txt（旧系统在 /boot/config.txt）</div>
+        <div><span class="t-tag">dtparam=i2s=on</span></div>
+        <div><span class="t-tag">dtoverlay=googlevoicehat-soundcard</span></div>
+        <div class="t-cmt"># 其他常见 I2S 声卡 overlay：</div>
+        <div class="t-cmt">#   dtoverlay=hifiberry-dac</div>
+        <div class="t-cmt">#   dtoverlay=adafruit-max98357a</div>
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="sudo reboot">sudo reboot</code></div>
+      </div>
+    </div>
+    <div class="term reveal">
+      <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span>dmesg — 出问题先看内核日志</span></div>
+      <div class="term-body">
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="dmesg | grep -iE 'asoc|i2s|snd|es8388'">dmesg | grep -iE 'asoc|i2s|snd|es8388'</code></div>
+        <div class="t-out">[    3.812345] es8388 1-0010: ASoC: codec registered</div>
+        <div class="t-out">[    3.820001] snd-es8388 es8388-card: card registered</div>
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="cat /proc/asound/card1/pcm0p/sub0/status">cat /proc/asound/card1/pcm0p/sub0/status</code></div>
+        <div class="t-out">state: RUNNING   xrun: <span class="t-hl">0</span>   # 欠载计数，爆音/断音时增长</div>
+      </div>
+    </div>
+    <div class="term wide reveal">
+      <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span>DTS — 自定义声卡：simple-audio-card</span></div>
+      <div class="term-body">
+        <div class="t-cmt">/* 设备树片段：把 SoC 的 I2S 控制器与 codec 绑成一张声卡（板级 .dts 或 overlay）*/</div>
+        <div class="t-tag">&amp;i2s1</div><div class="t-out"> { status = "okay"; };</div>
+        <div class="t-out">sound {</div>
+        <div class="t-out">    compatible = "simple-audio-card";</div>
+        <div class="t-out">    simple-audio-card,name = "ES8388-Card";</div>
+        <div class="t-out">    simple-audio-card,format = <span class="t-hl">"i2s"</span>;          /* i2s | left_j | right_j | dsp_a | dsp_b ←→ 04 节四种格式 */</div>
+        <div class="t-out">    simple-audio-card,bitclock-master = <span class="t-hl">&lt;&amp;cpu_dai&gt;</span>;  /* 谁给 BCK 谁是主机 ←→ 05 节 */</div>
+        <div class="t-out">    simple-audio-card,frame-master    = <span class="t-hl">&lt;&amp;cpu_dai&gt;</span>;  /* WS 同上 */</div>
+        <div class="t-out">    simple-audio-card,cpu   { sound-dai = &lt;&amp;i2s1&gt;; };</div>
+        <div class="t-out">    simple-audio-card,codec { sound-dai = &lt;&amp;es8388&gt;; };</div>
+        <div class="t-out">};</div>
+      </div>
+    </div>
+  </div>
+  <div class="lnx-note reveal">
+    <b>两个高频坑：</b>① 设备树 <code>format</code> 与 codec 驱动里的格式不一致，就是 09 节的「沙沙噪声」在 Linux 下的样子；
+    ② ALSA 常用 <code>S32_LE</code> 做容器——系统以 32 拍槽传 16 位有效数据（03 节动画的常见配置），
+    <code>hw_params</code> 里看到 32 不代表音源真是 32 位。自定义声卡建议先用 <code>simple-audio-card</code> 通用绑定，
+    复杂时钟拓扑再考虑 <code>audio-graph-card</code> 或写原生 machine driver。
+  </div>
+</section>
+
+<!-- ================= §08 调试指南 ================= -->
+<section id="s8">
+  <div class="sec-head reveal"><span class="no">08</span><h2>调试指南 · Linux / Android</h2><span class="en">Debug Flow</span></div>
+  <p class="sec-sub reveal">
+    出问题时别乱试参数——<b>按证据推进</b>：每一步验证通过再进下一步，六步之内必能锁定故障层。
+    点击下面的步骤，查看该步骤在 <b>Linux（ALSA）</b> 与 <b>Android（tinyalsa / adb）</b> 上的对应操作。
+  </p>
+  <div class="dbg-steps reveal" id="dbgSteps"></div>
+  <div class="dbg-panel reveal">
+    <div class="dbg-verdict" id="dbgVerdict"></div>
+    <div class="dbg-cols">
+      <div class="term">
+        <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span id="dbgTitleL">LINUX</span></div>
+        <div class="term-body" id="dbgBodyL"></div>
+      </div>
+      <div class="term">
+        <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span id="dbgTitleA">ANDROID</span></div>
+        <div class="term-body" id="dbgBodyA"></div>
+      </div>
+    </div>
+  </div>
+  <table class="eq-table reveal">
+    <tr><th>任务</th><th>Linux（ALSA）</th><th>Android（tinyalsa / adb）</th></tr>
+    <tr><td>播放 WAV</td><td><code>aplay -D plughw:CARD=1 t.wav</code></td><td><code>adb shell tinyplay /sdcard/t.wav -D 0 -d 0</code></td></tr>
+    <tr><td>录音</td><td><code>arecord -D hw:1,0 -f S16_LE -r 48000 -c 2 r.wav</code></td><td><code>adb shell tinycap /sdcard/r.wav -D 0 -d 0 -c 2 -r 48000 -b 16</code></td></tr>
+    <tr><td>调 codec 控件</td><td><code>amixer -c 1 cset name='…' 80%</code></td><td><code>adb shell tinymix -D 0 set '…' 84</code></td></tr>
+    <tr><td>看运行参数</td><td><code>cat /proc/asound/…/hw_params</code></td><td><code>adb shell dumpsys media.audio_flinger</code></td></tr>
+    <tr><td>列设备 / 能力</td><td><code>aplay -l</code> · <code>aplay -L</code></td><td><code>adb shell ls /dev/snd</code> · <code>tinypcminfo -D 0 -d 0</code></td></tr>
+    <tr><td>看日志</td><td><code>dmesg | grep -i snd</code></td><td><code>adb logcat -s AudioFlinger audio_hw_primary audioserver</code></td></tr>
+  </table>
+  <div class="and-note reveal">
+    <b>Android 特有的四个坑：</b>
+    ① <b>权限</b>：正式版（user）没有 root，dmesg / 部分 /proc 不可读，调试请用 userdebug 版（<code>adb root</code>）；
+    ② <b>SELinux</b>：<code>avc: denied</code> 打不开 <code>/dev/snd/*</code> 时，改的是 sepolicy 而不是设备权限位；
+    ③ <b>三层配置</b>：内核 DTS 的 format ↔ <code>/vendor/etc/audio_policy_configuration.xml</code>（mixPort 的 format/samplingRates）↔ <code>mixer_paths*.xml</code>（QCOM 路由），任何一层不一致都会「沙沙噪声」；
+    ④ <b>audioserver 崩溃循环</b>：<code>logcat -s audioserver</code> 看崩点，多半是 HAL <code>.so</code> 与平台不匹配。
+  </div>
+</section>
+
+<!-- ================= §09 ================= -->
+<section id="s9">
+  <div class="sec-head reveal"><span class="no">09</span><h2>踩坑指南 · 症状 → 病因</h2><span class="en">Troubleshooting</span></div>
+  <p class="sec-sub reveal">调 I²S 的时间几乎都花在下面这些地方。按症状对号入座。</p>
+  <div class="pit-list reveal">
+    <div class="pit"><div class="symptom">左右<br>互换</div><div class="fix"><b>WS 极性反了 / 格式错位 1 bit</b><p>声像颠倒多半是 WS 高低电平定义对调，或 LJ↔I²S 错配导致数据窗偏移了一拍。检查 <code>WS 极性</code>（有的驱动叫 <code>ws_polarity</code>）与格式寄存器。</p></div></div>
+    <div class="pit"><div class="symptom">沙沙<br>噪声</div><div class="fix"><b>数据格式不匹配（头号原因）</b><p>I²S vs LJ 只差 1 个 BCK，人耳听就是持续白噪。逐一核对：<code>格式</code> / <code>MSB-LSB 顺序</code> / <code>槽宽 vs 字长</code> 三项，主控和 Codec 两边都要对。</p></div></div>
+    <div class="pit"><div class="symptom">完全<br>无声</div><div class="fix"><b>没人产生时钟 / 主从冲突</b><p>示波器先看 <code>BCK</code>、<code>WS</code> 有没有波形、方向对不对。两边都配成从机总线就是死的；两边都当主机会电平打架。别忘了部分 Codec 需要 <code>MCLK</code> 才肯启动。</p></div></div>
+    <div class="pit"><div class="symptom">变调<br>加速</div><div class="fix"><b>BCK 与 fs 不匹配</b><p>播放「快进小嗓门」= 每帧实际比特数和接收方预期不一致（比如 32 槽被配成 16 槽）。用 06 节公式核对 <code>BCK = fs × slot × 2</code>。</p></div></div>
+    <div class="pit"><div class="symptom">量化<br>噪声</div><div class="fix"><b>字长被截断</b><p>24-bit 音源塞进 16-bit 槽，只把低 16 位发出去了——高 8 位动态全丢。确认 <code>字长 word length</code> 与数据移位方向。</p></div></div>
+    <div class="pit"><div class="symptom">SNR<br>打折</div><div class="fix"><b>时钟抖动 &amp; 走线</b><p>BCK/MCLK 的 jitter 直接换算成 DAC 底噪。时钟线短而等长、远离开关电源；必要时让更靠近晶振的一方做主机。</p></div></div>
+    <div class="pit"><div class="symptom">时好<br>时坏</div><div class="fix"><b>没共地 / 电平不匹配</b><p>I²S 只在 3.3V（老器件 5V）同电平间直连；跨电平要电平转换。共地是前提——「偶尔爆音」八成是地弹。</p></div></div>
+  </div>
+</section>
+
+<footer>
+  <div class="f-l">
+    <b>参考</b> · NXP UM10204《I²S bus specification》(rev.6, 1996) · SparkFun「I²S Audio」教程 · Linux ASoC 文档<br>
+    本页为单文件交互式图解，可离线打开 · 波形由浏览器实时渲染
+  </div>
+  <div class="f-r">I²S<sup>※</sup></div>
+</footer>
+</main>
+
+<script>
+/* ================================================================
+   I²S 交互引擎 —— 所有波形共用一个模型：
+   t 以 BCK 周期为单位连续增长（浮点相位）。
+   约定：BCK 在整数 t 处为上升沿，t+0.5 处为下降沿。
+   WS 与 SD 在下降沿切换：周期 i 的电平覆盖 [i-0.5, i+0.5)。
+   接收端在上升沿（整数 t）锁存周期 i = dataBit(i)。
+================================================================ */
+const CFG = { fmt:'i2s', W:16, slot:32 };
+const SLOT = 32, FRAME = 64;                 // 槽宽固定 32 BCK（常见配置），字长可选
+const COL  = { bck:'#34e08a', ws:'#ffb02e', sd:'#57d8f2', red:'#ff6478', grid:'rgba(52,224,138,.07)', grid2:'rgba(52,224,138,.16)' };
+
+/* 发送端当前帧的采样值：正弦——让"音频"肉眼可见 */
+function sampleFor(frame, slot, W){
+  const amp = Math.pow(2, W-1) - 1;          // 2**  避免 W=32 时 1<<31 溢出为负
+  return slot === 0
+    ? Math.round(Math.sin(2*Math.PI*frame/48) * 0.82 * amp)
+    : Math.round(Math.sin(2*Math.PI*frame/120 + 0.9) * 0.38 * amp);
+}
+/* 格式 → 数据窗在槽内的右移量（BCK 数）。
+   I²S/DSP 右移 1 拍：字长=槽宽时数据整体跨槽边界，仍完整不丢位 */
+function dataDelay(){ return CFG.fmt==='i2s'||CFG.fmt==='dsp' ? 1 : CFG.fmt==='lj' ? 0 : SLOT - CFG.W; }
+/* 周期 i 上 SD 的电平（含 padding 0）：先按延迟平移坐标，再拆声道/位 */
+function sdBit(i){
+  const d = dataDelay(), W = CFG.W;
+  const q = (((i - d) % FRAME) + FRAME) % FRAME;
+  const slot = q < SLOT ? 0 : 1, pos = q % SLOT;
+  if (pos >= W) return 0;
+  return (sampleFor(Math.floor((i - d) / FRAME), slot, W) >> (W-1-pos)) & 1;
+}
+/* 周期 i 上 WS 的电平（DSP：帧首 1 个 BCK 的脉冲） */
+function wsLevel(i){
+  const p = ((i % FRAME) + FRAME) % FRAME;
+  if (CFG.fmt === 'dsp') return p === 0 ? 1 : 0;
+  return p < SLOT ? 0 : 1;                   // 低=左 高=右
+}
+const dspAlign = () => CFG.fmt === 'dsp' ? 0 : -0.5;  // DSP 的 WS 贴上升沿，其余贴下降沿
+
+/* ---------------- Scope 类：一块画布一份配置 ---------------- */
+const scopes = [];
+class Scope{
+  constructor(canvas, opts){
+    this.cv = canvas; this.o = Object.assign({
+      signals:['bck','ws','sd'], faint:[], pb:14, speed:26,
+      labels:true, probe:false, glow:false, bands:true, bitLabels:false,
+      onFrame: null, decode:null
+    }, opts);
+    this.phase = 40; this.paused = false; this.lastN = null;
+    this.ctx = canvas.getContext('2d');
+    new ResizeObserver(()=>this.resize()).observe(canvas.parentElement);
+    this.resize();
+    scopes.push(this);
+  }
+  resize(){
+    const r = this.cv.parentElement.getBoundingClientRect();
+    const dpr = Math.min(devicePixelRatio||1, 2);
+    this.w = Math.max(300, r.width); this.h = this.o.height || this.cv.clientHeight || 118;
+    this.cv.width = this.w*dpr; this.cv.height = this.h*dpr;
+    this.cv.style.height = this.h+'px';
+    this.ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  layout(){ // 每个信号的行几何
+    const n = this.o.signals.length, pad = 14, top = this.o.bands ? 26 : 8, bot = this.o.bitLabels ? 30 : 12;
+    const rowH = (this.h - top - bot) / n, amp = rowH*0.30;
+    return this.o.signals.map((k,idx)=>({ key:k,
+      y0: top + rowH*idx + rowH/2, amp: this.o.faint.includes(k)? amp*0.8 : amp }));
+  }
+  xOf(t){ return (t - this.phase) * this.o.pb; }
+  update(dt){
+    if (!this.paused) this.phase += this.o.speed * dt;
+    if (this.o.onFrame) this.o.onFrame(this);
+  }
+  draw(){
+    const c = this.ctx, w = this.w, h = this.h, pb = this.o.pb;
+    const t0 = this.phase, t1 = t0 + w/pb;
+    c.clearRect(0,0,w,h);
+    /* 声道背景带 */
+    if (this.o.bands){
+      for (let f = Math.floor((t0-2)/FRAME); f <= Math.floor(t1/FRAME)+1; f++)
+        for (let s = 0; s < 2; s++){
+          const a = dspAlign();
+          const x1 = Math.max(0, this.xOf(f*FRAME + s*SLOT + a));
+          const x2 = Math.min(w, this.xOf(f*FRAME + (s+1)*SLOT + a));
+          if (x2 <= 0 || x1 >= w) continue;
+          c.fillStyle = s===0 ? 'rgba(52,224,138,.045)' : 'rgba(87,216,242,.05)';
+          c.fillRect(x1, 22, x2-x1, h-22-8);
+          if (x2-x1 > 60){
+            c.font = '600 10px "IBM Plex Mono"';
+            c.textAlign = 'center'; c.fillStyle = s===0 ? 'rgba(52,224,138,.55)' : 'rgba(87,216,242,.55)';
+            c.fillText(CFG.fmt==='dsp' ? (s?'CH 2':'CH 1') : (s?'RIGHT':'LEFT'), (x1+x2)/2, 15);
+          }
+        }
+    }
+    /* 网格：每 BCK 一条淡线，帧边界一条亮线 */
+    if (pb >= 7){
+      for (let i = Math.ceil(t0); i < t1; i++){
+        const x = this.xOf(i);
+        c.strokeStyle = (((i%FRAME)+FRAME)%FRAME===0) ? COL.grid2 : COL.grid;
+        c.lineWidth = 1; c.beginPath(); c.moveTo(x+.5, 20); c.lineTo(x+.5, h-8); c.stroke();
+      }
+    }
+    /* 波形 */
+    const rows = this.layout();
+    const isFaint = k => this.o.faint.includes(k);
+    for (const r of rows){
+      const yHi = r.y0 - r.amp, yLo = r.y0 + r.amp;
+      const col = r.key==='bck'?COL.bck : r.key==='ws'?COL.ws : COL.sd;
+      c.strokeStyle = col; c.lineWidth = isFaint(r.key)?1.2:2;
+      c.globalAlpha = isFaint(r.key)? .28 : 1;
+      if (this.o.glow && !isFaint(r.key)){ c.shadowColor = col; c.shadowBlur = 9; }
+      c.beginPath();
+      let px = null, py = null;
+      const i0 = Math.floor(t0) - 2, i1 = Math.ceil(t1) + 2;
+      for (let i = i0; i <= i1; i++){
+        if (r.key === 'bck'){                      // 高半周期 + 低半周期
+          const segs = [[i, i+0.5, yHi],[i+0.5, i+1, yLo]];
+          for (const [a,b,y] of segs){
+            const xa = this.xOf(a), xb = this.xOf(b);
+            if (px === null){ c.moveTo(xa,y); } else if (py !== y){ c.lineTo(xa,y); } // 竖直沿
+            c.lineTo(xb,y); px = xb; py = y;
+          }
+        } else {
+          const a = r.key==='ws' ? dspAlign() : -0.5;
+          const lv = r.key==='ws' ? wsLevel(i) : sdBit(i);
+          const y = lv ? yHi : yLo;
+          const xa = this.xOf(i+a), xb = this.xOf(i+1+a);
+          if (px === null){ c.moveTo(xa,y); } else if (py !== y){ c.lineTo(xa,y); }
+          c.lineTo(xb,y); px = xb; py = y;
+        }
+      }
+      c.stroke(); c.shadowBlur = 0; c.globalAlpha = 1;
+      /* 左侧信号名 */
+      if (this.o.labels){
+        c.fillStyle = 'rgba(7,11,9,.88)'; c.fillRect(0, r.y0-9, 64, 18);
+        c.font = '600 11px "IBM Plex Mono"'; c.textAlign = 'left'; c.fillStyle = col;
+        const nm = {bck:'BCK',ws:'WS',sd:'SD'}[r.key];
+        c.fillText(nm, 8, r.y0+4);
+        c.fillStyle = 'rgba(140,162,148,.7)'; c.font = '9px "IBM Plex Mono"';
+        c.fillText({bck:'位时钟',ws:'字选择',sd:'串行数据'}[r.key], 34, r.y0+4);
+      }
+    }
+    /* 位标注（主图） */
+    if (this.o.bitLabels && pb >= 11){
+      const s = dataDelay(), W = CFG.W, yb = h - 12;
+      c.font = '10px "IBM Plex Mono"'; c.textAlign = 'center';
+      for (let f = Math.floor(t0/FRAME)-1; f <= Math.floor(t1/FRAME)+1; f++)
+        for (let slot = 0; slot < 2; slot++)
+          for (let b = 0; b < W; b++){
+            const cyc = f*FRAME + slot*SLOT + s + b;
+            const x = this.xOf(cyc + 0.5);
+            if (x < -20 || x > w+20) continue;
+            const bitNo = W-1-b;
+            if (b===0){ c.fillStyle = COL.sd; c.fillText('MSB', x, yb); }
+            else if (b===W-1){ c.fillStyle = COL.sd; c.fillText('LSB', x, yb); }
+            else if (bitNo % 8 === 0 && pb >= 15){ c.fillStyle = 'rgba(87,216,242,.5)'; c.fillText('B'+bitNo, x, yb); }
+            else if (b % 4 === 0){ c.fillStyle = 'rgba(87,216,242,.35)'; c.fillRect(x-.5, yb+5, 1, 4); }
+          }
+    }
+    /* 探针 + 采样沿标记 */
+    if (this.o.probe){
+      const xp = w * 0.62, tp = t0 + xp/pb, n = Math.round(tp);
+      c.strokeStyle = COL.red; c.lineWidth = 1; c.setLineDash([5,4]);
+      c.beginPath(); c.moveTo(xp+.5, 20); c.lineTo(xp+.5, h-6); c.stroke(); c.setLineDash([]);
+      c.fillStyle = COL.red; c.font = '600 9px "IBM Plex Mono"'; c.textAlign = 'left';
+      c.fillText('PROBE', xp+6, 30);
+      const xe = this.xOf(n);   // 最近上升沿
+      for (const r of rows){
+        c.beginPath(); c.arc(xe, r.y0 + (r.key==='bck'? -r.amp : (r.key==='ws'?wsLevel(n):sdBit(n)) ? -r.amp : r.amp), 3.2, 0, 7);
+        c.fillStyle = COL.red; c.fill();
+      }
+      c.fillStyle = 'rgba(255,100,120,.85)'; c.font = '9px "IBM Plex Mono"'; c.textAlign = 'center';
+      c.fillText('↑ 采样沿', xe, h-4 < 30 ? h-4 : 24);
+      /* 更新读出 */
+      this.updateReadout(n);
+      this.detectFrames(n);
+    }
+  }
+  updateReadout(n){
+    if (!this.o.readout) return;
+    const W = CFG.W, d = dataDelay();
+    const q = (((n - d) % FRAME) + FRAME) % FRAME;
+    const slot = q < SLOT ? 0 : 1, pos = q % SLOT;
+    const ws = wsLevel(n);
+    document.getElementById('rWs').textContent = CFG.fmt==='dsp' ? (ws?'帧同步':'CH'+(slot+1)) : (ws?'RIGHT →':'← LEFT');
+    document.getElementById('rEdge').textContent = '↑ #' + n;
+    const el = document.getElementById('rBit');
+    if (pos < W){ el.textContent = 'B'+(W-1-pos)+' · '+sdBit(n); el.style.color = sdBit(n)?'var(--cyan)':'var(--faint)'; }
+    else { el.textContent = 'padding · 0'; el.style.color='var(--faint)'; }
+    const fr = Math.floor((n - d) / FRAME);
+    const hex = (v,len)=>{ const h = (v<0? (v>>>0).toString(16) : v.toString(16)).toUpperCase().padStart(len,'0'); return '0x'+h; };
+    document.getElementById('rL').textContent = hex(sampleFor(fr,0,W), Math.ceil(W/4));
+    document.getElementById('rR').textContent = hex(sampleFor(fr,1,W), Math.ceil(W/4));
+  }
+  detectFrames(n){
+    if (this.lastN === null){ this.lastN = n; return; }
+    const d = dataDelay();
+    for (let c = this.lastN+1; c <= n; c++){          // 高速时可能跳过多个周期
+      const q = (((c - d) % FRAME) + FRAME) % FRAME;
+      if (q % SLOT === CFG.W - 1){                    // 该周期锁存的是本字 LSB
+        const slot = q < SLOT ? 0 : 1;
+        const fr = Math.floor((c - d) / FRAME);
+        if (this.o.decode) this.o.decode(fr, slot, sampleFor(fr, slot, CFG.W));
+      }
+    }
+    this.lastN = n;
+  }
+}
+
+/* ---------------- 解码器输出（小示波器） ---------------- */
+const decodeBuf = { L:[], R:[] };
+const dcv = document.getElementById('decodeScope'), dctx = dcv.getContext('2d');
+function pushDecode(fr, slot, v){
+  const b = slot===0 ? decodeBuf.L : decodeBuf.R;
+  b.push(v); if (b.length > 90) b.shift();
+}
+function drawDecode(){
+  const dpr = Math.min(devicePixelRatio||1,2);
+  const w = dcv.clientWidth || 220, h = 86;
+  if (dcv.width !== w*dpr){ dcv.width = w*dpr; dcv.height = h*dpr; }
+  dctx.setTransform(dpr,0,0,dpr,0,0);
+  dctx.clearRect(0,0,w,h);
+  dctx.strokeStyle = 'rgba(52,224,138,.12)'; dctx.lineWidth = 1;
+  dctx.beginPath(); dctx.moveTo(0,h/2+.5); dctx.lineTo(w,h/2+.5); dctx.stroke();
+  const amp = (Math.pow(2, CFG.W-1)) * 0.92;
+  [[decodeBuf.L,'rgba(52,224,138,.95)',2],[decodeBuf.R,'rgba(87,216,242,.5)',1.4]].forEach(([buf,col,lw])=>{
+    if (buf.length < 2) return;
+    dctx.strokeStyle = col; dctx.lineWidth = lw; dctx.beginPath();
+    buf.forEach((v,i)=>{
+      const x = i/(90-1)*w, y = h/2 - (v/amp)*(h/2-6);
+      i ? dctx.lineTo(x,y) : dctx.moveTo(x,y);
+    });
+    dctx.stroke();
+  });
+  dctx.font = '9px "IBM Plex Mono"'; dctx.fillStyle = 'rgba(140,162,148,.6)';
+  dctx.fillText('L', 5, 12); dctx.fillStyle = 'rgba(87,216,242,.5)'; dctx.fillText('R', 5, 24);
+}
+
+/* ---------------- 实例化各画布 ---------------- */
+const heroScope = new Scope(document.getElementById('heroScope'),
+  { signals:['bck','ws','sd'], pb:11, speed:34, labels:false, bands:false, glow:true, height:118 });
+document.querySelectorAll('[data-scope]').forEach(cv=>{
+  const kind = cv.dataset.scope;
+  const cfgs = {
+    bck: { signals:['bck'], pb:18, speed:46, labels:false, bands:false, height:84 },
+    ws : { signals:['bck','ws'], faint:['bck'], pb:26, speed:9, labels:false, bands:false, height:84 },
+    sd : { signals:['sd'], pb:9, speed:30, labels:false, bands:false, height:84 },
+    mck: { signals:['bck'], pb:7, speed:60, labels:false, bands:false, height:84 },
+  }[kind];
+  new Scope(cv, cfgs);
+});
+const mainScope = new Scope(document.getElementById('mainScope'),
+  { signals:['bck','ws','sd'], pb:14, speed:26, labels:true, bands:true, probe:true,
+    bitLabels:true, glow:true, height:360, readout:true, decode:pushDecode });
+
+/* ---------------- 主循环 ---------------- */
+let lastT = performance.now();
+function loop(now){
+  const dt = Math.min((now-lastT)/1000, .1); lastT = now;
+  try {
+    for (const s of scopes){ s.update(dt); s.draw(); }
+    drawDecode();
+  } catch (err) {                      // 单帧异常不应杀死整个动画循环
+    if (!window.__i2sLoopErr){ window.__i2sLoopErr = String(err && err.stack || err); console.error(err); }
+  }
+  requestAnimationFrame(loop);
+}
+const playBtn0 = document.getElementById('playBtn');
+function setPlay0(p){ mainScope.paused = !p; playBtn0.textContent = p ? '❚❚' : '▶'; playBtn0.classList.toggle('on', p); }
+if (matchMedia('(prefers-reduced-motion: reduce)').matches){ setPlay0(false); }  // 同步按钮初始状态
+requestAnimationFrame(loop);
+
+/* ---------------- 控件 ---------------- */
+function bindSeg(id, attr, fn){
+  const seg = document.getElementById(id);
+  seg.addEventListener('click', e=>{
+    const b = e.target.closest('button'); if (!b) return;
+    seg.querySelectorAll('button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on'); fn(b.dataset[attr]);
+  });
+}
+bindSeg('fmtSeg','fmt', v=>{ CFG.fmt = v; decodeBuf.L.length = decodeBuf.R.length = 0; });
+bindSeg('wSeg','w',   v=>{ CFG.W = +v; decodeBuf.L.length = decodeBuf.R.length = 0; });
+const speedInput = document.getElementById('speed');
+speedInput.addEventListener('input', ()=>{ mainScope.o.speed = +speedInput.value; });
+const playBtn = document.getElementById('playBtn');
+playBtn.addEventListener('click', ()=> setPlay0(mainScope.paused));
+document.addEventListener('keydown', e=>{
+  if (e.code === 'Space' && !/INPUT|SELECT|BUTTON/.test(document.activeElement.tagName)){
+    e.preventDefault(); setPlay0(mainScope.paused);
+  }
+});
+document.getElementById('zoomIn').addEventListener('click', ()=>{ mainScope.o.pb = Math.min(26, mainScope.o.pb+3); });
+document.getElementById('zoomOut').addEventListener('click', ()=>{ mainScope.o.pb = Math.max(7, mainScope.o.pb-3); });
+
+/* ---------------- §04 静态格式图（SVG 生成） ---------------- */
+function fmtSVG(fmt){
+  const S=32, W=16, pb=15, x0=86, cyc=66;                 // 两个完整帧 + 2
+  const start = fmt==='i2s'||fmt==='dsp' ? 1 : fmt==='lj' ? 0 : S-W;
+  const yB=44,yW=100,yD=158, amp=17, H=214;
+  let s = `<svg viewBox="0 0 ${x0+cyc*pb+8} ${H}" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono,monospace">`;
+  /* 网格 */
+  for (let i=0;i<=cyc;i++){
+    const x = x0+i*pb;
+    s += `<line x1="${x}" y1="16" x2="${x}" y2="${H-14}" stroke="${i%32===0&&i>0?'rgba(52,224,138,.18)':'rgba(52,224,138,.07)'}"/>`;
+  }
+  /* 声道带 */
+  const bandY=16, lab = fmt==='dsp'?['CH 1','CH 2']:['LEFT','RIGHT'];
+  for (let f=0;f<2;f++) for (let sl=0;sl<2;sl++){
+    if (f===1 && sl===1) break;
+    const a = fmt==='dsp'?0:0; const x1=x0+(f*64+sl*S)*pb, x2=x1+S*pb;
+    s += `<rect x="${x1}" y="${bandY}" width="${S*pb}" height="${H-30}" fill="${sl?'rgba(87,216,242,.05)':'rgba(52,224,138,.05)'}"/>`;
+    s += `<text x="${(x1+x2)/2}" y="${bandY+11}" fill="${sl?'rgba(87,216,242,.6)':'rgba(52,224,138,.6)'}" font-size="9" text-anchor="middle">${f*2+sl<2?lab[sl]:lab[sl]}</text>`;
+  }
+  const trace = (y,seg,col)=>{ // seg: [x1px,x2px,hi]
+    let p='M'+seg[0][0]+','+(y+(seg[0][2]?-amp:amp));
+    for (const [xa,xb,hi] of seg){ const yy=y+(hi?-amp:amp); p+=` L${xa},${yy} L${xb},${yy}`; }
+    return `<path d="${p}" stroke="${col}" stroke-width="2" fill="none"/>`;
+  };
+  const mkSegs=(y, lv, align)=>{                          // lv(i)->0/1, 电平覆盖 [i+align, i+1+align)
+    const segs=[]; for (let i=-1;i<=cyc;i++){ const hi=lv(i); const xa=x0+(i+align)*pb, xb=xa+pb;
+      if (segs.length && segs[segs.length-1][2]===hi) segs[segs.length-1][1]=xb; else segs.push([xa,xb,hi]); }
+    return segs;
+  };
+  /* BCK */
+  { const segs=[]; for (let i=0;i<cyc;i++){ segs.push([x0+i*pb,x0+(i+.5)*pb,1],[x0+(i+.5)*pb,x0+(i+1)*pb,0]); }
+    s += trace(yB,segs,COL.bck); }
+  /* WS */
+  const wsLv = i=> fmt==='dsp' ? (((i%64)+64)%64===0?1:0) : ((((i%64)+64)%64)<32?0:1);
+  s += trace(yW, mkSegs(yW,wsLv, fmt==='dsp'?0:0), COL.ws);
+  /* SD：数据 + 数据窗 */
+  const sdLv = i=>{ const p=((i%64)+64)%64, slot=p<32?0:1, pos=p%32, b=pos-start;
+    if (b<0||b>=W) return 0; return (sampleFor(Math.floor(i/64),slot,W)>>(W-1-b))&1; };
+  s += trace(yD, mkSegs(yD,sdLv,-0.5), COL.sd);
+  /* 数据窗框 */
+  for (let f=0; f<2; f++) for (let sl=0; sl<2; sl++){
+    if (f===1&&sl===1) continue;
+    const cx = x0 + (f*64+sl*S+start-0.5)*pb, cw = W*pb;
+    s += `<rect x="${cx}" y="${yD-amp-7}" width="${cw}" height="${amp*2+14}" fill="rgba(87,216,242,.08)" stroke="rgba(87,216,242,.45)" stroke-dasharray="3 3" rx="3"/>`;
+    s += `<text x="${cx+6}" y="${yD-amp-13}" fill="${COL.sd}" font-size="9.5">MSB</text>`;
+    s += `<text x="${cx+cw-6}" y="${yD-amp-13}" fill="${COL.sd}" font-size="9.5" text-anchor="end">LSB</text>`;
+    s += `<text x="${cx+cw/2}" y="${yD+amp+18}" fill="rgba(140,162,148,.55)" font-size="9" text-anchor="middle">${W} bit</text>`;
+  }
+  /* 行标签 */
+  const rows=[['BCK',yB,COL.bck],['WS',yW,COL.ws],['SD',yD,COL.sd]];
+  for (const [nm,y,col] of rows){
+    s += `<text x="10" y="${y+4}" fill="${col}" font-size="12" font-weight="600">${nm}</text>`;
+  }
+  /* 格式专属注释 */
+  if (fmt==='i2s'){
+    const x1 = x0+32*pb, x2 = x0+(32+start+0.5)*pb, ay=yW+amp+16;
+    s += `<line x1="${x1}" y1="${ay}" x2="${x2}" y2="${ay}" stroke="${COL.red}" stroke-width="1.4"/>`;
+    s += `<path d="M${x1},${ay} l5,-3 v6 z" fill="${COL.red}"/><path d="M${x2},${ay} l-5,-3 v6 z" fill="${COL.red}"/>`;
+    s += `<line x1="${x1}" y1="${yW+amp}" x2="${x1}" y2="${ay+3}" stroke="${COL.red}" stroke-dasharray="2 3"/>`;
+    s += `<text x="${x1+4}" y="${ay+16}" fill="${COL.red}" font-size="10">← 延迟 1 个 BCK</text>`;
+  } else if (fmt==='lj'){
+    const x = x0+32*pb;
+    s += `<line x1="${x}" y1="${yW-amp-6}" x2="${x}" y2="${yD-amp-26}" stroke="rgba(87,216,242,.5)" stroke-dasharray="3 3"/>`;
+    s += `<text x="${x+6}" y="${yD-amp-26}" fill="${COL.sd}" font-size="10">MSB 紧贴 WS 边沿</text>`;
+  } else if (fmt==='rj'){
+    const x = x0+64*pb;
+    s += `<line x1="${x}" y1="${yW-amp-6}" x2="${x}" y2="${yD-amp-26}" stroke="rgba(87,216,242,.5)" stroke-dasharray="3 3"/>`;
+    s += `<text x="${x-6}" y="${yD-amp-26}" fill="${COL.sd}" font-size="10" text-anchor="end">LSB 对齐槽末端</text>`;
+  } else if (fmt==='dsp'){
+    const x = x0+0.5*pb;
+    s += `<text x="${x+8}" y="${yW-amp-12}" fill="${COL.red}" font-size="10">帧同步脉冲 = 1×BCK</text>`;
+  }
+  s += '</svg>';
+  return s;
+}
+document.getElementById('svgI2S').innerHTML = fmtSVG('i2s');
+document.getElementById('svgLJ').innerHTML  = fmtSVG('lj');
+document.getElementById('svgRJ').innerHTML  = fmtSVG('rj');
+document.getElementById('svgDSP').innerHTML = fmtSVG('dsp');
+
+/* ---------------- §05 主从拓扑图 ---------------- */
+document.getElementById('msDiagram').innerHTML = `
+<svg viewBox="0 0 520 260" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono,monospace">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="context-stroke"/>
+    </marker>
+  </defs>
+  <rect x="14" y="30" width="150" height="200" rx="8" fill="rgba(52,224,138,.05)" stroke="rgba(52,224,138,.5)"/>
+  <text x="89" y="58" text-anchor="middle" fill="#34e08a" font-size="15" font-weight="600">MCU / SoC</text>
+  <text x="89" y="76" text-anchor="middle" fill="rgba(140,162,148,.8)" font-size="10">I²S 外设 · 主机</text>
+  <text x="89" y="206" text-anchor="middle" fill="rgba(140,162,148,.55)" font-size="9">ESP32 / STM32 / …</text>
+  <rect x="356" y="30" width="150" height="200" rx="8" fill="rgba(87,216,242,.05)" stroke="rgba(87,216,242,.45)"/>
+  <text x="431" y="58" text-anchor="middle" fill="#57d8f2" font-size="15" font-weight="600">CODEC / DAC</text>
+  <text x="431" y="76" text-anchor="middle" fill="rgba(140,162,148,.8)" font-size="10">ADC+DAC · 从机</text>
+  <text x="431" y="206" text-anchor="middle" fill="rgba(140,162,148,.55)" font-size="9">ES8388 / WM8978 / …</text>
+  ${[
+    ['MCLK',164,'rgba(140,162,148,.9)','可选 · 256×fs',0],
+    ['BCK',186,'#34e08a','位时钟 · 主机产生',0],
+    ['WS',208,'#ffb02e','字选择 · 主机产生',0],
+    ['SD',230,'#57d8f2','数据 · 双向',1],
+  ].map(([nm,y,col,note,bi],idx)=>`
+    <line x1="164" y1="${y}" x2="${bi?356:356}" y2="${y}" stroke="${col}" stroke-width="2" ${bi?'':'marker-end="url(#ar)"'}/>
+    ${bi?`<line x1="356" y1="${y-4}" x2="164" y2="${y-4}" stroke="${col}" stroke-width="1.4" marker-end="url(#ar)" opacity=".55"/>`:''}
+    <text x="260" y="${y-7}" text-anchor="middle" fill="${col}" font-size="11" font-weight="600">${nm}</text>
+    <text x="260" y="${y+14}" text-anchor="middle" fill="rgba(140,162,148,.6)" font-size="8.5">${note}</text>
+  `).join('')}
+  <text x="260" y="258" text-anchor="middle" fill="rgba(140,162,148,.5)" font-size="9.5">时钟永远由主机流向从机 · SD 方向独立（放音→右，录音→左）</text>
+</svg>`;
+
+/* ---------------- §06 计算器 ---------------- */
+function fmtHz(v){
+  if (v >= 1e6) return [(v/1e6).toFixed(3).replace(/0+$/,'').replace(/\.$/,''), 'MHz'];
+  if (v >= 1e3) return [(v/1e3).toFixed(2).replace(/0+$/,'').replace(/\.$/,''), 'kHz'];
+  return [v, 'Hz'];
+}
+function calc(){
+  const fs = +document.getElementById('cFs').value;
+  const slot = +document.getElementById('cSlot').value;
+  const put = (id,v)=>{ const [n,u]=fmtHz(v); document.getElementById(id).innerHTML = n+'<small>'+u+'</small>'; };
+  put('oBck', fs*slot*2);
+  put('oWs', fs);
+  put('oMck', fs*256);
+  put('oData', fs*slot*2);
+  document.getElementById('fExpr').textContent = `${fs} × ${slot} × 2`;
+  document.getElementById('fFrame').textContent = slot*2;
+}
+document.getElementById('cFs').addEventListener('change', calc);
+document.getElementById('cSlot').addEventListener('change', calc);
+calc();
+
+/* ---------------- 命令点击复制（事件委托，覆盖动态生成的节点） ---------------- */
+const escHtml = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+  .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+document.addEventListener('click', async e=>{
+  const el = e.target.closest('.t-cmd');
+  if (!el) return;
+  const txt = el.dataset.copy || el.textContent;
+  let okFlag = false;
+  try { await navigator.clipboard.writeText(txt); okFlag = true; }
+  catch {
+    const ta = document.createElement('textarea');
+    ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { okFlag = document.execCommand('copy'); } catch {}
+    ta.remove();
+  }
+  const old = el.textContent;
+  el.classList.add('copied');
+  el.textContent = okFlag ? '已复制 ✓' : '复制失败';
+  setTimeout(()=>{ el.classList.remove('copied'); el.textContent = old; }, 900);
+});
+
+/* ---------------- §08 六步调试流程（Linux / Android 对照） ---------------- */
+const DBG = [
+  { t:'时钟 · 物理层',
+    v:'<b>判读：</b>BCK 完全不动 → 两边都配成了从机，或 pinctrl/引脚复用没生效；MCLK 不动而 codec 依赖它 → 供电再正常也完全无声。播放时才有时钟是正常的（按需起时钟）。',
+    ln:[['cmt','# 示波器 / 逻辑分析仪量三根线（保持播放状态）'],
+        ['cmd','sudo dmesg | grep -iE "i2s|sound"'],
+        ['cmt','# 期望值：BCK = fs × slot × 2（06 节计算器），WS = fs'],
+        ['cmt','# SD 线应持续翻转；SD 平坦 → 有时钟没数据，跳到第 4 步']],
+    an:[['cmt','# userdebug 版先提权，否则 dmesg 不完整'],
+        ['cmd','adb root && adb shell dmesg | grep -iE "i2s|asoc|snd"'],
+        ['cmt','# 同样量 BCK/WS/SD；Android 常见坑：HAL 没起，'],
+        ['cmt','# codec 已 ready 但 nobody 打开 PCM —— 看第 2 步的 lshal']] },
+  { t:'注册 · 找到声卡',
+    v:'<b>判读：</b>看不到声卡 → 设备树/overlay 没生效或驱动未使能，回 07 节「启用」；Android 还要求 audio HAL 服务在跑，HAL 死了 /dev/snd 再正常也没声。',
+    ln:[['cmd','cat /proc/asound/cards'],
+        ['cmt','# 应能看到你的 codec 声卡（card 1: ...）'],
+        ['cmd','dmesg | grep -iE "asoc|registered"'],
+        ['out','snd-es8388 es8388-card: card registered'],
+        ['cmt','# 没有这行 → 检查 DTS 的 status = "okay" 与匹配表']],
+    an:[['cmd','adb shell cat /proc/asound/cards'],
+        ['cmd','adb shell ls -l /dev/snd/'],
+        ['cmt','# 应有 controlC0 / pcmC0D0p（playback）/ pcmC0D0c（capture）'],
+        ['cmd','adb shell lshal | grep -i audio'],
+        ['cmt','# 确认 android.hardware.audio 服务在运行']] },
+  { t:'参数 · 格式/采样率',
+    v:'<b>判读：</b>hw_params 只在播放/录音进行中才有内容。看到 S32_LE 不必慌——系统常用 32 拍槽装 16 位数据（03 节动画的常见配置）；真正要核对的是 codec 侧实际收到的格式。',
+    ln:[['cmt','# 播放中执行（pcm0p=播放 pcm0c=录音）'],
+        ['cmd','cat /proc/asound/card1/pcm0p/sub0/hw_params'],
+        ['out','format: S32_LE      rate: 48000      channels: 2'],
+        ['cmd','cat /proc/asound/card1/pcm0p/sub0/status'],
+        ['cmt','# state 应为 RUNNING；xrun 持续增长 = 供给不上']],
+    an:[['cmt','# Android 的格式声明在 HAL 配置里（vendor 分区）'],
+        ['cmd','adb shell "cat /vendor/etc/audio_policy_configuration.xml | grep -iE \'format|samplingRates\'"'],
+        ['out','samplingRates="48000" format="AUDIO_FORMAT_PCM_16_BIT"'],
+        ['cmd','adb shell dumpsys media.audio_flinger | grep -iE "sample rate|format|channel mask" | head'],
+        ['cmt','# 运行时实际参数以 dumpsys 为准']] },
+  { t:'数据 · 流与欠载',
+    v:'<b>判读：</b>state 不是 RUNNING → 应用层没真的打开设备；xrun 增长 → 时钟供给或 CPU 调度问题（提优先级/加大 period）；能「跑」但无声 → 回第 1 步量 SD 有没有翻转。',
+    ln:[['cmd','speaker-test -c 2 -r 48000 -D plughw:CARD=1'],
+        ['cmt','# 轮流报 front left / front right，同时验证 WS 声道'],
+        ['cmd','arecord -D hw:1,0 -f S16_LE -r 48000 -c 2 /tmp/r.wav -d 5'],
+        ['cmt','# 录 5 秒回放检查——录音通、放音不通 → 只查输出方向']],
+    an:[['cmd','adb push t48k.wav /sdcard/ && adb shell tinyplay /sdcard/t48k.wav -D 0 -d 0'],
+        ['cmd','adb shell tinycap /sdcard/r.wav -D 0 -d 0 -c 2 -r 48000 -b 16'],
+        ['cmt','# 录完 adb pull /sdcard/r.wav 拖进 DAW/audacity 看波形'],
+        ['cmd','adb shell tinypcminfo -D 0 -d 0'],
+        ['cmt','# 该 PCM 支持的采样率/格式/声道范围']] },
+  { t:'控制 · 寄存器通吗',
+    v:'<b>判读：</b>i2cdetect 扫不到地址 → 接线/上拉/供电问题（I2C 都不通，Codec 没配置，自然无声）；tinymix 列表为空 → HAL 没加载 mixer_paths.xml。音量控件为 0 也是经典「无声」。',
+    ln:[['cmd','i2cdetect -y 1'],
+        ['cmt','# 0x10=ES8388 · 0x1A=WM8978 · 0x0A=SGTL5000；UU = 驱动已占用（正常）'],
+        ['cmd','amixer -c 1 scontrols'],
+        ['cmd','amixer -c 1 cset name=\'Master Playback Volume\' 80%']],
+    an:[['cmt','# Android 没有 i2c-tools，控制全部经 tinyalsa/HAL'],
+        ['cmd','adb shell tinymix -D 0'],
+        ['cmt','# 列出全部控件（QCOM/MTK 的路由表来自 mixer_paths*.xml）'],
+        ['cmd','adb shell tinymix -D 0 set \'PCM Playback Volume\' 100'],
+        ['cmt','# 控件名以上一步列出的为准']] },
+  { t:'对齐 · 三处一致',
+    v:'<b>判读：</b>「沙沙噪声 / 变调」九成在这一步收尾：格式在多层配置里各写各的。统一为同一种 format 后重启验证，不要试着改一个听一下。',
+    ln:[['cmt','# ① DTS: simple-audio-card,format = "i2s"'],
+        ['cmt','# ② codec 驱动 dai_ops 的 set_fmt 协商结果：'],
+        ['cmd','dmesg | grep -iE "fmt|format"'],
+        ['cmt','# ③ 应用请求的格式（hw_params）——三处必须同一格式'],
+        ['cmt','# i2s ↔ left_j ↔ right_j ↔ dsp_a/b 对照见 04 节']],
+    an:[['cmt','# Android 三层：内核 DTS ↔ HAL 配置 ↔ QCOM 路由表'],
+        ['cmd','adb pull /vendor/etc/audio_policy_configuration.xml'],
+        ['cmd','adb shell "head -50 /vendor/etc/mixer_paths.xml"'],
+        ['cmt','# 检查 mixPort 的 format/samplingRates 与 DTS、mixer_paths'],
+        ['cmt','# 的 ctl 值是否同一套格式；改完 reboot，别依赖热重载']] },
+];
+(function initDbg(){
+  const stepsEl = document.getElementById('dbgSteps');
+  const verdict = document.getElementById('dbgVerdict');
+  const bodyL = document.getElementById('dbgBodyL');
+  const bodyA = document.getElementById('dbgBodyA');
+  const clsMap = { out:'t-out', cmt:'t-cmt', hl:'t-hl', tag:'t-tag' };
+  const render = lines => lines.map(([k,txt])=>{
+    if (k === 'cmd')
+      return `<div><span class="t-ps">$ </span><code class="t-cmd" data-copy="${escHtml(txt)}">${escHtml(txt)}</code></div>`;
+    return `<div class="${clsMap[k]||'t-out'}">${escHtml(txt)}</div>`;
+  }).join('');
+  const select = idx => {
+    stepsEl.querySelectorAll('.dbg-step').forEach((b,i)=>b.classList.toggle('on', i===idx));
+    const d = DBG[idx];
+    verdict.innerHTML = d.v;
+    bodyL.innerHTML = render(d.ln);
+    bodyA.innerHTML = render(d.an);
+  };
+  DBG.forEach((d,i)=>{
+    const b = document.createElement('button');
+    b.className = 'dbg-step'; b.type = 'button';
+    b.innerHTML = `<span class="n">${String(i+1).padStart(2,'0')}</span><span>${d.t}</span>`;
+    b.addEventListener('click', ()=>select(i));
+    stepsEl.appendChild(b);
+  });
+  select(0);
+})();
+
+/* ---------------- 滚动显现 ---------------- */
+const io = new IntersectionObserver(es=>es.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target);} }),{threshold:.12});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+</body>
+</html>

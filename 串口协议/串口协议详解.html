@@ -1,0 +1,1509 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UART 串口协议 · 动画图解</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Noto+Sans+SC:wght@400;500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#070c0f;
+  --panel:#0d1519;
+  --panel2:#0a1013;
+  --line:rgba(148,200,180,.14);
+  --line2:rgba(148,200,180,.08);
+  --ph:#3dffa2;          /* 磷光绿 TX */
+  --ph-dim:rgba(61,255,162,.14);
+  --amber:#ffb454;       /* 琥珀 RX */
+  --cyan:#5fd7ff;
+  --pink:#ff6bcb;
+  --red:#ff5d5d;
+  --text:#cfe3da;
+  --mut:#7e9a8f;
+  --mut2:#59736a;
+  --mono:"Share Tech Mono",ui-monospace,monospace;
+  --disp:"Chakra Petch","Noto Sans SC",sans-serif;
+  --body:"Noto Sans SC","PingFang SC",sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  font-family:var(--body);
+  color:var(--text);
+  font-size:15.5px;line-height:1.8;
+  background:
+    radial-gradient(1200px 620px at 72% -8%, rgba(61,255,162,.07), transparent 62%),
+    radial-gradient(900px 520px at 6% 108%, rgba(95,215,255,.05), transparent 60%),
+    var(--bg);
+  overflow-x:hidden;
+}
+/* CRT 扫描线 + 暗角 */
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:998;
+  background:radial-gradient(120% 90% at 50% 40%, transparent 55%, rgba(0,0,0,.42) 100%);}
+body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:999;opacity:.42;
+  background:repeating-linear-gradient(0deg, rgba(0,0,0,.15) 0 1px, transparent 1px 3px);}
+::selection{background:rgba(61,255,162,.28);color:#eafff4}
+
+.wrap{max-width:1080px;margin:0 auto;padding:0 26px}
+section{padding:92px 0 8px}
+
+/* ============ 导航 ============ */
+nav{position:sticky;top:0;z-index:100;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  background:rgba(7,12,15,.82);border-bottom:1px solid var(--line);}
+.nav-in{max-width:1080px;margin:0 auto;padding:0 26px;height:54px;display:flex;align-items:center;gap:22px}
+.brand{font-family:var(--mono);color:var(--ph);font-size:15px;letter-spacing:2px;text-shadow:0 0 12px rgba(61,255,162,.5);white-space:nowrap}
+.brand b{color:var(--amber);text-shadow:0 0 12px rgba(255,180,84,.5)}
+.nav-links{display:flex;gap:4px;margin-left:auto;overflow-x:auto;scrollbar-width:none}
+.nav-links::-webkit-scrollbar{display:none}
+.nav-links a{font-family:var(--mono);font-size:12.5px;color:var(--mut);text-decoration:none;
+  padding:5px 11px;border-radius:6px;white-space:nowrap;letter-spacing:1px;transition:.25s}
+.nav-links a:hover{color:var(--ph);background:rgba(61,255,162,.07)}
+.nav-links a.act{color:#0a1512;background:var(--ph);text-shadow:none;box-shadow:0 0 16px rgba(61,255,162,.45)}
+
+/* ============ Hero ============ */
+.hero{padding:78px 0 30px;text-align:center;position:relative}
+.hero-eyebrow{font-family:var(--mono);color:var(--mut);letter-spacing:6px;font-size:12px;margin-bottom:18px}
+.hero-eyebrow::before,.hero-eyebrow::after{content:"~~~ ";color:var(--mut2)}
+.hero-eyebrow::after{content:" ~~~"}
+h1{font-family:var(--disp);font-size:clamp(34px,6vw,58px);font-weight:700;letter-spacing:2px;line-height:1.2;
+  color:#eafff4;text-shadow:0 0 28px rgba(61,255,162,.35)}
+h1 .en{display:block;font-family:var(--mono);font-size:.34em;color:var(--ph);letter-spacing:8px;margin-top:10px;text-shadow:0 0 18px rgba(61,255,162,.6)}
+.hero p.lead{max-width:640px;margin:22px auto 0;color:var(--mut);font-size:16.5px}
+.hero-chips{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:26px 0 8px}
+.chip{font-family:var(--mono);font-size:12.5px;color:var(--ph);border:1px solid rgba(61,255,162,.35);
+  padding:4px 13px;border-radius:100px;background:rgba(61,255,162,.05);letter-spacing:1px}
+.chip.a{color:var(--amber);border-color:rgba(255,180,84,.35);background:rgba(255,180,84,.05)}
+.chip.c{color:var(--cyan);border-color:rgba(95,215,255,.35);background:rgba(95,215,255,.05)}
+.hero-cta{display:flex;gap:14px;justify-content:center;margin:26px 0 42px;flex-wrap:wrap}
+.btn{font-family:var(--disp);font-weight:600;font-size:15px;letter-spacing:1px;text-decoration:none;
+  padding:12px 26px;border-radius:10px;transition:.25s;border:1px solid transparent;cursor:pointer}
+.btn.primary{color:#0a1512;background:linear-gradient(180deg,#63ffae,#2fe38c);box-shadow:0 0 24px rgba(61,255,162,.35)}
+.btn.primary:hover{transform:translateY(-2px);box-shadow:0 6px 34px rgba(61,255,162,.5)}
+.btn.ghost{color:var(--text);border-color:var(--line);background:rgba(255,255,255,.02)}
+.btn.ghost:hover{border-color:rgba(61,255,162,.4);color:var(--ph)}
+
+.hero-schema{margin:14px auto 0;max-width:860px}
+.hero-schema svg{width:100%;height:auto;display:block}
+.wire{stroke:var(--mut2);stroke-width:2;fill:none}
+.wire.tx{stroke:rgba(61,255,162,.55)}
+.wire.rx{stroke:rgba(255,180,84,.55)}
+.gnd-wire{stroke:var(--mut2);stroke-width:2;fill:none;stroke-dasharray:7 6;animation:gndflow 1.2s linear infinite}
+@keyframes gndflow{to{stroke-dashoffset:-13}}
+.svg-lab{font-family:var(--mono);fill:var(--mut);font-size:12px;letter-spacing:1px}
+.svg-lab.big{fill:var(--text);font-size:15px}
+.svg-lab.ph{fill:var(--ph)} .svg-lab.am{fill:var(--amber)}
+.chip-ic{fill:#0d181d;stroke:var(--line);stroke-width:1.5}
+.led{animation:ledblink 1.6s infinite}
+.led.b{animation-delay:.8s}
+@keyframes ledblink{0%,100%{opacity:1}50%{opacity:.12}}
+.pkt{opacity:0}
+@media (prefers-reduced-motion: reduce){
+  .pkt,.gnd-wire,.led,.led.b{animation:none!important}
+  .pkt{display:none}
+  html{scroll-behavior:auto}
+}
+
+/* ============ 章节标题 ============ */
+.sec-head{display:flex;align-items:baseline;gap:18px;flex-wrap:wrap}
+.sec-num{font-family:var(--mono);font-weight:700;font-size:52px;line-height:1;
+  color:transparent;-webkit-text-stroke:1px rgba(61,255,162,.42)}
+.sec-title{font-family:var(--disp);font-size:29px;font-weight:700;letter-spacing:1px;color:#e8fbf2}
+.sec-sub{width:100%;font-family:var(--mono);font-size:11.5px;color:var(--mut2);letter-spacing:4px;text-transform:uppercase;padding-left:2px}
+.sec-desc{color:var(--mut);max-width:760px;margin:14px 0 30px}
+.sec-desc b,.card b{color:var(--ph);font-weight:600}
+.sec-desc i{color:var(--amber);font-style:normal}
+
+/* ============ 面板与卡片 ============ */
+.panel{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);
+  border-radius:14px;box-shadow:0 12px 34px rgba(0,0,0,.38), inset 0 1px 0 rgba(255,255,255,.03);
+  padding:22px 24px;position:relative;overflow:hidden}
+.panel-tag{position:absolute;top:14px;right:16px;font-family:var(--mono);font-size:10.5px;
+  color:var(--mut2);letter-spacing:2px}
+.grid{display:grid;gap:18px}
+.g4{grid-template-columns:repeat(4,1fr)} .g3{grid-template-columns:repeat(3,1fr)} .g2{grid-template-columns:repeat(2,1fr)}
+.card{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);
+  border-radius:13px;padding:20px;transition:.3s}
+.card:hover{border-color:rgba(61,255,162,.4);transform:translateY(-3px);box-shadow:0 14px 30px rgba(0,0,0,.4)}
+.card h4{font-family:var(--disp);font-size:16.5px;margin-bottom:8px;color:#e8fbf2;display:flex;align-items:center;gap:9px}
+.card p{color:var(--mut);font-size:13.8px;line-height:1.75}
+.card .ico{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:16px;flex:none;border:1px solid}
+.ico.g{color:var(--ph);border-color:rgba(61,255,162,.4);background:rgba(61,255,162,.08)}
+.ico.a{color:var(--amber);border-color:rgba(255,180,84,.4);background:rgba(255,180,84,.08)}
+.ico.c{color:var(--cyan);border-color:rgba(95,215,255,.4);background:rgba(95,215,255,.08)}
+.ico.p{color:var(--pink);border-color:rgba(255,107,203,.4);background:rgba(255,107,203,.08)}
+
+/* 表格 */
+table{width:100%;border-collapse:collapse;font-size:13.8px}
+th{font-family:var(--mono);font-weight:400;font-size:12px;color:var(--ph);letter-spacing:1px;
+  text-align:left;padding:9px 12px;border-bottom:1px solid rgba(61,255,162,.3)}
+td{padding:9px 12px;border-bottom:1px solid var(--line2);color:var(--text)}
+tr:hover td{background:rgba(61,255,162,.04)}
+td.mono,.mono{font-family:var(--mono)}
+td .dim, .dim{color:var(--mut)}
+.hl-a{color:var(--amber)} .hl-c{color:var(--cyan)} .hl-p{color:var(--pink)} .hl-r{color:var(--red)} .hl-g{color:var(--ph)}
+
+/* ============ 控件 ============ */
+.ctrl-row{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px}
+.ctrl{display:flex;flex-direction:column;gap:5px}
+.ctrl label{font-family:var(--mono);font-size:10.5px;color:var(--mut2);letter-spacing:2px}
+select,input[type=text]{font-family:var(--mono);font-size:13.5px;color:var(--text);
+  background:#0a1216;border:1px solid var(--line);border-radius:8px;padding:8px 10px;outline:none;transition:.2s;min-width:0}
+select:focus,input[type=text]:focus{border-color:rgba(61,255,162,.55);box-shadow:0 0 0 3px rgba(61,255,162,.12)}
+input[type=range]{accent-color:var(--ph);width:130px}
+.cbtn{font-family:var(--mono);font-size:12.5px;letter-spacing:1px;color:var(--text);
+  background:#0d181d;border:1px solid var(--line);border-radius:8px;padding:8px 15px;cursor:pointer;transition:.2s}
+.cbtn:hover{border-color:rgba(61,255,162,.5);color:var(--ph)}
+.cbtn.on{background:rgba(61,255,162,.14);border-color:rgba(61,255,162,.5);color:var(--ph)}
+.check{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:12px;color:var(--mut);cursor:pointer;user-select:none}
+.check input{accent-color:var(--ph)}
+.byte-chips{display:flex;gap:8px;flex-wrap:wrap}
+.bchip{font-family:var(--mono);font-size:12px;color:var(--mut);border:1px solid var(--line);
+  padding:3px 10px;border-radius:100px;cursor:pointer;transition:.2s}
+.bchip:hover,.bchip.on{color:var(--ph);border-color:rgba(61,255,162,.5)}
+
+/* ============ 波形实验室 ============ */
+canvas{display:block;width:100%}
+#labCanvas{cursor:crosshair;border-radius:10px}
+.readout{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:14px;
+  padding:13px 16px;border:1px solid var(--line);border-radius:11px;background:rgba(10,17,20,.7)}
+.tx-display{font-family:var(--mono);font-size:15px;color:var(--ph)}
+.tx-display .u{color:var(--amber)}
+.shift{display:flex;gap:5px;align-items:flex-end}
+.cell{width:32px;display:flex;flex-direction:column;align-items:center;gap:3px}
+.cell small{font-family:var(--mono);font-size:9px;color:var(--mut2);letter-spacing:.5px}
+.cell .box{width:100%;height:34px;border:1px solid var(--line);border-radius:7px;display:flex;
+  align-items:center;justify-content:center;font-family:var(--mono);font-size:17px;color:var(--mut2);transition:.2s}
+.cell.filled .box{color:#0a1512;background:var(--ph);border-color:var(--ph);box-shadow:0 0 12px rgba(61,255,162,.45);animation:pop .3s}
+@keyframes pop{0%{transform:scale(.6)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+.status-line{font-family:var(--mono);font-size:13px;color:var(--mut);min-height:22px;flex:1;min-width:220px}
+.status-line.ok{color:var(--ph)} .status-line.warn{color:var(--amber)} .status-line.err{color:var(--red)}
+.lab-info{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px;font-family:var(--mono);font-size:12px;color:var(--mut2)}
+.lab-info b{color:var(--cyan);font-weight:400}
+#labHover{margin-top:8px;font-family:var(--mono);font-size:12px;color:var(--mut2);min-height:18px}
+#labHover b{color:var(--cyan);font-weight:400}
+
+/* ============ 帧结构解剖 ============ */
+.anatomy-grid{display:grid;grid-template-columns:1.7fr 1fr;gap:18px;align-items:start}
+#anatomySvg{width:100%;height:auto}
+.anatomy-list{display:flex;flex-direction:column;gap:9px}
+.a-item{border:1px solid var(--line);border-radius:11px;padding:13px 15px;cursor:pointer;transition:.25s;background:rgba(255,255,255,.015)}
+.a-item h5{font-family:var(--disp);font-size:14.5px;display:flex;gap:8px;align-items:center;margin-bottom:4px}
+.a-item p{font-size:12.8px;color:var(--mut);line-height:1.65}
+.a-item .dot{width:9px;height:9px;border-radius:3px;flex:none}
+.a-item.on{border-color:rgba(61,255,162,.5);background:rgba(61,255,162,.05);transform:translateX(4px)}
+#anatomySvg .seg-region{cursor:pointer;transition:.2s}
+#anatomySvg.dimmed .seg-region{opacity:.25}
+#anatomySvg.dimmed .seg-region.lit{opacity:1}
+#anatomySvg text{font-family:var(--mono)}
+.callout-lbl{font-size:12.5px;fill:var(--text)}
+.callout-sub{font-size:10.5px;fill:var(--mut)}
+
+/* ============ 波特率竞速 ============ */
+.race-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.race-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;flex-wrap:wrap;gap:6px}
+.race-head .rb{font-family:var(--mono);font-size:16px}
+.counter{font-family:var(--mono);font-size:12px;color:var(--amber)}
+.counter b{font-size:19px;font-weight:400}
+.race-stats{display:flex;gap:16px;margin-top:8px;font-family:var(--mono);font-size:11.5px;color:var(--mut2);flex-wrap:wrap}
+.race-stats b{color:var(--cyan);font-weight:400}
+
+/* ============ 校验位 ============ */
+.parity-grid{display:grid;grid-template-columns:1.2fr 1fr;gap:18px;align-items:start}
+.pbits{display:flex;gap:8px;justify-content:center;margin:18px 0 6px;flex-wrap:wrap}
+.pbit{width:52px;text-align:center}
+.pbit button{width:52px;height:56px;border-radius:10px;border:1px solid var(--line);background:#0a1216;
+  font-family:var(--mono);font-size:22px;color:var(--mut2);cursor:pointer;transition:.15s}
+.pbit button.one{color:#0a1512;background:var(--ph);border-color:var(--ph);box-shadow:0 0 14px rgba(61,255,162,.4)}
+.pbit small{display:block;font-family:var(--mono);font-size:9.5px;color:var(--mut2);margin-top:5px;letter-spacing:1px}
+.parity-eq{font-family:var(--mono);font-size:14px;margin-top:14px;padding:13px 16px;border-radius:10px;
+  background:rgba(10,18,22,.8);border:1px solid var(--line);line-height:2;animation:eqpulse .35s}
+@keyframes eqpulse{0%{border-color:rgba(61,255,162,.7)}100%{border-color:var(--line)}}
+
+/* ============ 电平 ============ */
+.volt-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.volt-svg{width:100%;height:auto}
+.volt-svg text{font-family:var(--mono)}
+.volt-read{display:flex;justify-content:space-between;font-family:var(--mono);font-size:12.5px;margin-top:10px;flex-wrap:wrap;gap:6px}
+.volt-read .tt{color:var(--ph)} .volt-read .rr{color:var(--amber)}
+
+/* ============ 速查 ============ */
+.notation{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin:8px 0 26px}
+.n-item{text-align:center}
+.n-item .nv{font-family:var(--mono);font-size:26px;color:var(--ph);border:1px solid rgba(61,255,162,.4);
+  padding:8px 18px;border-radius:10px;background:rgba(61,255,162,.06)}
+.n-item .nv.a{color:var(--amber);border-color:rgba(255,180,84,.4);background:rgba(255,180,84,.06)}
+.n-item .nv.c{color:var(--cyan);border-color:rgba(95,215,255,.4);background:rgba(95,215,255,.06)}
+.n-item .nv.p{color:var(--pink);border-color:rgba(255,107,203,.4);background:rgba(255,107,203,.06)}
+.n-item small{display:block;font-size:11.5px;color:var(--mut);margin-top:6px}
+dl.gloss{display:grid;grid-template-columns:repeat(2,1fr);gap:0 30px}
+dl.gloss dt{font-family:var(--mono);color:var(--ph);font-size:13.5px;margin-top:14px}
+dl.gloss dd{color:var(--mut);font-size:13px;line-height:1.7;margin-top:2px}
+.rules{list-style:none;display:flex;flex-direction:column;gap:10px}
+.rules li{display:flex;gap:12px;align-items:flex-start;padding:11px 14px;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.015)}
+.rules .no{font-family:var(--mono);color:#0a1512;background:var(--ph);border-radius:6px;min-width:24px;height:24px;
+  display:flex;align-items:center;justify-content:center;font-size:13px;flex:none;margin-top:2px}
+.rules b{color:#e8fbf2;font-weight:600}
+
+footer{margin-top:90px;border-top:1px solid var(--line);padding:34px 0 44px;text-align:center;
+  font-family:var(--mono);font-size:12px;color:var(--mut2);letter-spacing:1px;line-height:2.2}
+
+/* 滚动浮现 */
+.rv{opacity:0;transform:translateY(22px)}
+.rv.on{opacity:1;transform:none;transition:opacity .8s ease,transform .8s cubic-bezier(.2,.7,.3,1)}
+
+.note{font-size:12.5px;color:var(--mut2);font-family:var(--mono);margin-top:10px}
+.err-result{font-family:var(--mono);font-size:14px;margin-top:12px;padding:11px 14px;border-radius:9px;
+  border:1px solid rgba(255,93,93,.4);background:rgba(255,93,93,.07);color:var(--text);display:none}
+.err-result.show{display:block;animation:eqpulse .4s}
+
+/* ============ Linux 终端 ============ */
+.term-head{display:flex;gap:7px;align-items:center;background:#0c1519;padding:9px 14px;
+  border:1px solid var(--line);border-bottom:none;border-radius:10px 10px 0 0}
+.tdot{width:11px;height:11px;border-radius:50%;flex:none}
+.tdot.r{background:#ff5f57}.tdot.y{background:#febc2e}.tdot.g{background:#28c840}
+.term-title{font-family:var(--mono);font-size:11.5px;color:var(--mut2);margin-left:6px}
+.term-body{font-family:var(--mono);font-size:13px;line-height:1.95;background:#050a0d;
+  border:1px solid var(--line);border-radius:0 0 10px 10px;padding:13px 16px;height:352px;
+  overflow-y:auto;color:var(--text)}
+.t-line{white-space:pre-wrap;word-break:break-all}
+.t-prompt{color:var(--ph);margin-right:9px}
+.t-cmd{color:#e8fbf2}
+.t-note{color:var(--mut2);margin-left:12px;font-size:11.5px}
+.t-out{color:var(--cyan);opacity:.85}
+.t-cursor{display:inline-block;width:8px;height:15px;background:var(--ph);vertical-align:-2px;
+  margin-left:2px;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.cmd-out{font-family:var(--mono);font-size:14.5px;line-height:1.8;padding:14px 16px;margin:14px 0 10px;
+  border:1px dashed rgba(61,255,162,.4);border-radius:10px;background:rgba(61,255,162,.05);word-break:break-all}
+
+@media (max-width:880px){
+  .g4{grid-template-columns:repeat(2,1fr)} .g3,.race-grid,.volt-grid{grid-template-columns:1fr}
+  .anatomy-grid,.parity-grid{grid-template-columns:1fr}
+  dl.gloss{grid-template-columns:1fr}
+  .sec-num{font-size:40px}
+}
+@media (max-width:540px){
+  .g4,.g2{grid-template-columns:1fr}
+  .cell{width:28px} .cell .box{height:30px;font-size:15px}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-in">
+    <div class="brand">UART<b>·</b>LAB</div>
+    <div class="nav-links">
+      <a href="#intro">概述</a><a href="#frame">帧结构</a><a href="#lab">波形实验室</a><a href="#baud">波特率</a>
+      <a href="#parity">校验位</a><a href="#level">电平</a><a href="#errors">踩坑</a><a href="#linux">Linux</a><a href="#cheat">速查</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ================= HERO ================= -->
+<header class="hero">
+  <div class="wrap">
+    <div class="hero-eyebrow">SERIAL · ASYNCHRONOUS · ONE BIT AT A TIME</div>
+    <h1>UART 串口协议<span class="en">UNIVERSAL ASYNCHRONOUS RECEIVER / TRANSMITTER</span></h1>
+    <p class="lead">没有时钟线，两根信号线，靠事先约定的「时间感」一位一位地传输数据 ——
+      这是嵌入式世界最古老、最简单、也最常用的通信方式。本页用可交互的动画把它彻底讲透。</p>
+    <div class="hero-chips">
+      <span class="chip">异步 · 无时钟线</span><span class="chip a">全双工 TX/RX</span>
+      <span class="chip c">点对点</span><span class="chip">LSB 先行</span><span class="chip a">TTL / RS-232</span>
+    </div>
+    <div class="hero-cta">
+      <a class="btn primary" href="#lab">▶ 进入波形实验室</a>
+      <a class="btn ghost" href="#intro">从头学起</a>
+    </div>
+
+    <!-- 双机通信动画 -->
+    <div class="hero-schema">
+      <svg viewBox="0 0 760 372" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-label="UART 双机通信示意图">
+        <defs>
+          <path id="hw1" d="M210,168 C 330,168 430,212 550,212"/>
+          <path id="hw2" d="M550,168 C 430,168 330,212 210,212"/>
+        </defs>
+        <!-- GND -->
+        <path class="gnd-wire" d="M140,262 L140,330 L620,330 L620,262"/>
+        <text class="svg-lab" x="380" y="352" text-anchor="middle">GND · 共地（必须连接！没有地，高低电平无从谈起）</text>
+        <!-- 芯片 A -->
+        <g>
+          <rect class="chip-ic" x="70" y="120" width="140" height="142" rx="13"/>
+          <rect x="82" y="132" width="116" height="118" rx="8" fill="none" stroke="rgba(148,200,180,.25)"/>
+          <circle class="led" cx="196" cy="144" r="4" fill="#3dffa2"/>
+          <text class="svg-lab big" x="140" y="182" text-anchor="middle">MCU-A</text>
+          <text class="svg-lab" x="140" y="202" text-anchor="middle">发送 0x55 'U'</text>
+          <text class="svg-lab ph" x="140" y="222" text-anchor="middle">UART · TX</text>
+          <text class="svg-lab am" x="203" y="172" text-anchor="end" font-size="11">TXD →</text>
+          <text class="svg-lab am" x="203" y="240" text-anchor="end" font-size="11">RXD ←</text>
+        </g>
+        <!-- 芯片 B -->
+        <g>
+          <rect class="chip-ic" x="550" y="120" width="140" height="142" rx="13"/>
+          <rect x="562" y="132" width="116" height="118" rx="8" fill="none" stroke="rgba(148,200,180,.25)"/>
+          <circle class="led b" cx="676" cy="144" r="4" fill="#ffb454"/>
+          <text class="svg-lab big" x="620" y="182" text-anchor="middle">MCU-B</text>
+          <text class="svg-lab" x="620" y="202" text-anchor="middle">接收 0x55 'U'</text>
+          <text class="svg-lab am" x="620" y="222" text-anchor="middle">UART · RX</text>
+        </g>
+        <!-- 连线标签 -->
+        <text class="svg-lab ph" x="380" y="150" text-anchor="middle">A.TX ──→ B.RX（数据从 A 到 B）</text>
+        <text class="svg-lab am" x="380" y="252" text-anchor="middle">A.RX ←── B.TX（数据从 B 到 A，同时进行 = 全双工）</text>
+        <path class="wire tx" d="M210,168 C 330,168 430,212 550,212"/>
+        <path class="wire rx" d="M550,168 C 430,168 330,212 210,212"/>
+        <!-- 0x55 = 起始0 + 1,0,1,0,1,0,1,0 (LSB先) + 停止1 -->
+        <g id="packetsA"></g>
+        <g id="packetsB"></g>
+      </svg>
+    </div>
+    <p class="note">▲ 正在发送的字节：0x55（'U'）= 0b01010101，LSB 先行。绿色线为 A 的发送，琥珀色线为 B 的发送。</p>
+  </div>
+</header>
+
+<div class="wrap">
+
+<!-- ================= 01 概述 ================= -->
+<section id="intro">
+  <div class="sec-head rv"><span class="sec-num">01</span><span class="sec-title">什么是 UART / 串口？</span>
+    <span class="sec-sub">ASYNCHRONOUS SERIAL COMMUNICATION</span></div>
+  <p class="sec-desc rv">
+    <b>UART</b>（通用异步收发器）是芯片内部的一个硬件外设；平时说的「串口」通常指用它实现的通信接口。
+    它的最大特点是 <i>异步</i>：两台设备之间<b>没有时钟线</b>，双方各自按约定好的波特率（每秒多少位）数着时间收发。
+    一次只传 <b>1 位</b>（串行），两根数据线可同时双向（全双工），只能两台设备直连（点对点）。</p>
+
+  <div class="grid g4 rv">
+    <div class="card"><h4><span class="ico g">⚙</span>异步 Async</h4>
+      <p>无时钟线。发送方按波特率逐位发出；接收方在<b style="color:var(--ph)">起始位下降沿</b>重新对表，之后每隔一个位时间采样一次。</p></div>
+    <div class="card"><h4><span class="ico a">→</span>串行 Serial</h4>
+      <p>单根线上一bit接一bit。1 根线传 8 位 vs 并口 8 根线 —— 换来的是引脚省、布线易、抗干扰好、距离远。</p></div>
+    <div class="card"><h4><span class="ico c">⇄</span>全双工 Full-Duplex</h4>
+      <p>TX（发送）与 RX（接收）两根线独立工作，可同时收发。接线时必须<b style="color:var(--cyan)">交叉</b>：A.TX→B.RX，A.RX←B.TX。</p></div>
+    <div class="card"><h4><span class="ico p">∞</span>历史悠久</h4>
+      <p>RS-232 标准诞生于 1962 年。老电脑的 DB9 串口、打印机、调制解调器都用它；今天的调试口、GPS、蓝牙模块仍是 UART。</p></div>
+  </div>
+
+  <div class="panel rv" style="margin-top:18px">
+    <span class="panel-tag">COMPARE</span>
+    <h4 style="font-family:var(--disp);margin-bottom:12px">与 I²C / SPI 对比 —— 什么时候用串口？</h4>
+    <div style="overflow-x:auto">
+    <table>
+      <tr><th></th><th class="hl-g">UART 串口</th><th>I²C</th><th>SPI</th></tr>
+      <tr><td class="dim">时钟线</td><td><b class="hl-g">无（异步）</b></td><td>SCL</td><td>SCLK</td></tr>
+      <tr><td class="dim">信号线</td><td>2 根（TX·RX）+ GND</td><td>2 根（SDA·SCL）</td><td>4 根（MOSI·MISO·SCK·CS）</td></tr>
+      <tr><td class="dim">拓扑</td><td>点对点</td><td>多设备总线（7 位地址）</td><td>主从（每个从机一根片选）</td></tr>
+      <tr><td class="dim">常见速率</td><td>9600 ~ 115200 baud（可到数 M）</td><td>100k / 400k / 1M+</td><td>几 ~ 几十 MHz</td></tr>
+      <tr><td class="dim">距离</td><td>板级 ~ 米级（RS-232 可 15 m）</td><td>板级（<1 m）</td><td>板级</td></tr>
+      <tr><td class="dim">典型用途</td><td>调试打印、AT 指令模块、GPS</td><td>传感器、小容量 EEPROM</td><td>Flash、屏幕、高速外设</td></tr>
+    </table>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 02 帧结构 ================= -->
+<section id="frame">
+  <div class="sec-head rv"><span class="sec-num">02</span><span class="sec-title">一帧的解剖：起始 · 数据 · 校验 · 停止</span>
+    <span class="sec-sub">FRAME ANATOMY · 0x55 @ 8-E-1</span></div>
+  <p class="sec-desc rv">
+    异步通信没有时钟，靠的就是「帧格式」这套暗号。发送方把每个字节包装成一个<b>帧</b>：
+    先拉低一根线喊一声「开始了！」（起始位），再按 <i>低位在前</i> 的顺序交出数据位，可选一位校验，
+    最后用高电平的停止位收尾。把鼠标放到波形上（或点击右侧条目）看看每一部分的作用。</p>
+
+  <div class="anatomy-grid rv">
+    <div class="panel"><span class="panel-tag">HOVER ME</span><svg id="anatomySvg"></svg></div>
+    <div class="anatomy-list" id="anatomyList"></div>
+  </div>
+</section>
+
+<!-- ================= 03 波形实验室 ================= -->
+<section id="lab">
+  <div class="sec-head rv"><span class="sec-num">03</span><span class="sec-title">波形实验室：亲眼看一个字节被发出去</span>
+    <span class="sec-sub">INTERACTIVE WAVEFORM LAB</span></div>
+  <p class="sec-desc rv">
+    下面这块「示波器」会循环发送你指定的字节。绿色实线是 TX 引脚电平，琥珀色圆点是接收方在<b>每bit中点</b>的采样时刻
+    （真实 UART 硬件常用 16 倍过采样 + 多数表决来抗噪声）。试着改改字节、奇偶校验或停止位，观察波形怎样变化。</p>
+
+  <div class="panel rv">
+    <span class="panel-tag">WAVE LAB</span>
+    <div class="ctrl-row">
+      <div class="ctrl"><label>字节 / 字符</label><input type="text" id="byteIn" value="0x55" size="7" spellcheck="false"></div>
+      <div class="ctrl"><label>数据位</label><select id="selData"><option>5</option><option>6</option><option>7</option><option selected>8</option></select></div>
+      <div class="ctrl"><label>校验</label><select id="selParity"><option value="none" selected>无 N</option><option value="even">偶 E</option><option value="odd">奇 O</option></select></div>
+      <div class="ctrl"><label>停止位</label><select id="selStop"><option value="1" selected>1</option><option value="1.5">1.5</option><option value="2">2</option></select></div>
+      <div class="ctrl"><label>波特率</label><select id="selBaud">
+        <option>9600</option><option>19200</option><option>38400</option><option>57600</option><option selected>115200</option></select></div>
+      <div class="ctrl"><label>动画速度</label><input type="range" id="spdRange" min="0.5" max="4" step="0.25" value="1"></div>
+      <div class="ctrl"><label>&nbsp;</label><button class="cbtn on" id="btnPlay">⏸ 暂停</button></div>
+      <div class="ctrl"><label>&nbsp;</label><button class="cbtn" id="btnReset">↺ 重置</button></div>
+      <div class="ctrl"><label>&nbsp;</label>
+        <label class="check" style="padding-top:9px"><input type="checkbox" id="ckGhost" checked>完整预览</label>
+        <label class="check" style="padding-top:9px"><input type="checkbox" id="ckMarks" checked>采样点</label></div>
+    </div>
+    <div class="byte-chips" style="margin-bottom:14px">
+      <span class="bchip on" data-b="0x55">0x55 'U' · 01010101</span>
+      <span class="bchip" data-b="0x41">0x41 'A'</span>
+      <span class="bchip" data-b="0x00">0x00 · 全零</span>
+      <span class="bchip" data-b="0xFF">0xFF · 全一</span>
+      <span class="bchip" data-b="0x0F">0x0F</span>
+      <span class="bchip" data-b="0x69">0x69</span>
+    </div>
+
+    <canvas id="labCanvas" height="300"></canvas>
+    <div id="labHover">把鼠标移到波形上，查看每一位的说明 ——</div>
+
+    <div class="readout">
+      <span class="tx-display" id="txDisplay">TX: 0x55</span>
+      <div class="shift" id="shiftReg"></div>
+      <div class="status-line" id="labStatus">空闲（高电平）· 等待起始位下降沿…</div>
+    </div>
+    <div class="lab-info" id="labInfo"></div>
+    <p class="note">⚠ 动画为便于观看已放慢，速度与上方「波特率」无关 —— 波特率只影响右侧显示的真实时序参数。</p>
+  </div>
+</section>
+
+<!-- ================= 04 波特率 ================= -->
+<section id="baud">
+  <div class="sec-head rv"><span class="sec-num">04</span><span class="sec-title">波特率：双方共同的「时间契约」</span>
+    <span class="sec-sub">BAUD RATE = SYMBOLS PER SECOND</span></div>
+  <p class="sec-desc rv">
+    波特率 = 每秒传输的<b>码元</b>数；UART 是二电平信号，1 码元 = 1 bit，所以数值上等于 <b>bit/s</b>。
+    双方并没有时钟线「对表」，完全靠各自的时间基准 —— 因此<b style="color:var(--amber)">两边波特率必须一致</b>，
+    实际误差建议 &lt; 2%（采样点在位中点，理论极限 5%：0.5 位 ÷ 10 位/帧）。下面两台「机器」以不同波特率发送同一个字节，直观感受速率差异：</p>
+
+  <div class="race-grid rv">
+    <div class="panel"><span class="panel-tag">DEVICE 1</span>
+      <div class="race-head"><span class="rb" style="color:var(--ph)">9600 baud</span>
+        <span class="counter">已发送 <b id="cnt1">0</b> 字节</span></div>
+      <canvas id="race1" height="120"></canvas>
+      <div class="race-stats"><span>1 bit = <b>104.2 µs</b></span><span>8N1 有效速率 <b>960 B/s</b></span></div>
+    </div>
+    <div class="panel"><span class="panel-tag">DEVICE 2</span>
+      <div class="race-head"><span class="rb" style="color:var(--amber)">115200 baud</span>
+        <span class="counter">已发送 <b id="cnt2">0</b> 字节</span></div>
+      <canvas id="race2" height="120"></canvas>
+      <div class="race-stats"><span>1 bit = <b>8.68 µs</b></span><span>8N1 有效速率 <b>11520 B/s</b></span></div>
+    </div>
+  </div>
+  <p class="note rv" style="margin-top:12px">两块画布的时间轴相同 —— 115200 的波形「跑」得快 12 倍，相同时间发了 12 倍的字节。注意：波特率不是随意定的，双方都要支持（9600 与 115200 最常用）。</p>
+</section>
+
+<!-- ================= 05 校验位 ================= -->
+<section id="parity">
+  <div class="sec-head rv"><span class="sec-num">05</span><span class="sec-title">校验位：数一数 1 的个数</span>
+    <span class="sec-sub">PARITY BIT · ODD / EVEN</span></div>
+  <p class="sec-desc rv">
+    校验位是最简单的差错检测：发送方统计数据位中 <b>1</b> 的个数，补上一 bit，使「数据 + 校验」中 1 的总数满足约定 ——
+    <i>偶校验 (E)</i>：总个数为偶数；<i>奇校验 (O)</i>：总个数为奇数。点击下面的 bit 方块，实时观察校验位如何生成：</p>
+
+  <div class="parity-grid rv">
+    <div class="panel"><span class="panel-tag">PARITY LAB</span>
+      <div class="ctrl-row" style="margin:6px 0 0;justify-content:center">
+        <div class="ctrl"><label>校验方式</label><select id="pMode"><option value="even" selected>偶校验 Even</option><option value="odd">奇校验 Odd</option></select></div>
+        <div class="ctrl"><label>&nbsp;</label><button class="cbtn" id="pRand">🎲 随机</button></div>
+      </div>
+      <div class="pbits" id="pBits"></div>
+      <div style="text-align:center;margin-top:12px">
+        <span class="mono dim" style="font-size:12px">↑ 点击切换 D7…D0（当前值 </span>
+        <span class="mono hl-g" id="pHex">0x00</span><span class="mono dim" style="font-size:12px">）</span>
+      </div>
+      <div class="parity-eq" id="pEq"></div>
+    </div>
+    <div class="panel"><span class="panel-tag">NOTES</span>
+      <h4 style="font-family:var(--disp);margin-bottom:10px">校验位的能力与局限</h4>
+      <table>
+        <tr><th>场景</th><th>结果</th></tr>
+        <tr><td>1 位发生翻转</td><td class="hl-g">✓ 能检出</td></tr>
+        <tr><td>同时翻转 2 位</td><td class="hl-r">✗ 检不出（1 的奇偶性不变）</td></tr>
+        <tr><td>检出错误后</td><td class="hl-a">只能丢弃 / 请求重发，不能纠错</td></tr>
+        <tr><td>开销</td><td>每帧 +1 bit（8N1→8E1 速率 ↓10%）</td></tr>
+      </table>
+      <p style="color:var(--mut);font-size:13px;margin-top:12px">现代短距离板级通信噪声小，最常用的其实是 <b class="hl-g">8-N-1（无校验）</b>；
+      校验位多见于工业 RS-485/长线场景。需要更强检错用 CRC。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 06 电平 ================= -->
+<section id="level">
+  <div class="sec-head rv"><span class="sec-num">06</span><span class="sec-title">电平标准：TTL 与 RS-232，逻辑是反的！</span>
+    <span class="sec-sub">VOLTAGE LEVELS · SAME FRAME, TWO WORLDS</span></div>
+  <p class="sec-desc rv">
+    同一帧波形（0x55），在芯片引脚（TTL）和传统 DB9 串口（RS-232）上的电压完全不同，而且<b style="color:var(--amber)">高低是颠倒的</b>：
+    TTL 用高电平表示逻辑 1（Mark），RS-232 却用 <b style="color:var(--amber)">负电压</b>表示逻辑 1。
+    两个游标同步扫描同一帧数据，对照着看：</p>
+
+  <div class="volt-grid rv">
+    <div class="panel"><span class="panel-tag">TTL / CMOS · 3.3V</span>
+      <svg class="volt-svg" id="voltTTL" viewBox="0 0 480 212"></svg>
+      <div class="volt-read"><span class="tt" id="voltReadT">3.3 V · 逻辑 1 (Mark)</span><span class="dim mono" style="font-size:11px">单片机 / USB转TTL 引脚</span></div>
+    </div>
+    <div class="panel"><span class="panel-tag">RS-232 · ±12V</span>
+      <svg class="volt-svg" id="voltRS" viewBox="0 0 480 212"></svg>
+      <div class="volt-read"><span class="rr" id="voltReadR">−12 V · 逻辑 1 (Mark)</span><span class="dim mono" style="font-size:11px">DB9 串口 / 老 PC</span></div>
+    </div>
+  </div>
+
+  <div class="grid g3 rv" style="margin-top:18px">
+    <div class="card"><h4><span class="ico g">▣</span>TTL 电平</h4>
+      <p>0V = 逻辑0 (Space)，VCC = 逻辑1 (Mark)。3.3V 与 5V 系统电平不兼容，<b style="color:var(--ph)">不要直接互接 5V → 3.3V 引脚</b>（除非引脚容忍 5V）。</p></div>
+    <div class="card"><h4><span class="ico a">±</span>RS-232 电平</h4>
+      <p>逻辑1 = −3 ~ −15V，逻辑0 = +3 ~ +15V，与 TTL <b style="color:var(--amber)">反相</b>且电压高。直接接到单片机 = 烧片！必须经过电平转换。</p></div>
+    <div class="card"><h4><span class="ico c">⇄</span>转换芯片</h4>
+      <p>TTL ⟷ RS-232：<b style="color:var(--cyan)">MAX3232</b>；USB ⟷ TTL：<b style="color:var(--cyan)">CH340 / CP2102 / FT232</b>（电脑调试串口的全套家当）。</p></div>
+  </div>
+</section>
+
+<!-- ================= 07 踩坑 ================= -->
+<section id="errors">
+  <div class="sec-head rv"><span class="sec-num">07</span><span class="sec-title">波特率不匹配 = 乱码（眼见为实）</span>
+    <span class="sec-sub">WHEN THINGS GO WRONG</span></div>
+  <p class="sec-desc rv">
+    发送方用 <b style="color:var(--ph)">115200</b> 发出 0x55，接收方却按 <b style="color:var(--amber)">9600</b> 在数拍子 ——
+    接收方以为的「一个 bit 时间」其实是 12 个 bit！采样点全部落错位置，红色圆点是接收方的采样时刻：</p>
+
+  <div class="panel rv">
+    <span class="panel-tag">FAILURE DEMO</span>
+    <canvas id="errCanvas" height="250"></canvas>
+    <div class="err-result" id="errResult"></div>
+    <div class="grid g2" style="margin-top:18px">
+      <div>
+        <h4 style="font-family:var(--disp);margin-bottom:8px">串口乱码排查清单（按命中率排序）</h4>
+        <ul class="rules">
+          <li><span class="no">1</span><span><b>波特率不一致</b> —— 双方逐项核对波特率/数据位/校验/停止位（本例）</span></li>
+          <li><span class="no">2</span><span><b>TX/RX 没交叉</b> —— A.TX 必须接 B.RX，接反则一个字节也收不到</span></li>
+          <li><span class="no">3</span><span><b>没共地</b> —— GND 不接，电平参考点漂移，偶发乱码</span></li>
+          <li><span class="no">4</span><span><b>电平不匹配</b> —— RS-232 直接怼 TTL、5V 接 3.3V</span></li>
+          <li><span class="no">5</span><span><b>溢出 Overrun</b> —— 接收端没及时读走数据寄存器，字节丢失</span></li>
+        </ul>
+      </div>
+      <div>
+        <h4 style="font-family:var(--disp);margin-bottom:8px">硬件 UART 的抗噪声设计</h4>
+        <p style="color:var(--mut);font-size:13.8px;line-height:1.85">
+        真实 UART 接收器以 <b class="hl-g">16 倍波特率</b>过采样：检测到下降沿后，先等 8 个采样周期（半位）再确认起始位仍然为低，
+        防止毛刺误触发；之后每个数据位在<b class="hl-g">第 7、8、9 个采样点三取二表决</b>，进一步滤除噪声。
+        若停止位采样到 0，硬件置 <b class="hl-r">帧错误 (Framing Error)</b> 标志 —— 通常这就是波特率不匹配的症状。</p>
+        <p style="color:var(--mut);font-size:13.8px;line-height:1.85;margin-top:10px">
+        起始位的下降沿还有一个妙用：每帧都重新同步一次，所以双方的时钟<b>不需要长期精确</b>，
+        只要在 10 个 bit 内累计误差不超过半位即可 —— 这正是异步通信能够成立的根基。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 08 Linux 实战 ================= -->
+<section id="linux">
+  <div class="sec-head rv"><span class="sec-num">08</span><span class="sec-title">Linux 实战：命令行玩转串口</span>
+    <span class="sec-sub">SERIAL ON LINUX · EVERYTHING IS A FILE</span></div>
+  <p class="sec-desc rv">
+    在 Linux 里串口就是一个<b>设备文件</b>：用 <b>stty</b> 配置四要素（就是波形实验室里那四个参数），
+    然后像普通文件一样用 <i>echo</i> 写、<i>cat</i> 读。下面这段终端动画完整演示：
+    插上 USB 转串口 → 找设备 → 配参数 → 收发数据。</p>
+
+  <div class="panel rv" style="margin-bottom:18px">
+    <span class="panel-tag">TERMINAL · 自动播放</span>
+    <div class="term-head">
+      <span class="tdot r"></span><span class="tdot y"></span><span class="tdot g"></span>
+      <span class="term-title">user@linux: ~</span>
+      <button class="cbtn" id="btnTermReplay" style="margin-left:auto">↺ 重放</button>
+    </div>
+    <div class="term-body" id="termBody"></div>
+  </div>
+
+  <div class="parity-grid rv">
+    <div class="panel"><span class="panel-tag">STTY BUILDER</span>
+      <h4 style="font-family:var(--disp);margin-bottom:12px">stty 命令生成器</h4>
+      <div class="ctrl-row">
+        <div class="ctrl"><label>设备</label><select id="stDev" class="stty-ctl">
+          <option>ttyUSB0</option><option>ttyS0</option><option>ttyACM0</option><option>ttyAMA0</option></select></div>
+        <div class="ctrl"><label>波特率</label><select id="stBaud" class="stty-ctl">
+          <option>9600</option><option>19200</option><option>38400</option><option>57600</option><option selected>115200</option></select></div>
+        <div class="ctrl"><label>数据位</label><select id="stData" class="stty-ctl">
+          <option>5</option><option>6</option><option>7</option><option selected>8</option></select></div>
+        <div class="ctrl"><label>校验</label><select id="stPar" class="stty-ctl">
+          <option value="none" selected>无 N</option><option value="even">偶 E</option><option value="odd">奇 O</option></select></div>
+        <div class="ctrl"><label>停止位</label><select id="stStop" class="stty-ctl">
+          <option value="1" selected>1</option><option value="2">2</option></select></div>
+        <div class="ctrl"><label>&nbsp;</label>
+          <label class="check" style="padding-top:9px"><input type="checkbox" id="stRaw" class="stty-ctl">raw 原始模式</label></div>
+      </div>
+      <div class="cmd-out" id="sttyCmd"></div>
+      <div class="lab-info"><span>等效配置写法 <b id="sttyNota">115200-8-N-1</b></span></div>
+      <table id="sttyFlags" style="margin-top:12px"></table>
+      <p class="note">※ stty 不支持 1.5 停止位（绝大多数适配器硬件同样不支持，故此处只有 1 / 2）。</p>
+    </div>
+    <div class="panel"><span class="panel-tag">DEVICES</span>
+      <h4 style="font-family:var(--disp);margin-bottom:12px">设备文件速查</h4>
+      <table>
+        <tr><th>设备</th><th>是什么</th></tr>
+        <tr><td class="mono hl-c">/dev/ttyS0…</td><td>传统硬件串口（PC DB9 / SoC 内建）</td></tr>
+        <tr><td class="mono hl-g">/dev/ttyUSB0…</td><td>USB 转 TTL 适配器（CH340 / CP2102 / FT232）</td></tr>
+        <tr><td class="mono hl-c">/dev/ttyACM0…</td><td>USB CDC 虚拟串口（Arduino / STM32 内建 USB）</td></tr>
+        <tr><td class="mono hl-a">/dev/ttyAMA0</td><td>树莓派 PL011 硬件串口（常被控制台占用）</td></tr>
+        <tr><td class="mono hl-a">/dev/serial0</td><td>树莓派别名 → 自动指向当前启用的串口</td></tr>
+      </table>
+      <p style="color:var(--mut);font-size:13px;margin-top:12px">插拔 USB 转串口前后各执行一次
+        <b class="hl-g">dmesg | grep -i tty</b>，对比新增的那行就是它的设备名。
+        CH340 适配器只要几块钱，是嵌入式调试的万能钥匙。</p>
+    </div>
+  </div>
+
+  <div class="panel rv" style="margin-top:18px"><span class="panel-tag">COMMANDS</span>
+    <h4 style="font-family:var(--disp);margin-bottom:12px">常用命令速查</h4>
+    <div style="overflow-x:auto">
+    <table>
+      <tr><th>用途</th><th>命令</th><th>要点</th></tr>
+      <tr><td>查看串口参数</td><td class="mono hl-g">stty -F /dev/ttyUSB0 -a</td><td class="dim">speed / cs8 / parenb 全在里面</td></tr>
+      <tr><td>发送文本</td><td class="mono hl-g">echo -n "AT" &gt; /dev/ttyUSB0</td><td class="dim">-n 表示不附加换行 0x0A</td></tr>
+      <tr><td>发送十六进制</td><td class="mono hl-g">printf '\x55\xAA' &gt; /dev/ttyUSB0</td><td class="dim">二进制协议务必配合 raw 模式</td></tr>
+      <tr><td>接收（限时退出）</td><td class="mono hl-g">timeout 5 cat /dev/ttyUSB0</td><td class="dim">cat 会一直阻塞，脚本里加 timeout</td></tr>
+      <tr><td>十六进制查看</td><td class="mono hl-g">hexdump -C &lt; /dev/ttyUSB0</td><td class="dim">验证收到的原始字节（或 xxd）</td></tr>
+      <tr><td>交互终端</td><td class="mono hl-g">screen /dev/ttyUSB0 115200</td><td class="dim">自动配置波特率，见下方工具表</td></tr>
+      <tr><td>谁占用了串口</td><td class="mono hl-g">fuser -v /dev/ttyUSB0</td><td class="dim">或 lsof /dev/ttyUSB0；被占用时打开报 busy</td></tr>
+      <tr><td>自环测试</td><td class="mono hl-g">短接 TX-RX → echo hi &gt; /dev/ttyUSB0</td><td class="dim">另一终端 cat 能收到 = 适配器与驱动正常</td></tr>
+      <tr><td>解决权限</td><td class="mono hl-g">sudo usermod -aG dialout $USER</td><td class="dim">注销重登生效；groups 查看当前组</td></tr>
+    </table>
+    </div>
+    <div class="grid g2" style="margin-top:20px">
+      <div>
+        <h4 style="font-family:var(--disp);margin-bottom:8px">五个高频坑</h4>
+        <ul class="rules">
+          <li><span class="no">1</span><span><b>先 stty 再 cat/echo</b> —— 打开设备不会自动改波特率，顺序反了全是乱码</span></li>
+          <li><span class="no">2</span><span><b>echo 默认附加换行</b> —— 需要精确字节流时用 <b class="hl-g">echo -n</b> 或 printf</span></li>
+          <li><span class="no">3</span><span><b>终端模式会吃字节</b> —— 内核默认转换 CR/LF、把 0x11/0x13 当流控，二进制必须 <b class="hl-g">stty raw -echo</b></span></li>
+          <li><span class="no">4</span><span><b>ttyACM 打开即复位</b> —— 打开 /dev/ttyACM0 会拉 DTR 让 Arduino 复位，程序应等 1~2s 再通信</span></li>
+          <li><span class="no">5</span><span><b>树莓派收不到数据</b> —— ttyAMA0 被控制台占用：/boot/cmdline.txt 删掉 console=serial0,115200</span></li>
+        </ul>
+      </div>
+      <div>
+        <h4 style="font-family:var(--disp);margin-bottom:8px">交互式终端工具（比 cat/echo 舒适）</h4>
+        <table>
+          <tr><th>工具</th><th>启动</th><th>退出</th></tr>
+          <tr><td class="hl-g">screen</td><td class="mono">screen /dev/ttyUSB0 115200</td><td class="dim mono">Ctrl-A K</td></tr>
+          <tr><td class="hl-g">picocom</td><td class="mono">picocom -b 115200 /dev/ttyUSB0</td><td class="dim mono">Ctrl-A Ctrl-X</td></tr>
+          <tr><td class="hl-g">minicom</td><td class="mono">minicom -D /dev/ttyUSB0 -b 115200</td><td class="dim mono">Ctrl-A X</td></tr>
+          <tr><td class="hl-g">tio</td><td class="mono">tio /dev/ttyUSB0</td><td class="dim mono">Ctrl-T Q</td></tr>
+        </table>
+        <p style="color:var(--mut);font-size:13px;margin-top:12px">自带本地回显、断线自动重连（tio）、
+          可发 Break / 十六进制，调试实体设备首选；一次性脚本用 stty + cat/echo 更直接。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 09 速查 ================= -->
+<section id="cheat">
+  <div class="sec-head rv"><span class="sec-num">09</span><span class="sec-title">速查表 & 术语表</span>
+    <span class="sec-sub">CHEAT SHEET</span></div>
+
+  <div class="panel rv" style="margin-bottom:18px">
+    <span class="panel-tag">NOTATION</span>
+    <p style="text-align:center;color:var(--mut);font-size:13.5px;margin-bottom:14px">串口配置通常写作 <b class="hl-g">115200-8-N-1</b>，四个数字分别是：</p>
+    <div class="notation">
+      <div class="n-item"><div class="nv">115200</div><small>波特率 (bit/s)</small></div>
+      <div class="n-item"><div class="nv a">8</div><small>数据位 5~8</small></div>
+      <div class="n-item"><div class="nv c">N</div><small>校验 N/E/O</small></div>
+      <div class="n-item"><div class="nv p">1</div><small>停止位 1/1.5/2</small></div>
+    </div>
+  </div>
+
+  <div class="grid g2 rv">
+    <div class="panel"><span class="panel-tag">BAUD TABLE</span>
+      <h4 style="font-family:var(--disp);margin-bottom:10px">常用波特率（8N1）</h4>
+      <table id="baudTable"><tr><th>波特率</th><th>1 bit 宽度</th><th>1 字节耗时</th><th>有效速率</th></tr></table>
+    </div>
+    <div class="panel"><span class="panel-tag">GOLDEN RULES</span>
+      <h4 style="font-family:var(--disp);margin-bottom:10px">六条铁律</h4>
+      <ul class="rules">
+        <li><span class="no">1</span><span><b>空闲 = 高电平</b>（Mark），不上电也靠上拉保持</span></li>
+        <li><span class="no">2</span><span><b>起始位 = 下降沿</b>，1 bit 低电平宣告帧开始</span></li>
+        <li><span class="no">3</span><span><b>LSB 先行</b>：最低位 D0 第一个发出（最易忘！）</span></li>
+        <li><span class="no">4</span><span><b>停止位 = 高电平</b>，≥1 bit，把线还回空闲</span></li>
+        <li><span class="no">5</span><span><b>四要素一致</b>：波特率·数据位·校验·停止位</span></li>
+        <li><span class="no">6</span><span><b>TX↔RX 交叉 + 共地</b>，三条线一个都不能少</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="panel rv" style="margin-top:18px"><span class="panel-tag">GLOSSARY</span>
+    <dl class="gloss">
+      <dt>Mark / Space</dt><dd>传号/空号，逻辑 1/0 的传统名称，源自电报时代</dd>
+      <dt>Frame · 帧</dt><dd>起始位 + 数据位 + [校验位] + 停止位 构成的一次完整传输</dd>
+      <dt>Shift Register · 移位寄存器</dt><dd>UART 核心：发送端并行转串行逐位移出，接收端逐位移入再并行取出</dd>
+      <dt>Oversampling · 过采样</dt><dd>接收端以 16×（或 8×）波特率采样，取位中点、多数表决抗噪声</dd>
+      <dt>Framing Error · 帧错误</dt><dd>停止位位置读到低电平 —— 波特率不匹配的典型症状</dd>
+      <dt>Overrun Error · 溢出</dt><dd>新字节到了，上一个还没被软件读走，数据丢失</dd>
+      <dt>DTE / DCE</dt><dd>数据终端/数据设备（电脑/调制解调器），决定 DB9 用直连还是交叉线</dd>
+      <dt>Baud vs bps</dt><dd>码元率 vs 比特率；二电平 UART 中 1 码元=1 bit，二者相等</dd>
+    </dl>
+  </div>
+</section>
+
+</div><!-- /wrap -->
+
+<footer>
+  UART·LAB —— 串口协议交互图解 · 纯前端实现 · 离线可用<br>
+  LOCAL FILE · NO DEPENDENCIES · 生成于 2026-08
+</footer>
+
+<script>
+(function(){
+"use strict";
+const $=s=>document.querySelector(s);
+const $$=s=>Array.from(document.querySelectorAll(s));
+const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const MONO='"Share Tech Mono",monospace';
+const C={ph:'#3dffa2',amber:'#ffb454',cyan:'#5fd7ff',pink:'#ff6bcb',red:'#ff5d5d',
+  mut:'#7e9a8f',mut2:'#59736a',grid:'rgba(120,190,165,.12)',gridF:'rgba(120,190,165,.20)'};
+const TYPE_COLOR={start:'#5fd7ff',data:'#3dffa2',parity:'#ffb454',stop:'#ff6bcb',idle:'#59736a'};
+const TYPE_NAME={start:'起始位',data:'数据位',parity:'校验位',stop:'停止位',idle:'空闲'};
+
+/* ---------- 通用 ---------- */
+const countOnes=(v,n)=>{let c=0;for(let i=0;i<n;i++)c+=(v>>i)&1;return c;};
+const hex2=v=>'0x'+v.toString(16).toUpperCase().padStart(2,'0');
+const bin=(v,n)=>v.toString(2).padStart(n,'0');
+const chr=v=>(v>=32&&v<=126)?("'"+String.fromCharCode(v)+"'"):'——';
+
+/* 构建帧片段（单位：bit 宽度） */
+function buildSegs(cfg){
+  const segs=[];let p=0;
+  const push=(type,level,len,label,extra)=>{
+    const s=Object.assign({type,level,len,label,start:p},extra||{});
+    segs.push(s);p+=len;return s;};
+  push('idle',1,1.2,'空闲');
+  push('start',0,1,'起始');
+  const n=cfg.dataBits;
+  for(let i=0;i<n;i++)push('data',(cfg.byte>>i)&1,1,'D'+i,{bitIndex:i});
+  if(cfg.parity!=='none'){
+    const ones=countOnes(cfg.byte&((1<<n)-1),n);
+    push('parity',cfg.parity==='even'?(ones&1):((ones&1)^1),1,'校验');
+  }
+  push('stop',1,cfg.stopBits,'停止');
+  push('idle',1,1.6,'空闲');
+  return segs;
+}
+const segTotal=segs=>segs[segs.length-1].start+segs[segs.length-1].len;
+const levelAt=(segs,t)=>{for(const s of segs){if(t<s.start+s.len)return s.level;}return 1;};
+const segAt=(segs,t)=>{for(const s of segs){if(t>=s.start&&t<s.start+s.len)return s;}return null;};
+
+/* 阶梯波形 Path2D（bit 区间 [a,b] 内可见部分） */
+function tracePath(segs,a,b,x,yOf){
+  const p=new Path2D();let started=false;
+  for(const s of segs){
+    const e0=s.start,e1=s.start+s.len;
+    if(e0>=b)break;
+    const lo=Math.max(e0,a),hi=Math.min(e1,b);
+    if(hi<=lo)continue;
+    const y=yOf(s.level);
+    if(!started){p.moveTo(x(lo),y);started=true;}
+    p.lineTo(x(hi),y);
+  }
+  return p;
+}
+function fitCanvas(cv,h){
+  const w=cv.parentElement.getBoundingClientRect().width||600;
+  const dpr=Math.min(2,window.devicePixelRatio||1);
+  cv.width=w*dpr;cv.height=h*dpr;
+  cv.style.width=w+'px';cv.style.height=h+'px';
+  const ctx=cv.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  return {ctx,w,h};
+}
+
+/* ============ Hero 数据包动画 ============ */
+(function heroPackets(){
+  const bits=[[0,'s'],[1,'d'],[0,'d'],[1,'d'],[0,'d'],[1,'d'],[0,'d'],[1,'d'],[0,'d'],[1,'t']];
+  const mk=(parentId,refId,colorSeq)=>{
+    const g=document.getElementById(parentId);
+    const NS='http://www.w3.org/2000/svg';
+    const XL='http://www.w3.org/1999/xlink';
+    bits.forEach((b,i)=>{
+      const grp=document.createElementNS(NS,'g');
+      grp.setAttribute('class','pkt');
+      const r=document.createElementNS(NS,'rect');
+      r.setAttribute('x','-14');r.setAttribute('y','-11');
+      r.setAttribute('width','28');r.setAttribute('height','22');r.setAttribute('rx','5');
+      const st=b[1];
+      if(st==='s'){r.setAttribute('fill','rgba(95,215,255,.2)');r.setAttribute('stroke',C.cyan);}
+      else if(st==='t'){r.setAttribute('fill','rgba(255,107,203,.2)');r.setAttribute('stroke',C.pink);}
+      else if(b[0]){r.setAttribute('fill','rgba(61,255,162,.25)');r.setAttribute('stroke',C.ph);}
+      else{r.setAttribute('fill','rgba(20,32,28,.9)');r.setAttribute('stroke','rgba(61,255,162,.5)');}
+      r.setAttribute('stroke-width','1.5');
+      const t=document.createElementNS(NS,'text');
+      t.setAttribute('text-anchor','middle');t.setAttribute('y','5');
+      t.setAttribute('font-family','Share Tech Mono');t.setAttribute('font-size','13');
+      t.setAttribute('fill',b[0]||st==='s'?C.cyan:C.ph);
+      if(st==='s'){t.textContent='0';t.setAttribute('fill',C.cyan);}
+      else if(st==='t'){t.textContent='1';t.setAttribute('fill',C.pink);}
+      else{t.textContent=b[0];t.setAttribute('fill',b[0]?C.ph:'#8fb5a8');}
+      const mo=document.createElementNS(NS,'animateMotion');
+      mo.setAttribute('dur','5s');mo.setAttribute('begin',(i*0.5)+'s');
+      mo.setAttribute('repeatCount','indefinite');mo.setAttribute('rotate','0');
+      const mp=document.createElementNS(NS,'mpath');
+      mp.setAttribute('href','#'+refId);
+      mp.setAttributeNS(XL,'xlink:href','#'+refId);
+      mo.appendChild(mp);
+      const op=document.createElementNS(NS,'animate');
+      op.setAttribute('attributeName','opacity');
+      op.setAttribute('values','0;1;1;0');op.setAttribute('keyTimes','0;.06;.93;1');
+      op.setAttribute('dur','5s');op.setAttribute('begin',(i*0.5)+'s');
+      op.setAttribute('repeatCount','indefinite');
+      grp.appendChild(r);grp.appendChild(t);grp.appendChild(mo);grp.appendChild(op);
+      g.appendChild(grp);
+    });
+  };
+  mk('packetsA','hw1');
+  mk('packetsB','hw2');
+})();
+
+/* ============ 帧结构解剖图 ============ */
+(function anatomy(){
+  const cfg={byte:0x55,dataBits:8,parity:'even',stopBits:1};
+  const segs=buildSegs(cfg);
+  const total=segTotal(segs);
+  const W=1000,H=316,NS='http://www.w3.org/2000/svg';
+  const svg=$('#anatomySvg');
+  svg.setAttribute('viewBox','0 0 '+W+' '+H);
+  const padL=26,padR=26,plotW=W-padL-padR,bw=plotW/total;
+  const x=v=>padL+v*bw;
+  const yH=150,yL=226,yOf=l=>l?yH:yL;
+  const el=(tag,attrs,parent)=>{const e=document.createElementNS(NS,tag);
+    for(const k in attrs)e.setAttribute(k,attrs[k]);(parent||svg).appendChild(e);return e;};
+
+  /* 背景区域 + 每位标签 */
+  segs.forEach(s=>{
+    const g=el('g',{'class':'seg-region','data-type':s.type});
+    el('rect',{x:x(s.start),y:yH-6,width:s.len*bw,height:yL-yH+12,rx:3,
+      fill:TYPE_COLOR[s.type],opacity:.07},g);
+    if(s.len>=0.95){
+      const cx=x(s.start+s.len/2);
+      el('text',{x:cx,y:yL+20,'text-anchor':'middle','font-size':11.5,
+        fill:s.type==='idle'?'rgba(89,115,106,.9)':TYPE_COLOR[s.type]},g).textContent=s.label;
+      if(s.type==='data'){
+        el('text',{x:cx,y:yL+36,'text-anchor':'middle','font-size':12,fill:s.level?C.amber:'#59736a','font-weight':'bold'},g)
+          .textContent=s.level;
+      }
+    }
+    g.addEventListener('mouseenter',()=>lit(s.type));
+    g.addEventListener('mouseleave',()=>lit(null));
+  });
+
+  /* 波形主线 */
+  let d='M '+x(0)+' '+yOf(segs[0].level);
+  segs.forEach(s=>{d+=' L '+x(s.start)+' '+yOf(s.level)+' L '+x(s.start+s.len)+' '+yOf(s.level);});
+  const wave=el('path',{d,fill:'none',stroke:C.ph,'stroke-width':2.5,'stroke-linejoin':'round'});
+  wave.style.filter='drop-shadow(0 0 5px rgba(61,255,162,.65))';
+
+  /* 电平标注 */
+  el('text',{x:padL-8,y:yH+4,'text-anchor':'end','font-size':11,fill:C.mut}).textContent='1';
+  el('text',{x:padL-8,y:yL+4,'text-anchor':'end','font-size':11,fill:C.mut}).textContent='0';
+  el('line',{x1:padL,y1:yH,x2:W-padR,y2:yH,stroke:'rgba(120,190,165,.18)','stroke-dasharray':'2 5'});
+  el('line',{x1:padL,y1:yL,x2:W-padR,y2:yL,stroke:'rgba(120,190,165,.18)','stroke-dasharray':'2 5'});
+
+  /* 位宽标注（套在起始位上） */
+  const sx=x(1),ex=x(2),ay=88;
+  el('path',{d:`M ${sx},${ay+7} L ${sx},${ay} L ${ex},${ay} L ${ex},${ay+7}`,
+    fill:'none',stroke:C.cyan,'stroke-width':1.3,opacity:.85});
+  el('text',{x:(sx+ex)/2,y:ay-7,'text-anchor':'middle','font-size':11.5,fill:C.cyan})
+    .textContent='1 位时间 T=1/波特率';
+
+  /* 引线标注 */
+  const call=(bitPos,y,txt,sub,color,align)=>{
+    const cx=x(bitPos);
+    el('line',{x1:cx,y1:y>140?yL+2:yH-2,x2:cx,y2:y+(y>140?12:-6),stroke:color,'stroke-width':1,opacity:.55});
+    el('circle',{cx,cy:y>140?yL+2:yH-2,r:2.5,fill:color,opacity:.8});
+    el('text',{x:cx,y:y,'text-anchor':align||'middle','font-size':12.5,fill:'#cfe3da'},svg).textContent=txt;
+    el('text',{x:cx,y:y+15,'text-anchor':align||'middle','font-size':10.5,fill:'#7e9a8f'},svg).textContent=sub;
+  };
+  call(1.5,60,'起始位 · 低','下降沿 = 帧开始',C.cyan);
+  call(3,52,'D0=1','LSB 先行：低位最先发',C.ph);
+  call(8.5,60,'偶校验 = 0','已有 4 个 1（偶数）',C.amber);
+  call(10.5,52,'停止位 · 高','≥1 位，回到空闲',C.pink);
+  el('text',{x:x(12.6),y:yL+20,'text-anchor':'middle','font-size':11,fill:'rgba(89,115,106,.9)'}).textContent='空闲…';
+  /* LSB 方向箭头 */
+  const ax1=x(2),ax2=x(9),awy=yL+52;
+  el('line',{x1:ax1,y1:awy,x2:ax2-8,y2:awy,stroke:C.mut,'stroke-width':1.2,opacity:.7});
+  el('path',{d:`M ${ax2-8},${awy} l -7,-4 l 0,8 z`,fill:C.mut,opacity:.8});
+  el('text',{x:(ax1+ax2)/2,y:awy-7,'text-anchor':'middle','font-size':11,fill:C.mut})
+    .textContent='发送顺序 D0 → D7（低位在前）';
+
+  /* 侧栏 */
+  const DESC={
+    idle:['空闲 · 高电平 (Mark)','#59736a','线路上没有数据时保持高电平（靠上拉），这也是接收方判断「下一个下降沿=新帧」的基准。'],
+    start:['起始位 · 1 bit 低','#5fd7ff','发送方把线拉低一个位时间，这个下降沿就是唯一的同步信号 —— 接收方从这里开始数拍子。'],
+    data:['数据位 · 5~8 bit（LSB 先行）','#3dffa2','真正的内容。约定 8 位最常见；注意最低位 D0 第一个上线，示波器抓包时千万别按 MSB 读。'],
+    parity:['校验位 · 可选','#ffb454','奇/偶校验，让「数据+校验」中 1 的个数为奇/偶。只能查 1 位错，现代板级常用 8N1 直接省略。'],
+    stop:['停止位 · 1 / 1.5 / 2 bit 高','#ff6bcb','把线路拉回高电平（空闲），保证下一帧起始位的下降沿一定出现。1 位最常用。']};
+  const list=$('#anatomyList');
+  Object.keys(DESC).forEach(k=>{
+    const div=document.createElement('div');
+    div.className='a-item';div.dataset.type=k;
+    div.innerHTML=`<h5><span class="dot" style="background:${DESC[k][1]}"></span>${DESC[k][0]}</h5><p>${DESC[k][2]}</p>`;
+    div.addEventListener('mouseenter',()=>lit(k));
+    div.addEventListener('mouseleave',()=>lit(null));
+    list.appendChild(div);
+  });
+  function lit(type){
+    svg.classList.toggle('dimmed',!!type);
+    $$('#anatomySvg .seg-region').forEach(g=>g.classList.toggle('lit',!!type&&g.dataset.type===type));
+    $$('.a-item').forEach(it=>it.classList.toggle('on',!!type&&it.dataset.type===type));
+  }
+  lit('start');setTimeout(()=>lit(null),2600);
+})();
+
+/* ============ 波形实验室 ============ */
+const labCfg={byte:0x55,dataBits:8,parity:'none',stopBits:1,baud:115200,ghost:true,marks:true};
+const lab={t:0,playing:!reduced,speed:1,segs:[],total:0,pts:[],nextIdx:0,samples:[],cycle:0,hover:null,visible:true};
+
+const labCv=$('#labCanvas');
+let labCtx,labW,labH=300;
+function labResize(){const f=fitCanvas(labCv,labH);labCtx=f.ctx;labW=f.w;}
+
+function labRebuild(){
+  lab.segs=buildSegs(labCfg);
+  lab.total=segTotal(lab.segs);
+  lab.pts=lab.segs.filter(s=>s.type!=='idle').map(s=>({seg:s,at:s.start+0.5}));
+  lab.t=0;lab.nextIdx=0;lab.samples=[];lab.hover=null;
+  buildShift();labStatus('空闲（高电平）· 等待起始位下降沿…','');
+  const n=labCfg.dataBits;
+  const mask=labCfg.byte&((1<<n)-1);
+  $('#txDisplay').innerHTML=`TX: ${hex2(mask)} <span style="color:#59736a">${bin(mask,n)}</span> <span class="u">${n===8?chr(mask):''}</span>`;
+  const frameBits=1+n+(labCfg.parity!=='none'?1:0)+ +labCfg.stopBits;
+  const bt=1e6/labCfg.baud;
+  $('#labInfo').innerHTML=
+    `<span>波特率 <b>${labCfg.baud}</b></span>`+
+    `<span>1 bit = <b>${bt.toFixed(2)} µs</b></span>`+
+    `<span>帧长 <b>${frameBits} bit</b> ≈ ${(frameBits*bt/1000).toFixed(3)} ms</span>`+
+    `<span>8N1 有效速率 <b>${Math.round(labCfg.baud/frameBits)} B/s</b></span>`+
+    `<span>已循环 <b>${lab.cycle}</b> 帧</span>`;
+}
+function buildShift(){
+  const box=$('#shiftReg');box.innerHTML='';
+  for(let i=labCfg.dataBits-1;i>=0;i--){
+    const c=document.createElement('div');c.className='cell';c.dataset.i=i;
+    c.innerHTML=`<div class="box">·</div><small>D${i}</small>`;
+    box.appendChild(c);
+  }
+}
+function labStatus(msg,cls){const elSt=$('#labStatus');elSt.textContent=msg;elSt.className='status-line '+(cls||'');}
+
+function onLabSample(seg){
+  if(!labCfg.marks&&!true)return;
+  if(seg.type==='start'){labStatus('✓ 起始位：下降沿触发，接收开始','ok');}
+  else if(seg.type==='data'){
+    const cell=$(`#shiftReg .cell[data-i="${seg.bitIndex}"]`);
+    if(cell){cell.classList.add('filled');cell.querySelector('.box').textContent=seg.level;}
+    labStatus(`接收 D${seg.bitIndex} = ${seg.level}（采样于位中点）`,seg.level?'ok':'');
+  }else if(seg.type==='parity'){
+    const n=labCfg.dataBits,mask=labCfg.byte&((1<<n)-1);
+    const ones=countOnes(mask,n)+seg.level;
+    labStatus(`校验位 = ${seg.level} · 1 的总数 = ${ones}（${labCfg.parity==='even'?'偶':'奇'}校验 ${ones%2===(labCfg.parity==='even'?0:1)?'✓ 通过':'✗ 错误'}）`,'ok');
+  }else if(seg.type==='stop'){
+    const n=labCfg.dataBits;let v=0;
+    lab.samples.forEach(pt=>{if(pt.seg.type==='data')v|=pt.seg.level<<pt.seg.bitIndex;});
+    const ok=v===(labCfg.byte&((1<<n)-1));
+    labStatus(`✓ 停止位（高电平）→ 帧完成！接收字节 ${hex2(v)} ${n===8?chr(v):''} ${ok?'✓ 与发送一致':'✗'}`,'ok');
+  }
+}
+lab.onSample=onLabSample;
+
+function labTick(dt){
+  if(!lab.visible)return;
+  if(lab.playing){
+    lab.t+=dt*1.7*lab.speed;
+    if(lab.t>=lab.total+0.9){
+      lab.t=0;lab.nextIdx=0;lab.samples=[];lab.cycle++;
+      $$('#shiftReg .cell').forEach(c=>{c.classList.remove('filled');c.querySelector('.box').textContent='·';});
+      labStatus('空闲（高电平）· 等待起始位下降沿…','');
+      const span=$('#labInfo span:last-child b');if(span)span.textContent=lab.cycle;
+    }
+    while(lab.nextIdx<lab.pts.length&&lab.t>=lab.pts[lab.nextIdx].at){
+      const pt=lab.pts[lab.nextIdx++];lab.samples.push(pt);onLabSample(pt.seg);
+    }
+  }
+}
+function labDraw(){
+  if(!labCtx)return;
+  const ctx=labCtx,W=labW,H=labH;
+  ctx.clearRect(0,0,W,H);
+  const padL=52,padR=16,padT=22,padB=48;
+  const plotW=W-padL-padR,bw=plotW/lab.total;
+  const x=v=>padL+v*bw;
+  const yH=padT+38,yL=H-padB-8,yOf=l=>l?yH:yL;
+
+  /* 位边界网格 */
+  ctx.strokeStyle=C.grid;ctx.lineWidth=1;ctx.setLineDash([3,5]);
+  lab.segs.forEach(s=>{ctx.beginPath();ctx.moveTo(x(s.start),padT);ctx.lineTo(x(s.start),yL+16);ctx.stroke();});
+  ctx.beginPath();ctx.moveTo(x(lab.total),padT);ctx.lineTo(x(lab.total),yL+16);ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.strokeStyle='rgba(120,190,165,.22)';
+  [yH,yL].forEach(y=>{ctx.beginPath();ctx.moveTo(padL-6,y);ctx.lineTo(W-padR,y);ctx.stroke();});
+  ctx.font='11px '+MONO;ctx.fillStyle=C.mut2;ctx.textAlign='right';
+  ctx.fillText('1',padL-12,yH+4);ctx.fillText('0',padL-12,yL+4);
+  ctx.textAlign='left';ctx.fillText('→ t',W-padR-18,padT+4);
+
+  /* 片段底色 + 标签 */
+  lab.segs.forEach(s=>{
+    const c=TYPE_COLOR[s.type];
+    if(s.type!=='idle'){ctx.fillStyle=c;ctx.globalAlpha=.055;
+      ctx.fillRect(x(s.start),yH-8,s.len*bw,yL-yH+16);ctx.globalAlpha=1;}
+    if(s.len>=0.9){
+      const cx=x(s.start+s.len/2);
+      ctx.textAlign='center';
+      ctx.fillStyle=s.type==='idle'?'rgba(89,115,106,.85)':c;
+      ctx.font='11px '+MONO;
+      ctx.fillText(s.label,cx,yL+31);
+      if(s.type==='data'){ctx.font='bold 12px '+MONO;ctx.fillStyle=s.level?C.amber:'#59736a';
+        ctx.fillText(s.level,cx,yL+46);}
+    }
+  });
+
+  /* 完整预览（幽灵） */
+  if(labCfg.ghost){
+    ctx.strokeStyle='rgba(61,255,162,.15)';ctx.lineWidth=2;
+    ctx.stroke(tracePath(lab.segs,0,lab.total,x,yOf));
+  }
+  /* 实时轨迹（发光） */
+  const path=tracePath(lab.segs,0,Math.min(lab.t,lab.total),x,yOf);
+  ctx.save();
+  ctx.shadowColor='rgba(61,255,162,.8)';ctx.shadowBlur=12;
+  ctx.strokeStyle=C.ph;ctx.lineWidth=2.5;ctx.lineJoin='round';
+  ctx.stroke(path);
+  ctx.restore();
+  ctx.strokeStyle='#aaffe0';ctx.lineWidth=1.2;ctx.stroke(path);
+
+  /* 采样点 */
+  if(labCfg.marks){
+    lab.samples.forEach(pt=>{
+      const sx=x(pt.at),sy=yOf(pt.seg.level);
+      ctx.save();ctx.shadowColor='rgba(255,180,84,.9)';ctx.shadowBlur=9;
+      ctx.fillStyle=C.amber;ctx.beginPath();ctx.arc(sx,sy,4.2,0,7);ctx.fill();ctx.restore();
+      ctx.font='10px '+MONO;ctx.fillStyle=C.amber;ctx.textAlign='center';
+      const lab2=pt.seg.type==='data'?pt.seg.level:(pt.seg.type==='start'?'✓':pt.seg.type==='parity'?pt.seg.level:'✓');
+      ctx.fillText(lab2,sx,sy===yH?sy-10:sy+18);
+    });
+  }
+  /* 悬停高亮 */
+  if(lab.hover){
+    const s=lab.hover;
+    ctx.fillStyle='rgba(255,255,255,.07)';
+    ctx.fillRect(x(s.start),padT,s.len*bw,yL+16-padT);
+    ctx.strokeStyle='rgba(255,255,255,.22)';
+    ctx.strokeRect(x(s.start),padT,s.len*bw,yL+16-padT);
+  }
+  /* 播放头 */
+  if(lab.t<=lab.total){
+    const px=x(lab.t),lv=levelAt(lab.segs,lab.t);
+    const grad=ctx.createLinearGradient(px-14,0,px+14,0);
+    grad.addColorStop(0,'rgba(255,255,255,0)');grad.addColorStop(.5,'rgba(255,255,255,.14)');grad.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.fillStyle=grad;ctx.fillRect(px-14,padT,28,yL+16-padT);
+    ctx.save();ctx.shadowColor='rgba(95,215,255,.9)';ctx.shadowBlur=13;
+    ctx.fillStyle=C.cyan;ctx.beginPath();ctx.arc(px,yOf(lv),5,0,7);ctx.fill();ctx.restore();
+  }
+}
+
+/* 实验室控件 */
+$('#byteIn').addEventListener('change',e=>{
+  const s=e.target.value.trim();let v=null;
+  if(/^0x[0-9a-f]+$/i.test(s))v=parseInt(s,16);
+  else if(/^[0-9]+$/.test(s))v=parseInt(s,10);
+  else if(/^[0-9a-f]{1,2}$/i.test(s))v=parseInt(s,16);
+  else if(s.length===1)v=s.charCodeAt(0);
+  if(v===null||isNaN(v)){e.target.value=hex2(labCfg.byte);return;}
+  labCfg.byte=v&0xFF;e.target.value=hex2(labCfg.byte);
+  $$('.bchip').forEach(c=>c.classList.toggle('on',c.dataset.b===hex2(labCfg.byte)));
+  labRebuild();
+});
+$$('.bchip').forEach(c=>c.addEventListener('click',()=>{
+  labCfg.byte=parseInt(c.dataset.b,16);$('#byteIn').value=c.dataset.b;
+  $$('.bchip').forEach(k=>k.classList.toggle('on',k===c));
+  labRebuild();
+}));
+$('#selData').addEventListener('change',e=>{labCfg.dataBits=+e.target.value;labRebuild();});
+$('#selParity').addEventListener('change',e=>{labCfg.parity=e.target.value;labRebuild();});
+$('#selStop').addEventListener('change',e=>{labCfg.stopBits=+e.target.value;labRebuild();});
+$('#selBaud').addEventListener('change',e=>{labCfg.baud=+e.target.value;labRebuild();});
+$('#spdRange').addEventListener('input',e=>{lab.speed=+e.target.value;});
+$('#btnPlay').addEventListener('click',e=>{
+  lab.playing=!lab.playing;
+  e.target.textContent=lab.playing?'⏸ 暂停':'▶ 播放';
+  e.target.classList.toggle('on',lab.playing);
+});
+$('#btnReset').addEventListener('click',()=>{lab.t=0;lab.nextIdx=0;lab.samples=[];labRebuild();});
+$('#ckGhost').addEventListener('change',e=>labCfg.ghost=e.target.checked);
+$('#ckMarks').addEventListener('change',e=>labCfg.marks=e.target.checked);
+
+labCv.addEventListener('mousemove',e=>{
+  const r=labCv.getBoundingClientRect();
+  const padL=52,padR=16,bw=(r.width-padL-padR)/lab.total;
+  const bitPos=(e.clientX-r.left-padL)/bw;
+  const s=segAt(lab.segs,bitPos);
+  lab.hover=s;
+  const hv=$('#labHover');
+  if(s){
+    const extra=s.type==='data'?` · 第 ${s.bitIndex} 位（D${s.bitIndex}，${s.bitIndex===0?'最低位 LSB · 最先发出':s.bitIndex===labCfg.dataBits-1?'最高位 MSB':'中间位'}）`:'';
+    hv.innerHTML=`悬停：<b>${TYPE_NAME[s.type]}</b> · 电平 <b>${s.level}</b>（${s.level?'高 / Mark':'低 / Space'}）${extra}`;
+  }else hv.textContent='把鼠标移到波形上，查看每一位的说明 ——';
+});
+labCv.addEventListener('mouseleave',()=>{lab.hover=null;$('#labHover').textContent='把鼠标移到波形上，查看每一位的说明 ——';});
+
+/* ============ 波特率竞速 ============ */
+function mkRace(cvId,baud,cntId){
+  const cfg={byte:0x55,dataBits:8,parity:'none',stopBits:1};
+  const segs=buildSegs(cfg),total=segTotal(segs);
+  const st={t:0,bytes:0,visible:false,rate:1.5*baud/9600};
+  const cv=$('#'+cvId);let ctx,w;
+  const resize=()=>{const f=fitCanvas(cv,120);ctx=f.ctx;w=f.w;};
+  resize();
+  const draw=()=>{
+    const H=120,padL=14,padR=10,padT=16,padB=10;
+    ctx.clearRect(0,0,w,H);
+    const plotW=w-padL-padR,bw=plotW/total;
+    const x=v=>padL+v*bw,yH=padT+12,yL=H-padB-12,yOf=l=>l?yH:yL;
+    ctx.strokeStyle=C.grid;ctx.setLineDash([3,5]);ctx.lineWidth=1;
+    segs.forEach(s=>{ctx.beginPath();ctx.moveTo(x(s.start),padT);ctx.lineTo(x(s.start),yL+4);ctx.stroke();});
+    ctx.setLineDash([]);
+    ctx.strokeStyle='rgba(120,190,165,.2)';
+    [yH,yL].forEach(y=>{ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(w-padR,y);ctx.stroke();});
+    const path=tracePath(segs,0,Math.min(st.t,total),x,yOf);
+    ctx.save();ctx.shadowColor=baud===9600?'rgba(61,255,162,.8)':'rgba(255,180,84,.8)';
+    ctx.shadowBlur=9;ctx.strokeStyle=baud===9600?C.ph:C.amber;ctx.lineWidth=2.2;ctx.lineJoin='round';
+    ctx.stroke(path);ctx.restore();
+    ctx.font='10px '+MONO;ctx.fillStyle=C.mut2;ctx.textAlign='left';
+    ctx.fillText('0x55',padL+2,padT+2);
+    if(st.t<=total){
+      const px=x(st.t);
+      ctx.fillStyle='rgba(255,255,255,.12)';ctx.fillRect(px-8,padT,16,yL+4-padT);
+      ctx.fillStyle=baud===9600?C.ph:C.amber;
+      ctx.beginPath();ctx.arc(px,yOf(levelAt(segs,st.t)),3.6,0,7);ctx.fill();
+    }
+  };
+  const tick=dt=>{
+    if(!st.visible)return;
+    st.t+=dt*st.rate;
+    if(st.t>=total+0.35){st.t=0;st.bytes++;$('#'+cntId).textContent=st.bytes;}
+  };
+  return {tick,draw,resize,get visible(){return st.visible;},set visible(v){st.visible=v;}};
+}
+const race1=mkRace('race1',9600,'cnt1');
+const race2=mkRace('race2',115200,'cnt2');
+
+/* ============ 校验位实验 ============ */
+(function parity(){
+  let val=0b01010101;
+  const box=$('#pBits');
+  function render(){
+    box.innerHTML='';
+    for(let i=7;i>=0;i--){
+      const b=(val>>i)&1;
+      const d=document.createElement('div');d.className='pbit';
+      d.innerHTML=`<button class="${b?'one':''}" data-i="${i}">${b}</button><small>D${i}</small>`;
+      box.appendChild(d);
+    }
+    $$('#pBits button').forEach(btn=>btn.addEventListener('click',()=>{
+      val^= (1<<+btn.dataset.i);render();
+    }));
+    const ones=countOnes(val,8);
+    const mode=$('#pMode').value;
+    const pb=mode==='even'?(ones&1):((ones&1)^1);
+    const total=ones+pb,want=mode==='even'?0:1;
+    const ok=total%2===want;
+    $('#pHex').textContent=hex2(val)+' = 0b'+bin(val,8);
+    $('#pEq').innerHTML=
+      `数据中 1 的个数 = <b class="hl-g">${ones}</b>（${ones%2?'奇':'偶'}数）<br>`+
+      `→ <b class="${mode==='even'?'hl-g':'hl-a'}">${mode==='even'?'偶':'奇'}校验位</b> = <b class="hl-p">${pb}</b>`+
+      `　（${mode==='even'?'补上它使总数为偶数':'补上它使总数为奇数'}）<br>`+
+      `校验：${ones} + ${pb} = <b>${total}</b> 个 1 → ${total%2===0?'偶数':'奇数'} `+
+      `<b class="${ok?'hl-g':'hl-r'}">${ok?'✓ 符合约定':'✗ 异常'}</b>`;
+  }
+  $('#pMode').addEventListener('change',render);
+  $('#pRand').addEventListener('click',()=>{val=Math.floor(Math.random()*256);render();});
+  render();
+})();
+
+/* ============ 电平对比 ============ */
+const volt={t:0,visible:false,playing:!reduced};
+(function voltInit(){
+  const cfg={byte:0x55,dataBits:8,parity:'none',stopBits:1};
+  const segs=buildSegs(cfg),total=segTotal(segs);
+  volt.segs=segs;volt.total=total;
+  const NS='http://www.w3.org/2000/svg';
+  const build=(svgId,flip)=>{
+    const svg=$('#'+svgId);
+    const W=480,H=212,x0=44,x1=468;
+    const bw=(x1-x0)/total;
+    const x=v=>x0+v*bw;
+    const yT=44,yB=158;                 /* yT=上轨, yB=下轨 */
+    const yOf=l=>flip?(l?yB:yT):(l?yT:yB);
+    const el=(tag,attrs)=>{const e=document.createElementNS(NS,tag);
+      for(const k in attrs)e.setAttribute(k,attrs[k]);svg.appendChild(e);return e;};
+    /* 轨线 */
+    const mkLine=(y,txt,col)=>{
+      el('line',{x1:x0-4,y1:y,x2:x1,y2:y,stroke:'rgba(120,190,165,.25)','stroke-dasharray':'3 5'});
+      el('text',{x:x0-9,y:y+4,'text-anchor':'end','font-size':10.5,fill:col||'#7e9a8f'}).textContent=txt;
+    };
+    if(!flip){
+      mkLine(yT,'3.3 V','#3dffa2');mkLine(yB,'0 V','#7e9a8f');
+      el('text',{x:(x0+x1)/2,y:200,'text-anchor':'middle','font-size':11,fill:'#59736a'})
+        .textContent='逻辑 1 = 高电平 (Mark=VCC) · 逻辑 0 = 低电平 (Space=GND)';
+    }else{
+      mkLine(yT,'+12 V','#ffb454');mkLine(yB,'−12 V','#ffb454');
+      /* ±3V 未定义区 */
+      const y3p=158-(15/24)*114, y3m=158-(9/24)*114;
+      el('rect',{x:x0,y:y3p,width:x1-x0,height:y3m-y3p,fill:'rgba(255,93,93,.06)'});
+      el('line',{x1:x0,y1:y3p,x2:x1,y2:y3p,stroke:'rgba(255,93,93,.4)','stroke-dasharray':'4 4'});
+      el('line',{x1:x0,y1:y3m,x2:x1,y2:y3m,stroke:'rgba(255,93,93,.4)','stroke-dasharray':'4 4'});
+      el('text',{x:(x0+x1)/2,y:(y3p+y3m)/2+4,'text-anchor':'middle','font-size':10,fill:'#ff5d5d'}).textContent='|V| < 3V 未定义区';
+      el('text',{x:(x0+x1)/2,y:200,'text-anchor':'middle','font-size':11,fill:'#59736a'})
+        .textContent='逻辑 1 = 负电压 (Mark) · 逻辑 0 = 正电压 (Space) —— 与 TTL 反相！';
+    }
+    /* 波形 */
+    let d='M '+x(0)+' '+yOf(segs[0].level);
+    segs.forEach(s=>{d+=' L '+x(s.start)+' '+yOf(s.level)+' L '+x(s.start+s.len)+' '+yOf(s.level);});
+    const col=flip?C.amber:C.ph;
+    const p=el('path',{d,fill:'none',stroke:col,'stroke-width':2.4,'stroke-linejoin':'round'});
+    p.style.filter=`drop-shadow(0 0 5px ${col}aa)`;
+    const dot=el('circle',{r:5,fill:col,stroke:'#070c0f','stroke-width':2});
+    return {dot,yOf,x,flip};
+  };
+  const a=build('voltTTL',false),b=build('voltRS',true);
+  volt.draw=()=>{
+    const t=volt.t% (volt.total+0.4);
+    const seg=segAt(volt.segs,Math.min(t,volt.total))||volt.segs[0];
+    const px=v=>a.x(Math.min(v,volt.total));
+    a.dot.setAttribute('cx',px(t));a.dot.setAttribute('cy',a.yOf(seg.level));
+    b.dot.setAttribute('cx',px(t));b.dot.setAttribute('cy',b.yOf(seg.level));
+    const isMark=seg.level===1;
+    $('#voltReadT').textContent=isMark?'3.3 V · 逻辑 1 (Mark)':'0 V · 逻辑 0 (Space)';
+    $('#voltReadR').textContent=isMark?'−12 V · 逻辑 1 (Mark)':'+12 V · 逻辑 0 (Space)';
+    $('#voltReadT').style.color=isMark?C.ph:C.mut;
+    $('#voltReadR').style.color=isMark?C.amber:C.amber;
+  };
+  volt.tick=dt=>{if(!volt.visible||!volt.playing)return;volt.t+=dt*2.2;};
+})();
+
+/* ============ 波特率错误演示 ============ */
+const err={t:0,visible:false,fired:0};
+(function errInit(){
+  const cv=$('#errCanvas');let ctx,w;const H=250;
+  const resize=()=>{const f=fitCanvas(cv,H);ctx=f.ctx;w=f.w;};
+  resize();
+  const arr=[0,1,0,1,0,1,0,1,0,1];   /* 0x55 8N1: start,D0..D7,stop */
+  const SPAN=118;                      /* 显示 118 个发送位宽 */
+  const samples=[];for(let k=0;k<8;k++)samples.push({at:6+12*k,v:arr[Math.min(6+12*k,9)]??1});
+  samples.forEach((s,i)=>{s.v=(6+12*i)<10?arr[6+12*i]:1;});
+  const rxByte=samples.reduce((a,s,i)=>a|(s.v<<i),0);
+  err.draw=()=>{
+    const padL=34,padR=14,padT=26,padB=44;
+    ctx.clearRect(0,0,w,H);
+    const plotW=w-padL-padR,bw=plotW/SPAN;
+    const x=v=>padL+v*bw,yH=padT+34,yL=H-padB-6,yOf=l=>l?yH:yL;
+    /* 发送方位网格（细） */
+    ctx.strokeStyle='rgba(120,190,165,.1)';ctx.lineWidth=1;ctx.setLineDash([2,5]);
+    for(let i=0;i<=10;i++){ctx.beginPath();ctx.moveTo(x(i),padT);ctx.lineTo(x(i),yL+14);ctx.stroke();}
+    ctx.setLineDash([]);
+    /* 波形：10 位 + 空闲高 */
+    ctx.strokeStyle=C.ph;ctx.lineWidth=2.4;ctx.lineJoin='round';
+    ctx.save();ctx.shadowColor='rgba(61,255,162,.7)';ctx.shadowBlur=8;
+    ctx.beginPath();ctx.moveTo(x(0),yOf(1));
+    arr.forEach((v,i)=>{ctx.lineTo(x(i),yOf(v));ctx.lineTo(x(i+1),yOf(v));});
+    ctx.lineTo(x(SPAN),yOf(1));ctx.stroke();ctx.restore();
+    /* 发送方标签 */
+    ctx.font='10px '+MONO;ctx.fillStyle=C.mut;ctx.textAlign='center';
+    const names=['起','D0','D1','D2','D3','D4','D5','D6','D7','停'];
+    names.forEach((n,i)=>ctx.fillText(n,x(i+0.5),yL+28));
+    ctx.fillStyle=C.mut2;ctx.textAlign='left';
+    ctx.fillText('发送方 @115200（细网格 = 真实位边界）',padL,padT-8);
+    /* 接收方采样（粗间隔 12 位） */
+    samples.forEach((s,i)=>{
+      const done=err.t>=s.at;
+      const sx=x(s.at);
+      ctx.strokeStyle='rgba(255,93,93,.35)';ctx.setLineDash([3,4]);
+      if(done){ctx.beginPath();ctx.moveTo(sx,padT);ctx.lineTo(sx,yOf(s.v));ctx.stroke();}
+      ctx.setLineDash([]);
+      if(done){
+        ctx.save();ctx.shadowColor='rgba(255,93,93,.8)';ctx.shadowBlur=8;
+        ctx.fillStyle=C.red;ctx.beginPath();ctx.arc(sx,yOf(s.v),4.5,0,7);ctx.fill();ctx.restore();
+        ctx.font='10px '+MONO;ctx.fillStyle=C.red;ctx.textAlign='center';
+        ctx.fillText('采'+i,sx,yOf(s.v)===yH?yH-10:yL+16);
+      }else{
+        ctx.strokeStyle='rgba(255,93,93,.3)';ctx.setLineDash([3,4]);
+        ctx.beginPath();ctx.moveTo(sx,padT);ctx.lineTo(sx,yL+14);ctx.stroke();ctx.setLineDash([]);
+      }
+    });
+    ctx.fillStyle='rgba(255,180,84,.9)';ctx.textAlign='right';
+    ctx.fillText('接收方以为的 1 bit = 12 个真实位（9600 baud）',w-padR,padT-8);
+    /* 扫描头 */
+    if(err.t<=SPAN){
+      const px=x(err.t);
+      ctx.fillStyle='rgba(255,255,255,.1)';ctx.fillRect(px-8,padT,16,yL+14-padT);
+    }
+    if(err.t>=90){
+      const el2=$('#errResult');
+      el2.classList.add('show');
+      el2.innerHTML=`发送 <b class="hl-g">0x55</b> · 接收 <b class="hl-r">${hex2(rxByte)}</b> `+
+        `(0b${bin(rxByte,8)}) —— 位采样全部错位，得到完全无关的字节：<b class="hl-r">乱码 ✗</b>`;
+    }
+  };
+  err.tick=dt=>{
+    if(!err.visible)return;
+    err.t+=dt*14;
+    if(err.t>SPAN+6){err.t=0;$('#errResult').classList.remove('show');}
+  };
+  err.resize=resize;
+})();
+
+/* ============ Linux 终端打字动画 ============ */
+const term={
+  lines:[
+    {c:'dmesg | grep -i tty',n:'① 插上 USB 转串口，先问内核要设备名'},
+    {o:'[ 5123.456] ch341-uart converter now attached to ttyUSB0'},
+    {c:'ls -l /dev/ttyUSB0',n:'② 看权限：设备属于 dialout 组'},
+    {o:'crw-rw---- 1 root dialout 188, 0 Aug 16 10:23 /dev/ttyUSB0'},
+    {c:'sudo usermod -aG dialout $USER',n:'③ Permission denied？把自己加进组，重新登录生效'},
+    {c:'stty -F /dev/ttyUSB0 115200 cs8 -cstopb -parenb cread',n:'④ 配置 115200-8-N-1（正是波形实验室那四个参数）'},
+    {c:'stty -F /dev/ttyUSB0 -a | grep speed',n:'⑤ 验证一下当前配置'},
+    {o:'speed 115200 baud; rows 0; columns 0; line = 0;'},
+    {c:'echo -n "AT" > /dev/ttyUSB0',n:'⑥ 发送数据（-n 表示不附加换行）'},
+    {c:'cat /dev/ttyUSB0',n:'⑦ 接收：阻塞读取，Ctrl-C 退出'},
+    {o:'OK'},
+    {o:'^C'},
+  ],
+  li:0,ci:0,wait:.4,visible:false,playing:!reduced,staticDone:false
+};
+function termReset(){term.li=0;term.ci=0;term.wait=.4;$('#termBody').innerHTML='';}
+function termStatic(){
+  const b=$('#termBody');b.innerHTML='';
+  term.lines.forEach(L=>{
+    if(L.c!==undefined){
+      const d=document.createElement('div');d.className='t-line';
+      d.innerHTML='<span class="t-prompt">$</span><span class="t-cmd"></span>'+
+        (L.n?'<span class="t-note"># '+L.n+'</span>':'');
+      d.querySelector('.t-cmd').textContent=L.c;
+      b.appendChild(d);
+    }else{
+      const d=document.createElement('div');d.className='t-line t-out';
+      d.textContent=L.o;b.appendChild(d);
+    }
+  });
+}
+function termTick(dt){
+  if(!term.visible)return;
+  if(reduced){if(!term.staticDone){termStatic();term.staticDone=true;}return;}
+  if(!term.playing)return;
+  if(term.wait>0){term.wait-=dt;if(term.wait>0)return;}
+  if(term.li>=term.lines.length){termReset();return;}
+  const L=term.lines[term.li],b=$('#termBody');
+  if(L.c!==undefined){
+    let div=b.querySelector('.t-line[data-i="'+term.li+'"]');
+    if(!div){
+      div=document.createElement('div');div.className='t-line';div.dataset.i=term.li;
+      div.innerHTML='<span class="t-prompt">$</span><span class="t-cmd"></span><span class="t-note"></span><span class="t-cursor"></span>';
+      b.appendChild(div);
+    }
+    term.ci+=dt*50;
+    const n=Math.min(L.c.length,Math.floor(term.ci));
+    div.querySelector('.t-cmd').textContent=L.c.slice(0,n);
+    if(n>=L.c.length){
+      if(L.n)div.querySelector('.t-note').textContent='# '+L.n;
+      const cu=div.querySelector('.t-cursor');if(cu)cu.remove();
+      term.li++;term.ci=0;term.wait=.55;
+      if(term.li>=term.lines.length)term.wait=5;
+    }
+  }else{
+    const d=document.createElement('div');d.className='t-line t-out';
+    d.textContent=L.o;b.appendChild(d);
+    term.li++;term.wait=.5;
+    if(term.li>=term.lines.length)term.wait=5;
+  }
+  b.scrollTop=b.scrollHeight;
+}
+$('#btnTermReplay').addEventListener('click',()=>{termReset();term.playing=true;});
+
+/* ============ stty 命令生成器 ============ */
+function sttyRender(){
+  const dev=$('#stDev').value,baud=$('#stBaud').value,data=$('#stData').value,
+        par=$('#stPar').value,sb=$('#stStop').value,raw=$('#stRaw').checked;
+  const parArgs=par==='none'?['-parenb']:par==='even'?['parenb','-parodd']:['parenb','parodd'];
+  const args=[baud,'cs'+data,sb==='1'?'-cstopb':'cstopb',...parArgs,'cread',
+    ...(raw?['raw','-echo','-ixon']:[])];
+  $('#sttyCmd').innerHTML='<span class="hl-g">stty</span> <span class="hl-c">-F /dev/'+dev+
+    '</span> <span class="hl-a">'+args.join(' ')+'</span>';
+  $('#sttyNota').textContent=baud+'-'+data+'-'+(par==='none'?'N':par==='even'?'E':'O')+'-'+sb;
+  const rows=[
+    [baud,'波特率（bit/s）—— 双方必须一致'],
+    ['cs'+data,data+' 个数据位'],
+    sb==='1'?['-cstopb','1 个停止位（「-」前缀 = 关闭该开关）']:['cstopb','2 个停止位'],
+    par==='none'?['-parenb','无校验（N）']:
+      par==='even'?['parenb -parodd','偶校验（E）：开校验、不选奇']:
+      ['parenb parodd','奇校验（O）：开校验、选奇'],
+    ['cread','启用接收器'],
+    raw?['raw -echo -ixon','原始模式：关行处理/回显/软件流控（收发二进制必开）']:
+        ['（勾选后追加）','raw -echo -ixon —— 需要收发二进制数据时勾选'],
+  ];
+  $('#sttyFlags').innerHTML='<tr><th>flag</th><th>含义</th></tr>'+
+    rows.map(r=>'<tr><td class="mono hl-g" style="white-space:nowrap">'+r[0]+'</td><td>'+r[1]+'</td></tr>').join('');
+}
+$$('.stty-ctl').forEach(el=>el.addEventListener('change',sttyRender));
+sttyRender();
+
+/* ============ 波特率表 ============ */
+(function baudTable(){
+  const tb=$('#baudTable');
+  [1200,2400,4800,9600,14400,19200,38400,57600,115200,230400,460800,921600].forEach(b=>{
+    const bt=1e6/b,frame=bt*10;
+    const tr=document.createElement('tr');
+    const mark=(b===9600||b===115200);
+    tr.innerHTML=`<td class="mono ${mark?'hl-g':''}">${b}${mark?' ★':''}</td>`+
+      `<td class="mono">${bt>=1000?(bt/1000).toFixed(2)+' ms':bt.toFixed(1)+' µs'}</td>`+
+      `<td class="mono">${(frame/1000).toFixed(2)} ms</td>`+
+      `<td class="mono">${(b/10>=1024)?(b/10/1024).toFixed(1)+' KB/s':Math.round(b/10)+' B/s'}</td>`;
+    tb.appendChild(tr);
+  });
+})();
+
+/* ============ 滚动浮现 + 导航高亮 + 可见性 ============ */
+const io=new IntersectionObserver(es=>es.forEach(e=>{
+  if(e.isIntersecting){e.target.classList.add('on');io.unobserve(e.target);}
+}),{threshold:.12});
+$$('.rv').forEach(el2=>io.observe(el2));
+
+const secIO=new IntersectionObserver(es=>es.forEach(e=>{
+  if(e.isIntersecting){
+    $$('.nav-links a').forEach(a=>a.classList.toggle('act',a.getAttribute('href')==='#'+e.target.id));
+  }
+}),{rootMargin:'-30% 0px -60% 0px'});
+$$('section[id]').forEach(s=>secIO.observe(s));
+
+function watchVisible(elm,obj){
+  const v=new IntersectionObserver(es=>es.forEach(e=>obj.visible=e.isIntersecting),{rootMargin:'60px'});
+  v.observe(elm);
+}
+watchVisible($('#labCanvas'),lab);watchVisible($('#race1'),race1);watchVisible($('#race2'),race2);
+watchVisible($('#voltTTL'),volt);watchVisible($('#errCanvas'),err);watchVisible($('#termBody'),term);
+
+/* ============ 主循环 ============ */
+labResize();labRebuild();
+let last=performance.now();
+function loop(ts){
+  const dt=Math.min(0.05,(ts-last)/1000);last=ts;
+  labTick(dt);race1.tick(dt);race2.tick(dt);volt.tick(dt);err.tick(dt);termTick(dt);
+  if(lab.visible)labDraw();
+  if(race1.visible)race1.draw();
+  if(race2.visible)race2.draw();
+  if(volt.visible&&volt.draw)volt.draw();
+  if(err.visible&&err.draw)err.draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+let rzT;
+window.addEventListener('resize',()=>{
+  clearTimeout(rzT);
+  rzT=setTimeout(()=>{labResize();race1.resize();race2.resize();err.resize();},150);
+});
+})();
+</script>
+</body>
+</html>
