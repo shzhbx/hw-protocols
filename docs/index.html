@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>硬件协议图解 · HW Protocol Lab</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%23070b09'/><path d='M2 22 h6 v-12 h6 v12 h6 v-12 h6 v12 h4' stroke='%2334e08a' stroke-width='2.5' fill='none'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#070b09;
+  --panel:#0d1510;
+  --panel2:#101a13;
+  --line:#1d2c22;
+  --ink:#dcebe1;
+  --dim:#8aa294;
+  --faint:#5c7264;
+  --green:#34e08a;
+  --amber:#ffb02e;
+  --cyan:#57d8f2;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --disp:'Chakra Petch','Noto Sans SC',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  background:
+    radial-gradient(1200px 600px at 70% -10%, rgba(52,224,138,.06), transparent 60%),
+    radial-gradient(900px 500px at 10% 110%, rgba(87,216,242,.05), transparent 60%),
+    repeating-linear-gradient(0deg, transparent 0 39px, rgba(52,224,138,.035) 39px 40px),
+    repeating-linear-gradient(90deg, transparent 0 39px, rgba(52,224,138,.035) 39px 40px),
+    var(--bg);
+  color:var(--ink);
+  font-family:'Noto Sans SC',-apple-system,sans-serif;
+  min-height:100vh;
+  display:flex;flex-direction:column;
+}
+header{padding:72px 24px 40px;max-width:960px;margin:0 auto;width:100%;text-align:center}
+.tag{
+  font-family:var(--mono);font-size:12px;letter-spacing:.35em;color:var(--green);
+  border:1px solid rgba(52,224,138,.35);display:inline-block;padding:6px 14px;border-radius:3px;
+  margin-bottom:24px;text-transform:uppercase;
+}
+h1{
+  font-family:var(--disp);font-size:clamp(30px,5vw,48px);font-weight:700;letter-spacing:.02em;line-height:1.15;
+}
+h1 .en{display:block;font-size:.42em;font-weight:500;color:var(--dim);letter-spacing:.28em;margin-top:10px;text-transform:uppercase}
+.sub{color:var(--dim);font-size:15px;line-height:1.9;margin-top:20px;font-weight:300;max-width:560px;margin-left:auto;margin-right:auto}
+main{flex:1;width:100%;max-width:960px;margin:0 auto;padding:24px 24px 72px;display:grid;gap:20px}
+a.card{
+  display:grid;grid-template-columns:64px 1fr auto;gap:20px;align-items:center;
+  background:linear-gradient(180deg,var(--panel2),var(--panel));
+  border:1px solid var(--line);border-radius:10px;padding:26px 28px;
+  text-decoration:none;color:var(--ink);
+  transition:border-color .2s, transform .2s, box-shadow .2s;
+}
+a.card:hover{border-color:rgba(52,224,138,.5);transform:translateY(-2px);box-shadow:0 12px 32px rgba(0,0,0,.4)}
+.wave{width:64px;height:40px;border:1px solid var(--line);border-radius:5px;background:#0a0f0c;overflow:hidden}
+.wave svg{display:block;width:100%;height:100%}
+.card h2{font-family:var(--disp);font-size:21px;font-weight:600;letter-spacing:.03em}
+.card p{color:var(--dim);font-size:13.5px;margin-top:6px;line-height:1.7;font-weight:300}
+.card .go{
+  font-family:var(--mono);font-size:13px;color:var(--green);letter-spacing:.15em;white-space:nowrap;
+}
+.card .accent{color:var(--green)} .card:nth-child(2) .accent{color:var(--cyan)} .card:nth-child(3) .accent{color:var(--amber)}
+.card .go::after{content:' →'}
+footer{
+  border-top:1px solid var(--line);padding:22px 24px;text-align:center;
+  font-family:var(--mono);font-size:12px;color:var(--faint);letter-spacing:.12em;
+}
+@media(max-width:640px){
+  a.card{grid-template-columns:1fr;gap:12px;padding:22px}
+  .card .go{justify-self:start}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="tag">HW PROTOCOL LAB</div>
+  <h1>硬件协议图解<span class="en">Interactive Hardware Protocol Guides</span></h1>
+  <p class="sub">以交互式时序图、动画和示波器视角，详解常见硬件通信协议的电气特性、时序规则与实际应用。</p>
+</header>
+<main>
+  <a class="card" href="i2c.html">
+    <div class="wave"><svg viewBox="0 0 64 40"><path d="M4 30 h10 v-16 h10 v16 h10 v-16 h10 v16 h16" stroke="#34e08a" stroke-width="2.5" fill="none"/></svg></div>
+    <div>
+      <h2><span class="accent">I²C</span> 协议详解</h2>
+      <p>两线制同步总线：起始/停止条件、应答机制、地址寻址、时钟拉伸与多主机仲裁的交互式时序图解。</p>
+    </div>
+    <span class="go">ENTER</span>
+  </a>
+  <a class="card" href="i2s.html">
+    <div class="wave"><svg viewBox="0 0 64 40"><path d="M4 26 v-14 h8 v14 h8 v-14 h8 v14 h8 v-14 h8 v14 h8 v-14 h8" stroke="#57d8f2" stroke-width="2.5" fill="none"/></svg></div>
+    <div>
+      <h2><span class="accent">I²S</span> 协议详解</h2>
+      <p>数字音频总线：Philips / Left-Justified / Right-Justified 三种数据格式对比、主从时钟关系与声道对齐动画。</p>
+    </div>
+    <span class="go">ENTER</span>
+  </a>
+  <a class="card" href="uart.html">
+    <div class="wave"><svg viewBox="0 0 64 40"><path d="M4 12 h6 l4 16 4-32 4 32 4-32 4 32 4-16 h6 v0 h20" stroke="#ffb02e" stroke-width="2.5" fill="none"/></svg></div>
+    <div>
+      <h2><span class="accent">UART</span> 串口协议 · 动画图解</h2>
+      <p>异步串行通信：起始位、数据位、校验位、停止位的帧结构与波特率逐位动画演示。</p>
+    </div>
+    <span class="go">ENTER</span>
+  </a>
+</main>
+<footer>HW-PROTOCOLS · MAINTAINED WITH ♥ FOR EMBEDDED ENGINEERS</footer>
+</body>
+</html>
