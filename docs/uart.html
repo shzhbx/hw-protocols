@@ -55,12 +55,17 @@ nav{position:sticky;top:0;z-index:100;backdrop-filter:blur(14px);-webkit-backdro
 .nav-in{max-width:1080px;margin:0 auto;padding:0 26px;height:54px;display:flex;align-items:center;gap:22px}
 .brand{font-family:var(--mono);color:var(--ph);font-size:15px;letter-spacing:2px;text-shadow:0 0 12px rgba(61,255,162,.5);white-space:nowrap}
 .brand b{color:var(--amber);text-shadow:0 0 12px rgba(255,180,84,.5)}
-.nav-links{display:flex;gap:4px;margin-left:auto;overflow-x:auto;scrollbar-width:none}
+.nav-links{display:flex;gap:4px;margin-left:auto;overflow-x:auto;scrollbar-width:none;min-width:0}
 .nav-links::-webkit-scrollbar{display:none}
 .nav-links a{font-family:var(--mono);font-size:12.5px;color:var(--mut);text-decoration:none;
   padding:5px 11px;border-radius:6px;white-space:nowrap;letter-spacing:1px;transition:.25s}
 .nav-links a:hover{color:var(--ph);background:rgba(61,255,162,.07)}
 .nav-links a.act{color:#0a1512;background:var(--ph);text-shadow:none;box-shadow:0 0 16px rgba(61,255,162,.45)}
+/* ---- 跨页导航 ---- */
+.nav-x{display:flex;gap:6px;margin-left:10px;padding-left:14px;border-left:1px solid var(--line);white-space:nowrap}
+.nav-x a{font-family:var(--mono);font-size:11px;color:var(--mut);text-decoration:none;padding:5px 10px;
+  border:1px solid var(--line);border-radius:6px;letter-spacing:1px;transition:.25s}
+.nav-x a:hover{color:var(--amber);border-color:rgba(255,180,84,.4)}
 
 /* ============ Hero ============ */
 .hero{padding:78px 0 30px;text-align:center;position:relative}
@@ -300,6 +305,7 @@ footer{margin-top:90px;border-top:1px solid var(--line);padding:34px 0 44px;text
       <a href="#intro">概述</a><a href="#frame">帧结构</a><a href="#lab">波形实验室</a><a href="#baud">波特率</a>
       <a href="#parity">校验位</a><a href="#level">电平</a><a href="#errors">踩坑</a><a href="#linux">Linux</a><a href="#cheat">速查</a>
     </div>
+    <div class="nav-x"><a href="index.html">« HOME</a><a href="i2c.html">I²C</a><a href="i2s.html">I²S</a></div>
   </div>
 </nav>
 
