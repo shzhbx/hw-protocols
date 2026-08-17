@@ -1,0 +1,1718 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>红外遥控协议 · IR 动画图解</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Noto+Sans+SC:wght@400;500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0d0807;
+  --panel:#150e0b;
+  --panel2:#0f0a08;
+  --line:rgba(255,150,120,.14);
+  --line2:rgba(255,150,120,.08);
+  --em:#ff6257;           /* 红外红 · 载波 */
+  --amber:#ffb454;
+  --cyan:#5fd7ff;
+  --green:#3dffa2;
+  --pink:#ff6bcb;
+  --text:#ecdcd4;
+  --mut:#a3908a;
+  --mut2:#6f5d56;
+  --mono:"Share Tech Mono",ui-monospace,monospace;
+  --disp:"Chakra Petch","Noto Sans SC",sans-serif;
+  --body:"Noto Sans SC","PingFang SC",sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  font-family:var(--body);
+  color:var(--text);
+  font-size:15.5px;line-height:1.8;
+  background:
+    radial-gradient(1200px 620px at 72% -8%, rgba(255,98,87,.08), transparent 62%),
+    radial-gradient(900px 520px at 6% 108%, rgba(255,180,84,.05), transparent 60%),
+    var(--bg);
+  overflow-x:hidden;
+}
+/* CRT 扫描线 + 暗角 */
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:998;
+  background:radial-gradient(120% 90% at 50% 40%, transparent 55%, rgba(0,0,0,.42) 100%);}
+body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:999;opacity:.38;
+  background:repeating-linear-gradient(0deg, rgba(0,0,0,.15) 0 1px, transparent 1px 3px);}
+::selection{background:rgba(255,98,87,.3);color:#fff2ee}
+
+.wrap{max-width:1080px;margin:0 auto;padding:0 26px}
+section{padding:92px 0 8px}
+
+/* ============ 导航 ============ */
+nav{position:sticky;top:0;z-index:100;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  background:rgba(13,8,7,.84);border-bottom:1px solid var(--line);}
+.nav-in{max-width:1080px;margin:0 auto;padding:0 26px;height:54px;display:flex;align-items:center;gap:22px}
+.brand{font-family:var(--mono);color:var(--em);font-size:15px;letter-spacing:2px;text-shadow:0 0 12px rgba(255,98,87,.5);white-space:nowrap}
+.brand b{color:var(--amber);text-shadow:0 0 12px rgba(255,180,84,.5)}
+.nav-links{display:flex;gap:4px;margin-left:auto;overflow-x:auto;scrollbar-width:none;min-width:0}
+.nav-links::-webkit-scrollbar{display:none}
+.nav-links a{font-family:var(--mono);font-size:12.5px;color:var(--mut);text-decoration:none;
+  padding:5px 11px;border-radius:6px;white-space:nowrap;letter-spacing:1px;transition:.25s}
+.nav-links a:hover{color:var(--em);background:rgba(255,98,87,.07)}
+.nav-links a.act{color:#170907;background:var(--em);text-shadow:none;box-shadow:0 0 16px rgba(255,98,87,.45)}
+/* ---- 跨页导航 ---- */
+.nav-x{display:flex;gap:6px;margin-left:10px;padding-left:14px;border-left:1px solid var(--line);white-space:nowrap}
+.nav-x a{font-family:var(--mono);font-size:11px;color:var(--mut);text-decoration:none;padding:5px 10px;
+  border:1px solid var(--line);border-radius:6px;letter-spacing:1px;transition:.25s}
+.nav-x a:hover{color:var(--amber);border-color:rgba(255,180,84,.4)}
+
+/* ============ Hero ============ */
+.hero{padding:78px 0 30px;text-align:center;position:relative}
+.hero-eyebrow{font-family:var(--mono);color:var(--mut);letter-spacing:6px;font-size:12px;margin-bottom:18px}
+.hero-eyebrow::before,.hero-eyebrow::after{content:"~~~ ";color:var(--mut2)}
+.hero-eyebrow::after{content:" ~~~"}
+h1{font-family:var(--disp);font-size:clamp(34px,6vw,58px);font-weight:700;letter-spacing:2px;line-height:1.2;
+  color:#fff1ec;text-shadow:0 0 28px rgba(255,98,87,.35)}
+h1 .en{display:block;font-family:var(--mono);font-size:.34em;color:var(--em);letter-spacing:8px;margin-top:10px;text-shadow:0 0 18px rgba(255,98,87,.6)}
+.hero p.lead{max-width:660px;margin:22px auto 0;color:var(--mut);font-size:16.5px}
+.hero-chips{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:26px 0 8px}
+.chip{font-family:var(--mono);font-size:12.5px;color:var(--em);border:1px solid rgba(255,98,87,.35);
+  padding:4px 13px;border-radius:100px;background:rgba(255,98,87,.05);letter-spacing:1px}
+.chip.a{color:var(--amber);border-color:rgba(255,180,84,.35);background:rgba(255,180,84,.05)}
+.chip.c{color:var(--cyan);border-color:rgba(95,215,255,.35);background:rgba(95,215,255,.05)}
+.hero-cta{display:flex;gap:14px;justify-content:center;margin:26px 0 42px;flex-wrap:wrap}
+.btn{font-family:var(--disp);font-weight:600;font-size:15px;letter-spacing:1px;text-decoration:none;
+  padding:12px 26px;border-radius:10px;transition:.25s;border:1px solid transparent;cursor:pointer}
+.btn.primary{color:#170907;background:linear-gradient(180deg,#ff8a75,#f2503f);box-shadow:0 0 24px rgba(255,98,87,.35)}
+.btn.primary:hover{transform:translateY(-2px);box-shadow:0 6px 34px rgba(255,98,87,.5)}
+.btn.ghost{color:var(--text);border-color:var(--line);background:rgba(255,255,255,.02)}
+.btn.ghost:hover{border-color:rgba(255,98,87,.4);color:var(--em)}
+
+.hero-schema{margin:14px auto 0;max-width:860px}
+.hero-schema svg{width:100%;height:auto;display:block}
+.irlab{font-family:var(--mono);fill:var(--mut);font-size:12px;letter-spacing:1px}
+.irlab.big{fill:var(--text);font-size:15px}
+.irlab.em{fill:var(--em)} .irlab.am{fill:var(--amber)} .irlab.cy{fill:var(--cyan)}
+.dev{fill:#191009;stroke:var(--line);stroke-width:1.5}
+.beam{stroke:rgba(255,98,87,.5);stroke-width:2;fill:none}
+.cone{stroke:rgba(255,98,87,.22);stroke-width:1.5;fill:none;stroke-dasharray:5 7}
+.led{animation:ledblink 1.6s infinite}
+.led.b{animation-delay:.8s}
+@keyframes ledblink{0%,100%{opacity:1}50%{opacity:.12}}
+.pkt{opacity:0}
+@media (prefers-reduced-motion: reduce){
+  .pkt,.led,.led.b{animation:none!important}
+  .pkt{display:none}
+  html{scroll-behavior:auto}
+}
+
+/* ============ 章节标题 ============ */
+.sec-head{display:flex;align-items:baseline;gap:18px;flex-wrap:wrap}
+.sec-num{font-family:var(--mono);font-weight:700;font-size:52px;line-height:1;
+  color:transparent;-webkit-text-stroke:1px rgba(255,98,87,.42)}
+.sec-title{font-family:var(--disp);font-size:29px;font-weight:700;letter-spacing:1px;color:#fff0ea}
+.sec-sub{width:100%;font-family:var(--mono);font-size:11.5px;color:var(--mut2);letter-spacing:4px;text-transform:uppercase;padding-left:2px}
+.sec-desc{color:var(--mut);max-width:780px;margin:14px 0 30px}
+.sec-desc b,.card b{color:var(--em);font-weight:600}
+.sec-desc i{color:var(--amber);font-style:normal}
+
+/* ============ 面板与卡片 ============ */
+.panel{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);
+  border-radius:14px;box-shadow:0 12px 34px rgba(0,0,0,.38), inset 0 1px 0 rgba(255,255,255,.03);
+  padding:22px 24px;position:relative;overflow:hidden}
+.panel-tag{position:absolute;top:14px;right:16px;font-family:var(--mono);font-size:10.5px;
+  color:var(--mut2);letter-spacing:2px}
+.grid{display:grid;gap:18px}
+.g4{grid-template-columns:repeat(4,1fr)} .g3{grid-template-columns:repeat(3,1fr)} .g2{grid-template-columns:repeat(2,1fr)}
+.card{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);
+  border-radius:13px;padding:20px;transition:.3s}
+.card:hover{border-color:rgba(255,98,87,.4);transform:translateY(-3px);box-shadow:0 14px 30px rgba(0,0,0,.4)}
+.card h4{font-family:var(--disp);font-size:16.5px;margin-bottom:8px;color:#fff0ea;display:flex;align-items:center;gap:9px}
+.card p{color:var(--mut);font-size:13.8px;line-height:1.75}
+.card .ico{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:16px;flex:none;border:1px solid}
+.ico.g{color:var(--green);border-color:rgba(61,255,162,.4);background:rgba(61,255,162,.08)}
+.ico.a{color:var(--amber);border-color:rgba(255,180,84,.4);background:rgba(255,180,84,.08)}
+.ico.c{color:var(--cyan);border-color:rgba(95,215,255,.4);background:rgba(95,215,255,.08)}
+.ico.p{color:var(--pink);border-color:rgba(255,107,203,.4);background:rgba(255,107,203,.08)}
+.ico.r{color:var(--em);border-color:rgba(255,98,87,.4);background:rgba(255,98,87,.08)}
+
+/* 表格 */
+table{width:100%;border-collapse:collapse;font-size:13.8px}
+th{font-family:var(--mono);font-weight:400;font-size:12px;color:var(--em);letter-spacing:1px;
+  text-align:left;padding:9px 12px;border-bottom:1px solid rgba(255,98,87,.3)}
+td{padding:9px 12px;border-bottom:1px solid var(--line2);color:var(--text)}
+tr:hover td{background:rgba(255,98,87,.04)}
+td.mono,.mono{font-family:var(--mono)}
+td .dim, .dim{color:var(--mut)}
+.hl-a{color:var(--amber)} .hl-c{color:var(--cyan)} .hl-p{color:var(--pink)} .hl-g{color:var(--green)} .hl-r{color:var(--em)}
+
+/* ============ 控件 ============ */
+.ctrl-row{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px}
+.ctrl{display:flex;flex-direction:column;gap:5px}
+.ctrl label{font-family:var(--mono);font-size:10.5px;color:var(--mut2);letter-spacing:2px}
+select,input[type=text]{font-family:var(--mono);font-size:13.5px;color:var(--text);
+  background:#160d0a;border:1px solid var(--line);border-radius:8px;padding:8px 10px;outline:none;transition:.2s;min-width:0}
+select:focus,input[type=text]:focus{border-color:rgba(255,98,87,.55);box-shadow:0 0 0 3px rgba(255,98,87,.12)}
+input[type=range]{accent-color:var(--em);width:130px}
+.cbtn{font-family:var(--mono);font-size:12.5px;letter-spacing:1px;color:var(--text);
+  background:#1a100c;border:1px solid var(--line);border-radius:8px;padding:8px 15px;cursor:pointer;transition:.2s}
+.cbtn:hover{border-color:rgba(255,98,87,.5);color:var(--em)}
+.cbtn.on{background:rgba(255,98,87,.14);border-color:rgba(255,98,87,.5);color:var(--em)}
+.check{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:12px;color:var(--mut);cursor:pointer;user-select:none}
+.check input{accent-color:var(--em)}
+.byte-chips{display:flex;gap:8px;flex-wrap:wrap}
+.bchip{font-family:var(--mono);font-size:12px;color:var(--mut);border:1px solid var(--line);
+  padding:3px 10px;border-radius:100px;cursor:pointer;transition:.2s}
+.bchip:hover,.bchip.on{color:var(--em);border-color:rgba(255,98,87,.5)}
+
+/* ============ 载波三层视图 ============ */
+canvas{display:block;width:100%}
+#carCv,#labCanvas{cursor:crosshair;border-radius:10px}
+.car-legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;font-family:var(--mono);font-size:12px;color:var(--mut)}
+.car-legend i{display:inline-block;width:18px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
+
+/* ============ 帧结构解剖 ============ */
+.anatomy-grid{display:grid;grid-template-columns:1.7fr 1fr;gap:18px;align-items:start}
+#anatomySvg{width:100%;height:auto}
+.anatomy-list{display:flex;flex-direction:column;gap:9px}
+.a-item{border:1px solid var(--line);border-radius:11px;padding:13px 15px;cursor:pointer;transition:.25s;background:rgba(255,255,255,.015)}
+.a-item h5{font-family:var(--disp);font-size:14.5px;display:flex;gap:8px;align-items:center;margin-bottom:4px}
+.a-item p{font-size:12.8px;color:var(--mut);line-height:1.65}
+.a-item .dot{width:9px;height:9px;border-radius:3px;flex:none}
+.a-item.on{border-color:rgba(255,98,87,.5);background:rgba(255,98,87,.05);transform:translateX(4px)}
+#anatomySvg .seg-region{cursor:pointer;transition:.2s}
+#anatomySvg.dimmed .seg-region{opacity:.25}
+#anatomySvg.dimmed .seg-region.lit{opacity:1}
+#anatomySvg text{font-family:var(--mono)}
+.callout-lbl{font-size:12.5px;fill:var(--text)}
+.callout-sub{font-size:10.5px;fill:var(--mut)}
+
+/* ============ 波形实验室 ============ */
+.readout{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:14px;
+  padding:13px 16px;border:1px solid var(--line);border-radius:11px;background:rgba(16,10,8,.7)}
+.tx-display{font-family:var(--mono);font-size:15px;color:var(--em)}
+.tx-display .u{color:var(--amber)}
+.ir-shift{display:flex;gap:12px;flex-wrap:wrap}
+.grp{display:flex;flex-direction:column;gap:4px}
+.grp>small{font-family:var(--mono);font-size:9.5px;color:var(--mut2);letter-spacing:1px}
+.grp .row{display:flex;gap:3px;align-items:center}
+.cell{width:17px;display:flex;flex-direction:column;align-items:center;gap:2px}
+.cell small{font-family:var(--mono);font-size:8px;color:var(--mut2)}
+.cell .box{width:100%;height:22px;border:1px solid var(--line);border-radius:5px;display:flex;
+  align-items:center;justify-content:center;font-family:var(--mono);font-size:12px;color:var(--mut2);transition:.2s}
+.cell.filled .box{color:#170907;background:var(--em);border-color:var(--em);box-shadow:0 0 10px rgba(255,98,87,.4)}
+.grp .hex{font-family:var(--mono);font-size:11.5px;color:var(--mut)}
+.grp .hex b{color:var(--amber);font-weight:400}
+.status-line{font-family:var(--mono);font-size:13px;color:var(--mut);min-height:22px;flex:1;min-width:220px}
+.status-line.ok{color:var(--green)} .status-line.warn{color:var(--amber)} .status-line.err{color:var(--em)}
+.lab-info{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px;font-family:var(--mono);font-size:12px;color:var(--mut2)}
+.lab-info b{color:var(--cyan);font-weight:400}
+#labHover{margin-top:8px;font-family:var(--mono);font-size:12px;color:var(--mut2);min-height:18px}
+#labHover b{color:var(--cyan);font-weight:400}
+.lab-dec{font-family:var(--mono);font-size:14px;margin-top:10px;padding:11px 14px;border-radius:9px;
+  border:1px dashed rgba(61,255,162,.4);background:rgba(61,255,162,.05);display:none}
+.lab-dec.show{display:block}
+
+/* ============ 协议对比 ============ */
+.cmp-svg{width:100%;height:auto}
+.cmp-svg text{font-family:var(--mono)}
+
+/* ============ 解码状态机 ============ */
+.decode-grid{display:grid;grid-template-columns:1.05fr 1fr;gap:18px;align-items:start}
+#dcLog{font-family:var(--mono);font-size:12.5px;line-height:1.95;background:#0a0605;
+  border:1px solid var(--line);border-radius:10px;padding:12px 14px;height:328px;overflow-y:auto;color:var(--mut)}
+#dcLog .t-line{white-space:pre-wrap;word-break:break-all}
+#dcLog .pu{color:var(--em)} #dcLog .sp{color:var(--cyan)} #dcLog .ok{color:var(--green)} #dcLog .nt{color:var(--mut2)}
+#smSvg{width:100%;height:auto}
+#smSvg text{font-family:var(--mono)}
+.sm-node{fill:#1a100c;stroke:var(--line);stroke-width:1.5;transition:.2s}
+.sm-node.on{fill:rgba(255,98,87,.18);stroke:var(--em)}
+.sm-edge{stroke:var(--mut2);stroke-width:1.4;fill:none}
+.sm-elab{font-size:10px;fill:var(--mut2)}
+.dc-dec{font-family:var(--mono);font-size:13.5px;margin-top:12px;padding:12px 14px;border-radius:10px;
+  background:rgba(10,6,5,.8);border:1px solid var(--line);line-height:2}
+.code-box{font-family:var(--mono);font-size:13px;line-height:1.8;padding:14px 16px;margin-top:14px;
+  border:1px dashed rgba(255,180,84,.4);border-radius:10px;background:rgba(255,180,84,.05);
+  white-space:pre;overflow-x:auto;color:var(--text)}
+.code-box .cm{color:var(--mut2)} .code-box .fn{color:var(--cyan)} .code-box .st{color:var(--amber)} .code-box .kw{color:var(--em)}
+
+/* ============ Linux 终端 ============ */
+.term-head{display:flex;gap:7px;align-items:center;background:#170f0b;padding:9px 14px;
+  border:1px solid var(--line);border-bottom:none;border-radius:10px 10px 0 0}
+.tdot{width:11px;height:11px;border-radius:50%;flex:none}
+.tdot.r{background:#ff5f57}.tdot.y{background:#febc2e}.tdot.g{background:#28c840}
+.term-title{font-family:var(--mono);font-size:11.5px;color:var(--mut2);margin-left:6px}
+.term-body{font-family:var(--mono);font-size:13px;line-height:1.95;background:#080504;
+  border:1px solid var(--line);border-radius:0 0 10px 10px;padding:13px 16px;height:360px;
+  overflow-y:auto;color:var(--text)}
+.t-line{white-space:pre-wrap;word-break:break-all}
+.t-prompt{color:var(--em);margin-right:9px}
+.t-cmd{color:#fff0ea}
+.t-note{color:var(--mut2);margin-left:12px;font-size:11.5px}
+.t-out{color:var(--cyan);opacity:.85}
+.t-cursor{display:inline-block;width:8px;height:15px;background:var(--em);vertical-align:-2px;
+  margin-left:2px;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.cmd-out{font-family:var(--mono);font-size:14.5px;line-height:1.8;padding:14px 16px;margin:14px 0 10px;
+  border:1px dashed rgba(255,98,87,.4);border-radius:10px;background:rgba(255,98,87,.05);word-break:break-all}
+
+/* ============ 速查 ============ */
+.notation{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin:8px 0 26px}
+.n-item{text-align:center}
+.n-item .nv{font-family:var(--mono);font-size:26px;color:var(--em);border:1px solid rgba(255,98,87,.4);
+  padding:8px 18px;border-radius:10px;background:rgba(255,98,87,.06)}
+.n-item .nv.a{color:var(--amber);border-color:rgba(255,180,84,.4);background:rgba(255,180,84,.06)}
+.n-item .nv.c{color:var(--cyan);border-color:rgba(95,215,255,.4);background:rgba(95,215,255,.06)}
+.n-item .nv.p{color:var(--pink);border-color:rgba(255,107,203,.4);background:rgba(255,107,203,.06)}
+.n-item small{display:block;font-size:11.5px;color:var(--mut);margin-top:6px}
+dl.gloss{display:grid;grid-template-columns:repeat(2,1fr);gap:0 30px}
+dl.gloss dt{font-family:var(--mono);color:var(--em);font-size:13.5px;margin-top:14px}
+dl.gloss dd{color:var(--mut);font-size:13px;line-height:1.7;margin-top:2px}
+.rules{list-style:none;display:flex;flex-direction:column;gap:10px}
+.rules li{display:flex;gap:12px;align-items:flex-start;padding:11px 14px;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.015)}
+.rules .no{font-family:var(--mono);color:#170907;background:var(--em);border-radius:6px;min-width:24px;height:24px;
+  display:flex;align-items:center;justify-content:center;font-size:13px;flex:none;margin-top:2px}
+.rules b{color:#fff0ea;font-weight:600}
+
+footer{margin-top:90px;border-top:1px solid var(--line);padding:34px 0 44px;text-align:center;
+  font-family:var(--mono);font-size:12px;color:var(--mut2);letter-spacing:1px;line-height:2.2}
+
+/* 滚动浮现 */
+.rv{opacity:0;transform:translateY(22px)}
+.rv.on{opacity:1;transform:none;transition:opacity .8s ease,transform .8s cubic-bezier(.2,.7,.3,1)}
+
+.note{font-size:12.5px;color:var(--mut2);font-family:var(--mono);margin-top:10px}
+
+@media (max-width:880px){
+  .g4{grid-template-columns:repeat(2,1fr)} .g3{grid-template-columns:1fr}
+  .anatomy-grid,.decode-grid,.g2{grid-template-columns:1fr}
+  dl.gloss{grid-template-columns:1fr}
+  .sec-num{font-size:40px}
+}
+@media (max-width:540px){
+  .g4,.g2{grid-template-columns:1fr}
+  .cell{width:15px} .cell .box{height:20px;font-size:11px}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-in">
+    <div class="brand">IR<b>·</b>LAB</div>
+    <div class="nav-links">
+      <a href="#intro">概述</a><a href="#carrier">载波调制</a><a href="#nec">NEC 帧</a><a href="#lab">波形实验室</a>
+      <a href="#proto">协议对比</a><a href="#decode">解码</a><a href="#linux">Linux</a><a href="#pitfall">踩坑</a><a href="#cheat">速查</a>
+    </div>
+    <div class="nav-x"><a href="index.html">« HOME</a><a href="i2c.html">I²C</a><a href="i2s.html">I²S</a><a href="uart.html">UART</a></div>
+  </div>
+</nav>
+
+<!-- ================= HERO ================= -->
+<header class="hero">
+  <div class="wrap">
+    <div class="hero-eyebrow">INFRARED · 38 kHz CARRIER · LIGHT AS DATA</div>
+    <h1>红外遥控协议<span class="en">INFRARED REMOTE CONTROL · NEC / RC-5 / SIRC</span></h1>
+    <p class="lead">用「看不见的光」隔空传数据：把比特流调制到 38 kHz 载波上，由一体化接收头解调还原。
+      没有时钟、没有应答、单向广播 —— 却是客厅里最经久耐用的无线协议。本页用动画把它拆到底。</p>
+    <div class="hero-chips">
+      <span class="chip">单向 · Simplex</span><span class="chip a">38 kHz 载波</span>
+      <span class="chip c">940 nm 红外光</span><span class="chip">NEC · RC-5 · SIRC</span><span class="chip a">视距 5~10 m</span>
+    </div>
+    <div class="hero-cta">
+      <a class="btn primary" href="#lab">▶ 进入波形实验室</a>
+      <a class="btn ghost" href="#intro">从头学起</a>
+    </div>
+
+    <!-- 遥控器 → 电视 动画 -->
+    <div class="hero-schema">
+      <svg viewBox="0 0 760 372" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-label="红外遥控通信示意图">
+        <defs>
+          <path id="irp" d="M176,196 C 300,172 420,246 540,238"/>
+        </defs>
+        <!-- 光束锥 -->
+        <path class="cone" d="M176,196 C 240,190 280,196 318,208"/>
+        <path class="cone" d="M176,196 C 260,206 340,224 318,208"/>
+        <!-- 遥控器 -->
+        <g>
+          <rect class="dev" x="62" y="118" width="112" height="158" rx="16"/>
+          <circle cx="98" cy="148" r="9" fill="none" stroke="#ff6257" stroke-width="1.6"/>
+          <line x1="92" y1="142" x2="104" y2="154" stroke="#ff6257" stroke-width="1.6"/>
+          <line x1="104" y1="142" x2="92" y2="154" stroke="#ff6257" stroke-width="1.6"/>
+          <circle cx="140" cy="148" r="6" fill="none" stroke="rgba(163,144,138,.5)" stroke-width="1.4"/>
+          <circle class="led" cx="118" cy="172" r="4" fill="#ff6257"/>
+          <g fill="none" stroke="rgba(163,144,138,.35)" stroke-width="1.4">
+            <circle cx="86" cy="200" r="7"/><circle cx="118" cy="200" r="7"/><circle cx="150" cy="200" r="7"/>
+            <circle cx="86" cy="224" r="7"/><circle cx="118" cy="224" r="7"/><circle cx="150" cy="224" r="7"/>
+            <rect x="79" y="246" width="78" height="12" rx="6"/>
+          </g>
+          <text class="irlab big" x="118" y="292" text-anchor="middle">遥控器</text>
+          <text class="irlab em" x="118" y="310" text-anchor="middle">940nm IR LED</text>
+          <text class="irlab" x="118" y="326" text-anchor="middle">峰值电流可达数百 mA</text>
+        </g>
+        <!-- 电视 -->
+        <g>
+          <rect class="dev" x="540" y="118" width="158" height="120" rx="10"/>
+          <rect x="552" y="130" width="134" height="84" rx="6" fill="none" stroke="rgba(95,215,255,.35)" stroke-width="1.5"/>
+          <text class="irlab cy" x="619" y="176" text-anchor="middle" font-size="13">IR</text>
+          <line x1="619" y1="238" x2="619" y2="258" stroke="var(--mut2)" stroke-width="3"/>
+          <line x1="589" y1="258" x2="649" y2="258" stroke="var(--mut2)" stroke-width="3" stroke-linecap="round"/>
+          <text class="irlab big" x="619" y="284" text-anchor="middle">电视 / 机顶盒</text>
+          <!-- 接收头 -->
+          <rect class="dev" x="594" y="216" width="50" height="18" rx="4"/>
+          <circle class="led b" cx="604" cy="225" r="3" fill="#3dffa2"/>
+          <text class="irlab" x="622" y="229" font-size="9.5" fill="#a3908a">VS1838B</text>
+        </g>
+        <!-- 光束与标签 -->
+        <path class="beam" d="M176,196 C 300,172 420,246 540,238"/>
+        <text class="irlab em" x="358" y="160" text-anchor="middle">38 kHz 载波红外光 · 人眼不可见 · 单向广播</text>
+        <text class="irlab" x="358" y="290" text-anchor="middle">载波亮 → 数据「脉冲」，载波灭 → 「空闲」；宽度组合出 0 和 1</text>
+        <text class="irlab" x="358" y="310" text-anchor="middle">接收头只响应 38 kHz 的闪烁，恒定的阳光、灯光一概无视</text>
+        <g id="heroPkts"></g>
+      </svg>
+    </div>
+    <p class="note">▲ 动画中移动的红色色组即「载波脉冲串」（burst）：最长的一组是 9 ms 引导码，其后是数据位 —— 正是 NEC 帧的样子。</p>
+  </div>
+</header>
+
+<div class="wrap">
+
+<!-- ================= 01 概述 ================= -->
+<section id="intro">
+  <div class="sec-head rv"><span class="sec-num">01</span><span class="sec-title">红外遥控：用光传数据</span>
+    <span class="sec-sub">INFRARED REMOTE CONTROL OVERVIEW</span></div>
+  <p class="sec-desc rv">
+    红外（IR）遥控是 <b>单向无线</b> 通信：遥控器上的红外 LED 以 <b>940 nm</b> 左右的近红外光为载体，
+    按 <i>NEC / RC-5 / SIRC</i> 等协议的时序规则亮灭；设备端的一体化接收头（如 VS1838B）把光信号还原成电平，
+    交由 MCU 解码。没有时钟线、没有应答、不能穿透墙壁 —— 但足够便宜、功耗极低、闲时零辐射，
+    四十年来统治着客厅里每一个遥控器。</p>
+
+  <div class="grid g4 rv">
+    <div class="card"><h4><span class="ico r">→</span>单向 Simplex</h4>
+      <p>只能遥控器 → 设备，设备不回话。因此协议全靠<b style="color:var(--em)">发端自律</b>：反码校验、连发多帧、重复码，全是「防丢」手段。</p></div>
+    <div class="card"><h4><span class="ico a">〜</span>载波抗扰</h4>
+      <p>数据被调制到 <b style="color:var(--amber)">38 kHz</b> 载波上。接收头内置带通滤波器只认这个频率的「闪烁」，恒定的阳光与灯光被直接滤除。</p></div>
+    <div class="card"><h4><span class="ico c">◱</span>视距传播</h4>
+      <p>光走直线：不能穿墙，斜着对也能反射到（墙面/天花板）。典型距离 <b style="color:var(--cyan)">5~10 m</b>，视角约 ±45°。</p></div>
+    <div class="card"><h4><span class="ico g">⌂</span>无处不在</h4>
+      <p>电视、空调、机顶盒、风扇、投影仪……绝大多数国产家电用 <b style="color:var(--green)">NEC 或其变体</b>；学会 NEC 就看懂了 90% 的遥控器。</p></div>
+  </div>
+
+  <div class="panel rv" style="margin-top:18px">
+    <span class="panel-tag">COMPARE</span>
+    <h4 style="font-family:var(--disp);margin-bottom:12px">与 UART / I²C / 2.4G RF 对比 —— 它处在哪个生态位？</h4>
+    <div style="overflow-x:auto">
+    <table>
+      <tr><th></th><th class="hl-r">IR 红外遥控</th><th>UART</th><th>I²C</th><th>2.4G RF</th></tr>
+      <tr><td class="dim">介质</td><td><b class="hl-r">红外光（无线）</b></td><td>电平 · 导线</td><td>电平 · 导线</td><td>无线电波</td></tr>
+      <tr><td class="dim">方向</td><td>单向广播</td><td>双向（全双工）</td><td>双向（半双工）</td><td>双向</td></tr>
+      <tr><td class="dim">同步方式</td><td>引导码 + 固定时宽</td><td>起始位 + 波特率</td><td>SCL 时钟线</td><td>协议栈管理</td></tr>
+      <tr><td class="dim">有效速率</td><td>几十 bit/s（够按键用）</td><td>~kB/s 级</td><td>100k~1M+ bit/s</td><td>M bit/s 级</td></tr>
+      <tr><td class="dim">距离</td><td>5~10 m · 视距</td><td>板级 ~ 米级</td><td>板级（&lt;1 m）</td><td>10~100 m · 穿墙</td></tr>
+      <tr><td class="dim">成本/功耗</td><td>极低 · CR2035 可用数年</td><td>极低</td><td>极低</td><td>高（需协议栈）</td></tr>
+    </table>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 02 载波调制 ================= -->
+<section id="carrier">
+  <div class="sec-head rv"><span class="sec-num">02</span><span class="sec-title">载波与调制：为什么要「闪烁」？</span>
+    <span class="sec-sub">38 kHz CARRIER · MODULATE → DEMODULATE</span></div>
+  <p class="sec-desc rv">
+    环境里到处是红外光：太阳、白炽灯、人的体温。若直接「亮=1、灭=0」，接收端根本分不清数据与环境光。
+    红外遥控的办法是：数据不直接点亮 LED，而是先「亮灭闪烁」在 <b>38 kHz</b> 载波上 ——
+    有载波的时段代表一个<i>脉冲（burst）</i>，无载波代表<i>空闲（space）</i>，脉冲 + 空闲的<b>宽度组合</b>编码出 0 和 1。
+    下图三层对照：想发的数据 → 空中实际的调制光 → 接收头输出的解调电平（注意<b style="color:var(--amber)">反相且低有效</b>）：</p>
+
+  <div class="panel rv">
+    <span class="panel-tag">3-LAYER VIEW</span>
+    <div class="ctrl-row" style="margin-bottom:8px">
+      <div class="ctrl"><label>&nbsp;</label><button class="cbtn on" id="carPlay">⏸ 暂停</button></div>
+      <div class="ctrl"><label>&nbsp;</label>
+        <label class="check" style="padding-top:9px"><input type="checkbox" id="carWave" checked>显示载波细节</label></div>
+      <div class="ctrl"><label>&nbsp;</label><span class="lab-info" style="display:flex;gap:16px;padding-top:9px">
+        <span>载波周期 <b>26.3 µs</b></span><span>占空比 <b>1/3</b></span><span>560 µs 脉冲 ≈ <b>21 个载波周期</b></span></span></div>
+    </div>
+    <canvas id="carCv" height="252"></canvas>
+    <div class="car-legend">
+      <span><i style="background:#ffb454"></i>① 基带：想发送的位流</span>
+      <span><i style="background:#ff6257"></i>② 空中：38 kHz 调制后的红外光</span>
+      <span><i style="background:#5fd7ff"></i>③ 接收头 OUT：解调 + 反相（有光=低！）</span>
+    </div>
+  </div>
+
+  <div class="grid g3 rv" style="margin-top:18px">
+    <div class="card"><h4><span class="ico r">☀</span>抗环境光</h4>
+      <p>接收头内是 <b style="color:var(--em)">38 kHz 带通滤波 + 解调</b>：阳光是直流、灯光闪烁在 100/120 Hz，都落在通带之外 —— 只有「按 38 kHz 闪」的光能通过。这一招就叫<b style="color:var(--em)">调制</b>。</p></div>
+    <div class="card"><h4><span class="ico a">⅓</span>占空比 1/3</h4>
+      <p>载波每个周期只亮 1/3（8.8 µs/26.3 µs）。平均电流不变的前提下峰值电流可以更大 → <b style="color:var(--amber)">发射更远</b>，LED 更省电。36/38/40/56 kHz 是常见载波家族。</p></div>
+    <div class="card"><h4><span class="ico c">▣</span>一体化接收头</h4>
+      <p>VS1838B / TSOP 系列：光电二极管 + 放大 + AGC + 带通滤波 + 解调 + 驱动，全在一颗三脚器件里。VCC / GND / OUT，<b style="color:var(--cyan)">空闲时 OUT=高，收到载波拉低</b>，MCU 直接读电平。</p></div>
+  </div>
+</section>
+
+<!-- ================= 03 NEC 帧结构 ================= -->
+<section id="nec">
+  <div class="sec-head rv"><span class="sec-num">03</span><span class="sec-title">NEC 帧解剖：引导码 + 四个字节</span>
+    <span class="sec-sub">NEC FRAME ANATOMY · ADDR=0x00 CMD=0x45</span></div>
+  <p class="sec-desc rv">
+    NEC 是最常见的红外协议（38 kHz 载波）。一帧 = <b>9 ms 引导脉冲 + 4.5 ms 引导空闲</b>，随后
+    <b>32 个数据位</b>：<i>地址、地址反码、命令、命令反码</i>各 8 位，<b>低位（LSB）先行</b>。
+    位编码规则极简：载波固定 560 µs，看后面的空闲 —— <b style="color:var(--amber)">空闲 560 µs=“0”</b>，
+    <b style="color:var(--amber)">空闲 1.68 ms=“1”</b>。把鼠标放到波形上（或点击右侧条目）逐段查看：</p>
+
+  <div class="anatomy-grid rv">
+    <div class="panel"><span class="panel-tag">HOVER ME</span><svg id="anatomySvg"></svg></div>
+    <div class="anatomy-list" id="anatomyList"></div>
+  </div>
+
+  <div class="grid g2 rv" style="margin-top:18px">
+    <div class="panel"><span class="panel-tag">BIT ENCODING</span>
+      <h4 style="font-family:var(--disp);margin-bottom:6px">位「0」与位「1」：只差空闲宽度</h4>
+      <svg id="bitSvg" class="cmp-svg" viewBox="0 0 520 128"></svg>
+      <p class="note">载波（红色阴影）宽度恒为 560 µs；判决只看随后的空闲：总宽 1.12 ms → “0”，2.25 ms → “1”。</p>
+    </div>
+    <div class="panel"><span class="panel-tag">REPEAT CODE</span>
+      <h4 style="font-family:var(--disp);margin-bottom:6px">重复码：按住不放时发什么？</h4>
+      <svg id="repSvg" class="cmp-svg" viewBox="0 0 520 128"></svg>
+      <p class="note">按住按键：完整帧只发一次，之后每 110 ms 发一个「9 ms + 2.25 ms + 560 µs」重复码 —— 空调的连发调温、电视的长按音量都靠它。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 04 波形实验室 ================= -->
+<section id="lab">
+  <div class="sec-head rv"><span class="sec-num">04</span><span class="sec-title">波形实验室：亲手发一帧 NEC</span>
+    <span class="sec-sub">INTERACTIVE WAVEFORM LAB</span></div>
+  <p class="sec-desc rv">
+    这台「示波器」会循环发射你指定的 地址+命令。上方红色通道是<b>发射端</b>（载波包络），下方青色通道是
+    <b>接收头 OUT</b>（解调后、<b style="color:var(--amber)">反相</b>）—— 真实世界里你用逻辑分析仪夹接收头输出脚，看到的就是下面那条线。
+    改改地址命令、切到「按住」模式看看重复码，或把鼠标放上去读每一位的时序：</p>
+
+  <div class="panel rv">
+    <span class="panel-tag">WAVE LAB</span>
+    <div class="ctrl-row">
+      <div class="ctrl"><label>地址 Address</label><input type="text" id="addrIn" value="0x00" size="7" spellcheck="false"></div>
+      <div class="ctrl"><label>命令 Command</label><input type="text" id="cmdIn" value="0x45" size="7" spellcheck="false"></div>
+      <div class="ctrl"><label>按键模式</label><select id="selMode"><option value="one" selected>点按（单帧）</option><option value="hold">按住（重复码）</option></select></div>
+      <div class="ctrl"><label>动画速度</label><input type="range" id="spdRange" min="0.5" max="4" step="0.25" value="1"></div>
+      <div class="ctrl"><label>&nbsp;</label><button class="cbtn on" id="btnPlay">⏸ 暂停</button></div>
+      <div class="ctrl"><label>&nbsp;</label><button class="cbtn" id="btnReset">↺ 重置</button></div>
+      <div class="ctrl"><label>&nbsp;</label>
+        <label class="check" style="padding-top:9px"><input type="checkbox" id="ckGhost" checked>完整预览</label>
+        <label class="check" style="padding-top:9px"><input type="checkbox" id="ckMarks" checked>采样点</label></div>
+    </div>
+    <div class="byte-chips" style="margin-bottom:14px">
+      <span class="bchip on" data-a="0x00" data-c="0x45">0x00·0x45 电视电源</span>
+      <span class="bchip" data-a="0x00" data-c="0x18">0x00·0x18 音量 +</span>
+      <span class="bchip" data-a="0x40" data-c="0x02">0x40·0x02 机顶盒</span>
+      <span class="bchip" data-a="0x00" data-c="0x00">全零 · 最快帧</span>
+      <span class="bchip" data-a="0xFF" data-c="0xFF">全一 · 最慢帧</span>
+    </div>
+
+    <canvas id="labCanvas" height="320"></canvas>
+    <div id="labHover">把鼠标移到波形上，查看每一段的时序说明 ——</div>
+
+    <div class="readout">
+      <span class="tx-display" id="txDisplay"></span>
+      <div class="ir-shift" id="irShift"></div>
+      <div class="status-line" id="labStatus">空闲 · 等待引导码…</div>
+    </div>
+    <div class="lab-info" id="labInfo"></div>
+    <div class="lab-dec" id="labDec"></div>
+    <p class="note">⚠ 动画为便于观看已放慢数百倍；页面标注的时序参数（ms / µs）才是真实值。</p>
+  </div>
+</section>
+
+<!-- ================= 05 协议对比 ================= -->
+<section id="proto">
+  <div class="sec-head rv"><span class="sec-num">05</span><span class="sec-title">协议江湖：NEC · RC-5 · SIRC …</span>
+    <span class="sec-sub">PROTOCOL COMPARISON</span></div>
+  <p class="sec-desc rv">
+    各家厂商在「载波频率、帧结构、位编码」上各搞一套，但骨架相同：<b>引导 + 定长数据位 + 冗余校验</b>。
+    两大流派 —— <i>脉宽编码（PWM）</i>：靠脉冲/空闲宽度区分 0/1（NEC、SIRC）；
+    <i>曼彻斯特编码</i>：靠位中点的<i>跳变方向</i>区分 0/1（RC-5、RC-6），自带时钟信息：</p>
+
+  <div class="grid g2 rv">
+    <div class="panel"><span class="panel-tag">TWO SCHOOLS</span>
+      <h4 style="font-family:var(--disp);margin-bottom:6px">同样的「1, 0」：PWM vs 曼彻斯特</h4>
+      <svg id="cmpSvg" class="cmp-svg" viewBox="0 0 520 196"></svg>
+      <p class="note">上：NEC 脉宽编码 —— 载波恒 560 µs，空闲定长短。<br>下：RC-5 曼彻斯特 —— 每位 1.778 ms，中点必跳变：前载波后空闲=“0”，前空闲后载波=“1”。</p>
+    </div>
+    <div class="panel"><span class="panel-tag">BIG TABLE</span>
+      <h4 style="font-family:var(--disp);margin-bottom:10px">主流协议参数速览</h4>
+      <div style="overflow-x:auto">
+      <table>
+        <tr><th>协议</th><th>载波</th><th>帧结构</th><th>位序</th><th>特点</th></tr>
+        <tr><td class="hl-r">NEC</td><td class="mono">38 kHz</td><td>9+4.5 ms 引导 + 32 bit<br><span class="dim mono" style="font-size:11.5px">地址+反码+命令+反码</span></td><td>LSB</td><td class="dim">反码校验；按住发重复码</td></tr>
+        <tr><td class="hl-r">NEC 扩展</td><td class="mono">38 kHz</td><td>同 NEC，但前 16 bit 为地址</td><td>LSB</td><td class="dim">地址空间 16 位，无地址反码</td></tr>
+        <tr><td class="hl-a">RC-5</td><td class="mono">36 kHz</td><td>14 bit：2 起始 + 翻转 + 5 地址 + 6 命令</td><td>MSB</td><td class="dim">曼彻斯特；翻转位区分新按/连按</td></tr>
+        <tr><td class="hl-c">Sony SIRC</td><td class="mono">40 kHz</td><td>2.4 ms 引导 + 12/15/20 bit<br><span class="dim mono" style="font-size:11.5px">7 命令 + 5 地址</span></td><td>MSB</td><td class="dim">每次按键至少连发 3 遍</td></tr>
+        <tr><td>RC-6</td><td class="mono">36 kHz</td><td>引导 + 起始/模式位 + 数据</td><td>MSB</td><td class="dim">变长曼彻斯特；微软 MCE 用</td></tr>
+        <tr><td>JVC</td><td class="mono">38 kHz</td><td>类 NEC 但无反码</td><td>LSB</td><td class="dim">老 JVC 影音设备</td></tr>
+      </table>
+      </div>
+      <p class="note">国产电视 / 机顶盒 / 空调遥控绝大多数是 NEC 或其变体 —— 万能遥控器、空调伴侣学的多半就是它。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 06 解码实战 ================= -->
+<section id="decode">
+  <div class="sec-head rv"><span class="sec-num">06</span><span class="sec-title">解码实战：从脉冲串到键值</span>
+    <span class="sec-sub">DECODER STATE MACHINE · STEP BY STEP</span></div>
+  <p class="sec-desc rv">
+    解码不测载波本身，只测「载波出现/消失的时长」。接收头 OUT 在每个<b>边沿</b>触发中断，用微秒定时器记录每段宽度，
+    状态机按宽度窗口判决（容差通常 <b style="color:var(--amber)">±20%</b>）。左边是真实的测量日志（mode2 风格），
+    点「下一步」看状态机如何一步步把 32 位吃进来（帧内容：地址 0x00 · 命令 0x45）：</p>
+
+  <div class="decode-grid rv">
+    <div class="panel"><span class="panel-tag">MODE2 LOG</span>
+      <div id="dcLog"></div>
+      <div class="ctrl-row" style="margin:12px 0 0">
+        <button class="cbtn" id="dcPrev">◀ 上一步</button>
+        <button class="cbtn on" id="dcNext">下一步 ▶</button>
+        <button class="cbtn" id="dcAuto">⏵ 自动</button>
+        <button class="cbtn" id="dcReset">↺ 重置</button>
+      </div>
+    </div>
+    <div class="panel"><span class="panel-tag">STATE MACHINE</span>
+      <svg id="smSvg" viewBox="0 0 780 252"></svg>
+      <div class="dc-dec" id="dcDec"></div>
+    </div>
+  </div>
+
+  <div class="panel rv" style="margin-top:18px"><span class="panel-tag">ARDUINO</span>
+    <h4 style="font-family:var(--disp);margin-bottom:4px">用 IRremote 库：十行搞定</h4>
+    <div class="code-box"><span class="cm">#include &lt;IRremote.hpp&gt;          // IRremote 4.x</span>
+<span class="kw">void</span> <span class="fn">setup</span>(){
+  Serial.<span class="fn">begin</span>(115200);
+  IrReceiver.<span class="fn">begin</span>(11, ENABLE_LED_FEEDBACK);  <span class="cm">// 接收头 OUT → D11</span>
+}
+<span class="kw">void</span> <span class="fn">loop</span>(){
+  <span class="kw">if</span>(IrReceiver.<span class="fn">decode</span>()){
+    <span class="kw">if</span>(!(IrReceiver.decodedIRData.flags &amp; IRDATA_FLAGS_IS_REPEAT)){
+      Serial.<span class="fn">print</span>(IrReceiver.<span class="fn">getProtocolString</span>());       <span class="cm">// "NEC"</span>
+      Serial.<span class="fn">print</span>(<span class="st">" addr=0x"</span>); Serial.<span class="fn">print</span>(IrReceiver.decodedIRData.address, HEX);
+      Serial.<span class="fn">print</span>(<span class="st">" cmd=0x"</span>);  Serial.<span class="fn">println</span>(IrReceiver.decodedIRData.command, HEX);
+    }
+    IrReceiver.<span class="fn">resume</span>();                 <span class="cm">// 准备接收下一帧</span>
+  }
+}</div>
+    <div class="grid g2" style="margin-top:16px">
+      <div>
+        <h4 style="font-family:var(--disp);margin-bottom:8px">裸机解码要点（无库）</h4>
+        <ul class="rules">
+          <li><span class="no">1</span><span><b>双边沿外部中断</b> + 微秒计时器：上升/下降沿各记录一次时长，得到 pulse/space 序列</span></li>
+          <li><span class="no">2</span><span><b>按窗口判决</b>：9ms±20% 判引导、空闲 [0.34,1.12)ms→“0”、[1.12,2.2]ms→“1”</span></li>
+          <li><span class="no">3</span><span><b>先收满 32 位再校验</b>：addr^invAddr==0xFF 且 cmd^invCmd==0xFF，否则整帧丢弃</span></li>
+          <li><span class="no">4</span><span><b>区分重复码</b>：引导后空闲 2.25 ms → 不进数据态，直接置「重复」标志</span></li>
+        </ul>
+      </div>
+      <div>
+        <h4 style="font-family:var(--disp);margin-bottom:8px">软件层的常见约定</h4>
+        <p style="color:var(--mut);font-size:13.8px;line-height:1.85">
+        「按一下」通常在<b class="hl-g">收到首帧</b>时执行动作；「长按连发」由<b class="hl-g">重复码驱动</b>（如音量持续增）。
+        为防误触发，很多解码器要求 <b class="hl-g">同一键值连续 2 帧一致</b>才生效 —— NEC 单帧即带反码校验，
+        但干扰强的地方（日光灯镇流器）仍然建议加这个软件滤波。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 07 Linux 实战 ================= -->
+<section id="linux">
+  <div class="sec-head rv"><span class="sec-num">07</span><span class="sec-title">Linux 实战：LIRC 与 ir-ctl</span>
+    <span class="sec-sub">IR ON LINUX · V4L2 / LIRC STACK</span></div>
+  <p class="sec-desc rv">
+    Linux 内核自带红外收发栈（rc-core / LIRC）：接收头接 GPIO，加载 <b>gpio-ir-recv</b> 驱动后出现
+    <i>/dev/lirc0</i>（原始脉冲）与 <i>/dev/rc0</i>（解码按键）。用户态两把快刀：<b>ir-ctl</b>（收/发/测原始码）
+    和 <b>ir-keytable</b>（协议与键映射）。下面这段终端动画完整演示「收码 → 看原始脉冲 → 映射按键 → 发码」：</p>
+
+  <div class="panel rv" style="margin-bottom:18px">
+    <span class="panel-tag">TERMINAL · 自动播放</span>
+    <div class="term-head">
+      <span class="tdot r"></span><span class="tdot y"></span><span class="tdot g"></span>
+      <span class="term-title">user@linux: ~</span>
+      <button class="cbtn" id="btnTermReplay" style="margin-left:auto">↺ 重放</button>
+    </div>
+    <div class="term-body" id="termBody"></div>
+  </div>
+
+  <div class="decode-grid rv">
+    <div class="panel"><span class="panel-tag">COMMANDS</span>
+      <h4 style="font-family:var(--disp);margin-bottom:10px">常用命令速查</h4>
+      <table>
+        <tr><th>用途</th><th>命令</th></tr>
+        <tr><td>列出接收设备/协议</td><td class="mono hl-r">ir-keytable</td></tr>
+        <tr><td>实时收码（解码后）</td><td class="mono hl-r">sudo ir-ctl -r -d /dev/lirc0</td></tr>
+        <tr><td>只收一帧就退出</td><td class="mono hl-r">sudo ir-ctl -r -1</td></tr>
+        <tr><td>原始脉冲（mode2 格式）</td><td class="mono hl-r">sudo ir-ctl -r -m</td></tr>
+        <tr><td>发送扫描码</td><td class="mono hl-r">ir-ctl -S nec:0xa51c</td></tr>
+        <tr><td>测试按键事件</td><td class="mono hl-r">sudo ir-keytable -t</td></tr>
+        <tr><td>设置解码协议</td><td class="mono hl-r">sudo ir-keytable -p nec</td></tr>
+        <tr><td>安装键映射表</td><td class="mono hl-r">sudo ir-keytable -w /etc/rc_keymaps/x.toml</td></tr>
+      </table>
+      <p class="note">※ 老工具 mode2/irsend 属于 LIRC 包，如今 ir-ctl 已覆盖其功能（-m 即输出 mode2 格式）。</p>
+    </div>
+    <div class="panel"><span class="panel-tag">DEVICES</span>
+      <h4 style="font-family:var(--disp);margin-bottom:10px">设备与概念速查</h4>
+      <table>
+        <tr><th>名字</th><th>是什么</th></tr>
+        <tr><td class="mono hl-c">/dev/lirc0</td><td>原始收发字符设备（pulse/space 微秒序列）</td></tr>
+        <tr><td class="mono hl-g">/dev/rc0</td><td>rc-core 设备：内核解码后吐按键事件</td></tr>
+        <tr><td class="mono hl-a">gpio-ir-recv</td><td>树莓派 GPIO 接收头驱动：<span class="mono">dtoverlay gpio-ir-recv,gpio_pin=17</span></td></tr>
+        <tr><td class="mono hl-a">scancode</td><td>协议无关的「扫描码」。NEC 在内核中记作 16 位 <span class="mono">地址&lt;&lt;8|命令</span>，如 <span class="mono">0xa51c</span> = 地址 0xA5 · 命令 0x1C</td></tr>
+        <tr><td class="mono hl-c">keymap</td><td>scancode → KEY_* 按键名 的映射表（TOML 格式），决定按遥控器等效按了哪个键</td></tr>
+      </table>
+      <p style="color:var(--mut);font-size:13px;margin-top:12px">把 <b class="hl-g">ir-keytable -t</b> 的输出和
+        <b class="hl-g">ir-ctl -r</b> 对照着看：前者是「按了哪个键」，后者是「空中飞了什么码」—— 排查键映射问题只需这两条命令。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 08 踩坑 ================= -->
+<section id="pitfall">
+  <div class="sec-head rv"><span class="sec-num">08</span><span class="sec-title">踩坑指南：症状 → 病因</span>
+    <span class="sec-sub">TROUBLESHOOTING</span></div>
+  <p class="sec-desc rv">
+    红外系统的故障极有规律 —— 九成逃不出下面六个坑。遇到「收不到 / 乱码 / 时好时坏」，按命中率逐条排查：</p>
+
+  <div class="grid g3 rv">
+    <div class="card"><h4><span class="ico r">!</span>忘了输出反相</h4>
+      <p>接收头<b style="color:var(--em)">有载波 = 低电平</b>。把逻辑分析仪波形和协议文档的发射图直接对比，会觉得「完全反了」—— 其实没错，先反相再分析。用库时它已替你处理。</p></div>
+    <div class="card"><h4><span class="ico a">≠</span>载波不匹配</h4>
+      <p>36 / 38 / 40 kHz 接收头带通不同：拿 40 kHz 遥控器对 38 kHz 接收头，距离骤降、丢帧严重。换设备先查载波频率 —— <b style="color:var(--amber)">ir-ctl -r -m</b> 都收不到脉冲时首先怀疑它。</p></div>
+    <div class="card"><h4><span class="ico c">☀</span>环境光干扰</h4>
+      <p>阳光直射会让接收头前级<b style="color:var(--cyan)">饱和</b>；老式节能灯/日光灯的 100 Hz 闪烁与开关电源噪声会制造假脉冲。遮光筒、缩短距离、换个角度，立竿见影。</p></div>
+    <div class="card"><h4><span class="ico p">◔</span>首帧被 AGC 吃掉</h4>
+      <p>接收头自动增益需要引导码「热身」：安静很久后的<b style="color:var(--pink)">第一帧可能解不出</b>。所以 NEC 才设计成按住连发 —— 发送端重要指令至少连发 2~3 帧。</p></div>
+    <div class="card"><h4><span class="ico g">⚡</span>电池老化</h4>
+      <p>遥控器「时好时坏、离近了才行」≈ 电池电压不足 → LED 峰值电流下降 → 距离骤减。<b style="color:var(--green)">先换电池</b>再查电路，能省一下午。</p></div>
+    <div class="card"><h4><span class="ico a">⏚</span>接线与去耦</h4>
+      <p>接收头 VCC 就近加 <b style="color:var(--amber)">100 nF 去耦</b>（串 100 Ω + 大电容更佳），否则电源纹波直接耦合进 OUT；MCU 侧务必用<b style="color:var(--amber)">双边沿中断</b>而不是轮询，微秒级时宽轮询必丢。</p></div>
+  </div>
+</section>
+
+<!-- ================= 09 速查 ================= -->
+<section id="cheat">
+  <div class="sec-head rv"><span class="sec-num">09</span><span class="sec-title">速查表 & 术语表</span>
+    <span class="sec-sub">CHEAT SHEET</span></div>
+
+  <div class="panel rv" style="margin-bottom:18px">
+    <span class="panel-tag">NEC AT A GLANCE</span>
+    <p style="text-align:center;color:var(--mut);font-size:13.5px;margin-bottom:14px">一帧 NEC 的四个关键时宽（判决容差建议 ±20%）：</p>
+    <div class="notation">
+      <div class="n-item"><div class="nv">9 ms</div><small>引导脉冲（AGC）</small></div>
+      <div class="n-item"><div class="nv c">4.5 ms</div><small>引导空闲</small></div>
+      <div class="n-item"><div class="nv a">560+560 µs</div><small>位 “0”</small></div>
+      <div class="n-item"><div class="nv p">560+1680 µs</div><small>位 “1”</small></div>
+      <div class="n-item"><div class="nv">110 ms</div><small>按住时的帧周期</small></div>
+    </div>
+  </div>
+
+  <div class="grid g2 rv">
+    <div class="panel"><span class="panel-tag">TIMING TABLE</span>
+      <h4 style="font-family:var(--disp);margin-bottom:10px">NEC 时序参数</h4>
+      <table>
+        <tr><th>参数</th><th>宽度</th><th>备注</th></tr>
+        <tr><td>引导脉冲</td><td class="mono hl-r">9000 µs</td><td class="dim">载波连发，AGC 热身</td></tr>
+        <tr><td>引导空闲</td><td class="mono hl-c">4500 µs</td><td class="dim">完整帧；2.25 ms 则为重复码</td></tr>
+        <tr><td>位 “0”</td><td class="mono hl-a">560 + 560 µs</td><td class="dim">总宽 1.12 ms</td></tr>
+        <tr><td>位 “1”</td><td class="mono hl-a">560 + 1680 µs</td><td class="dim">总宽 2.25 ms</td></tr>
+        <tr><td>数据位</td><td class="mono">32 bit</td><td class="dim">地址 + 反码 + 命令 + 反码，LSB 先行</td></tr>
+        <tr><td>帧时长</td><td class="mono">49 ~ 85 ms</td><td class="dim">取决于 0/1 个数，典型 ≈ 67.5 ms</td></tr>
+        <tr><td>重复码</td><td class="mono hl-p">9 + 2.25 + 0.56 ms</td><td class="dim">按住时每 110 ms 一次</td></tr>
+        <tr><td>载波</td><td class="mono">38 kHz · 1/3 占空</td><td class="dim">周期 26.3 µs</td></tr>
+      </table>
+    </div>
+    <div class="panel"><span class="panel-tag">GOLDEN RULES</span>
+      <h4 style="font-family:var(--disp);margin-bottom:10px">六条铁律</h4>
+      <ul class="rules">
+        <li><span class="no">1</span><span><b>数据骑在 38 kHz 载波上</b> —— 不是简单的亮/灭</span></li>
+        <li><span class="no">2</span><span><b>接收头输出低有效</b>：有载波 = OUT 拉低</span></li>
+        <li><span class="no">3</span><span><b>NEC 位序 LSB 先行</b> —— 抓包按低位先读（最易忘！）</span></li>
+        <li><span class="no">4</span><span><b>反码校验</b>：addr^inv==0xFF、cmd^inv==0xFF 才收</span></li>
+        <li><span class="no">5</span><span><b>按住 = 110 ms 重复码</b>，完整帧只发第一遍</span></li>
+        <li><span class="no">6</span><span><b>视距通信</b>：不穿墙，载波频率要对上</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="panel rv" style="margin-top:18px"><span class="panel-tag">GLOSSARY</span>
+    <dl class="gloss">
+      <dt>Carrier · 载波</dt><dd>承载信息的固定频率振荡（红外遥控为 36/38/40 kHz 光脉冲），用于与环境光区分</dd>
+      <dt>Modulation / Demodulation</dt><dd>把数据「骑」到载波上 / 从载波上取下来；一体化接收头自动完成解调与反相</dd>
+      <dt>Burst / Space · 脉冲/空闲</dt><dd>载波亮起的时段 / 熄灭的时段；红外协议用两者的宽度组合编码信息</dd>
+      <dt>Leader · 引导码</dt><dd>帧开头的固定图形（NEC: 9ms+4.5ms），宣告「我要发了」并给 AGC 热身时间</dd>
+      <dt>AGC · 自动增益控制</dt><dd>接收头根据信号强度自适应放大倍数；需要引导码做调整基准</dd>
+      <dt>Repeat Code · 重复码</dt><dd>按住按键时周期性发送的短码（NEC: 9+2.25+0.56ms），表示「还按着」</dd>
+      <dt>Inverse Check · 反码校验</dt><dd>每字节附上按位取反的备份字节，收端异或校验 —— 无重传协议下的廉价检错</dd>
+      <dt>Manchester · 曼彻斯特编码</dt><dd>位中点跳变方向表示 0/1 的编码（RC-5/RC-6），数据自带时钟信息</dd>
+      <dt>Scancode · 扫描码</dt><dd>协议无关的键值抽象；Linux 内核中 NEC 记为 16 位 地址&lt;&lt;8|命令</dd>
+      <dt>LIRC</dt><dd>Linux Infrared Remote Control —— Linux 红外收发的老名字，如今融入内核 rc-core/v4l2 体系</dd>
+      <dt>Duty Cycle · 占空比</dt><dd>载波周期内高电平占比；红外遥控用 1/3 以兼顾峰值距离与平均功耗</dd>
+      <dt>LoS · Line of Sight</dt><dd>视距：发射与接收之间无遮挡；红外不能穿透墙体</dd>
+    </dl>
+  </div>
+</section>
+
+</div><!-- /wrap -->
+
+<footer>
+  IR·LAB —— 红外遥控协议交互图解 · 纯前端实现 · 离线可用<br>
+  LOCAL FILE · NO DEPENDENCIES · 生成于 2026-08
+</footer>
+
+<script>
+(function(){
+"use strict";
+const $=s=>document.querySelector(s);
+const $$=s=>Array.from(document.querySelectorAll(s));
+const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const MONO='"Share Tech Mono",monospace';
+const C={em:'#ff6257',amber:'#ffb454',cyan:'#5fd7ff',green:'#3dffa2',pink:'#ff6bcb',
+  mut:'#a3908a',mut2:'#6f5d56',grid:'rgba(220,150,130,.12)'};
+const PART_COLOR={lead:'#5fd7ff',addr:'#3dffa2',invA:'#3dffa2',cmd:'#ffb454',invC:'#ffb454',rep:'#ff6bcb'};
+const PART_NAME={lead:'引导码',addr:'地址码',invA:'地址反码',cmd:'命令码',invC:'命令反码'};
+
+/* ---------- 通用 ---------- */
+const hex2=v=>'0x'+(v&0xFF).toString(16).toUpperCase().padStart(2,'0');
+const bin=(v,n)=>v.toString(2).padStart(n,'0');
+function fitCanvas(cv,h){
+  const w=cv.parentElement.getBoundingClientRect().width||600;
+  const dpr=Math.min(2,window.devicePixelRatio||1);
+  cv.width=w*dpr;cv.height=h*dpr;
+  cv.style.width=w+'px';cv.style.height=h+'px';
+  const ctx=cv.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  return {ctx,w,h};
+}
+
+/* NEC 段构造：TX 视角（载波=1）。单位 ms */
+function necSegs(addr,cmd){
+  const segs=[];let t=0;
+  const add=(lv,len,kind,meta)=>{
+    const s=Object.assign({lv,len,kind,at:t},meta||{});
+    segs.push(s);t+=len;return s;};
+  add(1,9,'leadB',{part:'lead'});
+  add(0,4.5,'leadS',{part:'lead'});
+  const parts=[['addr',addr&0xFF],['invA',(~addr)&0xFF],['cmd',cmd&0xFF],['invC',(~cmd)&0xFF]];
+  parts.forEach(([part,b])=>{
+    for(let i=0;i<8;i++){
+      const bit=(b>>i)&1;
+      add(1,0.56,'burst',{part,i,bit});
+      add(0,bit?1.68:0.56,'space',{part,i,bit});
+    }
+  });
+  return segs;
+}
+const segsEnd=segs=>segs[segs.length-1].at+segs[segs.length-1].len;
+const segAt=(segs,t)=>{for(const s of segs){if(t>=s.at&&t<s.at+s.len)return s;}return null;};
+const levelAt=(segs,t)=>{const s=segAt(segs,t);return s?s.lv:0;};
+function tracePath(segs,a,b,x,yOf){
+  const p=new Path2D();let started=false;
+  for(const s of segs){
+    if(s.at>=b)break;
+    const lo=Math.max(s.at,a),hi=Math.min(s.at+s.len,b);
+    if(hi<=lo)continue;
+    const y=yOf(s.lv);
+    if(!started){p.moveTo(x(lo),y);started=true;}
+    p.lineTo(x(hi),y);
+  }
+  return p;
+}
+/* 在区间内画载波竖线（TX burst 视觉） */
+function drawCarrier(ctx,x0,x1,yTop,yBot,col){
+  if(x1-x0<3)return;
+  ctx.strokeStyle=col;ctx.lineWidth=1;ctx.globalAlpha=.5;
+  for(let px=x0+1.5;px<x1;px+=3){
+    ctx.beginPath();ctx.moveTo(px,yTop+2);ctx.lineTo(px,yBot-2);ctx.stroke();
+  }
+  ctx.globalAlpha=1;
+}
+
+/* ============ Hero 脉冲串动画 ============ */
+(function heroPackets(){
+  const g=document.getElementById('heroPkts');
+  const NS='http://www.w3.org/2000/svg';
+  const XL='http://www.w3.org/1999/xlink';
+  /* 引导 9ms + 0x45 低 4 位（1,0,1,0）的脉冲串：bit0 窄、bit1 宽 */
+  const bars=[[26,'lead'],[7,'b'],[14,'b'],[7,'b'],[14,'b']];
+  bars.forEach((b,i)=>{
+    const grp=document.createElementNS(NS,'g');
+    grp.setAttribute('class','pkt');
+    const r=document.createElementNS(NS,'rect');
+    r.setAttribute('x',-(b[0]/2));r.setAttribute('y',-7);
+    r.setAttribute('width',b[0]);r.setAttribute('height',14);r.setAttribute('rx',3);
+    r.setAttribute('fill',b[1]==='lead'?'rgba(95,215,255,.25)':'rgba(255,98,87,.28)');
+    r.setAttribute('stroke',b[1]==='lead'?C.cyan:C.em);
+    r.setAttribute('stroke-width','1.5');
+    const mo=document.createElementNS(NS,'animateMotion');
+    mo.setAttribute('dur','4.5s');mo.setAttribute('begin',(i*0.62)+'s');
+    mo.setAttribute('repeatCount','indefinite');
+    const mp=document.createElementNS(NS,'mpath');
+    mp.setAttribute('href','#irp');
+    mp.setAttributeNS(XL,'xlink:href','#irp');
+    mo.appendChild(mp);
+    const op=document.createElementNS(NS,'animate');
+    op.setAttribute('attributeName','opacity');
+    op.setAttribute('values','0;1;1;0');op.setAttribute('keyTimes','0;.08;.9;1');
+    op.setAttribute('dur','4.5s');op.setAttribute('begin',(i*0.62)+'s');
+    op.setAttribute('repeatCount','indefinite');
+    grp.appendChild(r);grp.appendChild(mo);grp.appendChild(op);
+    g.appendChild(grp);
+  });
+})();
+
+/* ============ 载波三层视图 ============ */
+const car={t:0,playing:!reduced,visible:false,wave:true};
+(function carInit(){
+  const cv=$('#carCv');let ctx,w;const H=252;
+  const resize=()=>{const f=fitCanvas(cv,H);ctx=f.ctx;w=f.w;};
+  resize();
+  const bits=[1,0,1,1,0,0,1,0];
+  const segs=[];let t=1.5;
+  const add=(lv,len,meta)=>{segs.push(Object.assign({lv,len,at:t},meta||{}));t+=len;};
+  add(0,1.5,{kind:'idle'});
+  bits.forEach(bit=>{
+    add(1,0.56,{kind:'burst',bit});
+    add(0,bit?1.68:0.56,{kind:'space',bit});
+  });
+  add(0,2,{kind:'idle'});
+  car.segs=segs;car.total=t;
+  car.draw=()=>{
+    ctx.clearRect(0,0,w,H);
+    const padL=118,padR=16;
+    const plotW=w-padL-padR,bw=plotW/car.total;
+    const x=v=>padL+v*bw;
+    const lanes=[
+      {y0:38,y1:94,col:C.amber,lab:'① 基带',inv:false},
+      {y0:106,y1:162,col:C.em,lab:'② 调制光',inv:false,carrier:true},
+      {y0:174,y1:230,col:C.cyan,lab:'③ OUT',inv:true}];
+    /* 位标签 */
+    ctx.font='10.5px '+MONO;ctx.textAlign='center';
+    segs.forEach(s=>{
+      if(s.kind==='burst'){
+        const cx=x(s.at+(0.56+(s.bit?1.68:0.56))/2);
+        ctx.fillStyle=s.bit?C.amber:C.mut2;
+        ctx.fillText(''+s.bit,cx,30);
+      }
+    });
+    lanes.forEach(L=>{
+      /* 轨线 */
+      ctx.strokeStyle='rgba(220,150,130,.18)';ctx.setLineDash([3,5]);ctx.lineWidth=1;
+      [L.y0+2,L.y1-2].forEach(y=>{ctx.beginPath();ctx.moveTo(padL-4,y);ctx.lineTo(w-padR,y);ctx.stroke();});
+      ctx.setLineDash([]);
+      ctx.font='10.5px '+MONO;ctx.fillStyle=L.col;ctx.textAlign='right';
+      ctx.fillText(L.lab,padL-10,L.y0+(L.y1-L.y0)/2+4);
+      const hi=L.inv?L.y1-2:L.y0+2, lo=L.inv?L.y0+2:L.y1-2;
+      const yl=lv=>lv?hi:lo;
+      /* 底色脉冲区 */
+      segs.forEach(s=>{
+        if(s.kind==='burst'||s.kind==='lead'){
+          if(s.lv!==1)return;
+          ctx.fillStyle=L.col;ctx.globalAlpha=.07;
+          ctx.fillRect(x(s.at),L.y0+2,s.len*bw,L.y1-L.y0-4);ctx.globalAlpha=1;
+        }
+      });
+      /* 波形 */
+      const played=Math.min(car.t,car.total);
+      const full=tracePath(car.segs,0,car.total,x,yl);
+      ctx.globalAlpha=.16;ctx.strokeStyle=L.col;ctx.lineWidth=2;ctx.stroke(full);ctx.globalAlpha=1;
+      const path=tracePath(car.segs,0,played,x,yl);
+      ctx.save();
+      ctx.shadowColor=L.col;ctx.shadowBlur=9;
+      ctx.strokeStyle=L.col;ctx.lineWidth=2.2;ctx.lineJoin='round';ctx.stroke(path);
+      ctx.restore();
+      /* 载波细节 */
+      if(L.carrier&&car.wave){
+        segs.forEach(s=>{
+          if(s.kind==='burst'&&played>s.at)
+            drawCarrier(ctx,x(s.at),Math.min(x(s.at+s.len),x(played)),L.y0+2,L.y1-2,L.col);
+        });
+      }
+      /* 播放头 */
+      if(played<car.total){
+        const px=x(played);
+        const grad=ctx.createLinearGradient(px-12,0,px+12,0);
+        grad.addColorStop(0,'rgba(255,255,255,0)');grad.addColorStop(.5,'rgba(255,255,255,.13)');grad.addColorStop(1,'rgba(255,255,255,0)');
+        ctx.fillStyle=grad;ctx.fillRect(px-12,L.y0,24,L.y1-L.y0);
+        const lv=levelAt(car.segs,played);
+        ctx.fillStyle=L.col;ctx.beginPath();ctx.arc(px,yl(lv),3.4,0,7);ctx.fill();
+      }
+    });
+    ctx.font='10px '+MONO;ctx.fillStyle=C.mut2;ctx.textAlign='left';
+    ctx.fillText('→ t（脉冲 = 载波亮起）',padL+4,H-10);
+  };
+  car.tick=dt=>{if(!car.visible||!car.playing)return;car.t+=dt*2.6;if(car.t>car.total+1)car.t=0;};
+  car.resize=resize;
+})();
+$('#carPlay').addEventListener('click',e=>{
+  car.playing=!car.playing;
+  e.target.textContent=car.playing?'⏸ 暂停':'▶ 播放';
+  e.target.classList.toggle('on',car.playing);
+});
+if(!car.playing){const b=$('#carPlay');b.textContent='▶ 播放';b.classList.remove('on');}
+$('#carWave').addEventListener('change',e=>car.wave=e.target.checked);
+
+/* ============ NEC 帧结构解剖图 ============ */
+(function anatomy(){
+  const ADDR=0x00,CMD=0x45;
+  const segs=necSegs(ADDR,CMD);
+  const W=1000,H=336,NS='http://www.w3.org/2000/svg';
+  const svg=$('#anatomySvg');
+  svg.setAttribute('viewBox','0 0 '+W+' '+H);
+  const headIdle=5,tailIdle=7;
+  const total=headIdle+segsEnd(segs)+tailIdle;
+  const padL=30,padR=30,plotW=W-padL-padR,bw=plotW/total;
+  const x=v=>padL+(headIdle+v)*bw;
+  const yH=118,yL=200,yOf=l=>l?yH:yL;
+  const el=(tag,attrs,parent)=>{const e=document.createElementNS(NS,tag);
+    for(const k in attrs)e.setAttribute(k,attrs[k]);(parent||svg).appendChild(e);return e;};
+
+  /* 载波填充 pattern */
+  const defs=el('defs',{});
+  const pat=el('pattern',{id:'cpat',width:4,height:7,patternUnits:'userSpaceOnUse'},defs);
+  el('rect',{width:4,height:7,fill:'rgba(255,98,87,.13)'},pat);
+  el('line',{x1:1,y1:0,x2:1,y2:7,stroke:'rgba(255,98,87,.8)','stroke-width':1.3},pat);
+
+  /* 分区（按 part 聚合） */
+  const partRange={};
+  segs.forEach(s=>{
+    if(!s.part)return;
+    if(!partRange[s.part])partRange[s.part]={from:s.at,to:s.at+s.len};
+    else partRange[s.part].to=Math.max(partRange[s.part].to,s.at+s.len);
+  });
+  Object.keys(partRange).forEach(part=>{
+    const r=partRange[part];
+    const g=el('g',{'class':'seg-region','data-part':part});
+    el('rect',{x:x(r.from)-1.5,y:yH-10,width:(r.to-r.from)*bw+3,height:yL-yH+20,rx:4,
+      fill:PART_COLOR[part],opacity:.06},g);
+    g.addEventListener('mouseenter',()=>lit(part));
+    g.addEventListener('mouseleave',()=>lit(null));
+  });
+
+  /* 波形：burst 用载波填充，space 走低 */
+  let d='M '+x(0)+' '+yOf(1);
+  segs.forEach(s=>{d+=' L '+x(s.at)+' '+yOf(s.lv)+' L '+x(s.at+s.len)+' '+yOf(s.lv);});
+  d+=' L '+x(segsEnd(segs))+' '+yOf(1);
+  const wave=el('path',{d,fill:'none',stroke:C.em,'stroke-width':2.2,'stroke-linejoin':'round'});
+  wave.style.filter='drop-shadow(0 0 5px rgba(255,98,87,.6))';
+  segs.filter(s=>s.kind==='burst').forEach(s=>{
+    el('rect',{x:x(s.at),y:yH+2,width:s.len*bw,height:yL-yH-4,fill:'url(#cpat)',
+      stroke:C.em,'stroke-width':1,rx:1.5});
+  });
+
+  /* 电平标注 + 轨线 */
+  el('text',{x:padL-8,y:yH+4,'text-anchor':'end','font-size':11,fill:C.mut}).textContent='载波';
+  el('text',{x:padL-8,y:yL+4,'text-anchor':'end','font-size':11,fill:C.mut}).textContent='空闲';
+  [yH,yL].forEach(y=>el('line',{x1:padL,y1:y,x2:W-padR,y2:y,stroke:'rgba(220,150,130,.16)','stroke-dasharray':'2 5'}));
+
+  /* 位值标签 + 字节标签 */
+  segs.filter(s=>s.kind==='space').forEach(s=>{
+    const cx=x(s.at+(s.len/2));
+    el('text',{x:cx,y:yL+20,'text-anchor':'middle','font-size':11,
+      fill:s.bit?C.amber:'#8a7a73','font-weight':'bold'}).textContent=s.bit;
+  });
+  Object.keys(partRange).forEach(part=>{
+    const r=partRange[part];
+    const cx=x((r.from+r.to)/2);
+    const vals={addr:'地址 0x00',invA:'反码 0xFF',cmd:'命令 0x45',invC:'反码 0xBA',lead:'引导码'};
+    el('text',{x:cx,y:yL+40,'text-anchor':'middle','font-size':12,fill:PART_COLOR[part]},svg)
+      .textContent=vals[part];
+  });
+
+  /* 顶部标注 */
+  const call=(pos,y,txt,sub,color,align)=>{
+    const cx=x(pos);
+    el('line',{x1:cx,y1:yH-8,x2:cx,y2:y+6,stroke:color,'stroke-width':1,opacity:.5});
+    el('circle',{cx,cy:yH-8,r:2.5,fill:color,opacity:.85});
+    el('text',{x:cx,y:y,'text-anchor':align||'middle','font-size':12.5,fill:'#ecdcd4'},svg).textContent=txt;
+    el('text',{x:cx,y:y+15,'text-anchor':align||'middle','font-size':10.5,fill:'#a3908a'},svg).textContent=sub;
+  };
+  call(4.5,46,'9 ms 引导脉冲','AGC 热身 + 帧同步',C.cyan);
+  call(11.5,64,'4.5 ms 引导空闲','此后开始 32 个数据位',C.cyan);
+  call(14.5,46,'D0 = 0','LSB 先行：最低位第一个发！',C.em);
+
+  /* LSB 方向箭头 */
+  const r=partRange.addr;
+  const ax1=x(r.from+0.3),ax2=x(r.to),awy=yL+58;
+  el('line',{x1:ax1,y1:awy,x2:ax2-8,y2:awy,stroke:C.mut,'stroke-width':1.2,opacity:.7});
+  el('path',{d:`M ${ax2-8},${awy} l -7,-4 l 0,8 z`,fill:C.mut,opacity:.8});
+  el('text',{x:(ax1+ax2)/2,y:awy-7,'text-anchor':'middle','font-size':11,fill:C.mut})
+    .textContent='发送顺序 D0 → D7（低位在前）';
+  /* 反码括注 */
+  const brk=(p1,p2,y,txt)=>{
+    const a=x(partRange[p1].from),b=x(partRange[p2].to);
+    el('path',{d:`M ${a},${y+6} L ${a},${y} L ${b},${y} L ${b},${y+6}`,fill:'none',
+      stroke:C.amber,'stroke-width':1.2,opacity:.8});
+    el('text',{x:(a+b)/2,y:y-6,'text-anchor':'middle','font-size':11,fill:C.amber}).textContent=txt;
+  };
+  brk('addr','invA',86,'地址 + 地址反码（异或 = 0xFF）');
+  brk('cmd','invC',86,'命令 + 命令反码（异或 = 0xFF）');
+  el('text',{x:x(segsEnd(segs)+tailIdle/2),y:yL+20,'text-anchor':'middle','font-size':11,fill:'rgba(111,93,86,.9)'})
+    .textContent='空闲 ≥40ms…';
+  el('text',{x:W-padR,y:yL+58,'text-anchor':'end','font-size':10.5,fill:C.mut2})
+    .textContent='※ 图示为发射端视角；接收头 OUT 波形与此反相';
+
+  /* 侧栏 */
+  const DESC={
+    lead:['引导码 · 9ms 载波 + 4.5ms 空闲','#5fd7ff','9 ms 连发载波让接收头 AGC 稳定增益，4.5 ms 空闲宣告「NEC 帧开始」。若空闲只有 2.25 ms 则是重复码。'],
+    addr:['地址码 · 8 bit（LSB 先行）','#3dffa2','设备地址：区分电视 / 机顶盒 / 空调……同品牌不同类型设备地址不同，互不打扰。'],
+    invA:['地址反码 · 8 bit','#3dffa2','地址按位取反。收端校验 addr ^ inv == 0xFF，不等则整帧丢弃 —— 没有重传机制的廉价检错。'],
+    cmd:['命令码 · 8 bit','#ffb454','键值：本例 0x45 = 电源键。同一地址下每个按键一个命令码。'],
+    invC:['命令反码 · 8 bit','#ffb454','命令按位取反，校验方式同地址。扩展 NEC 中地址占 16 位，此时无地址反码。']};
+  const list=$('#anatomyList');
+  Object.keys(DESC).forEach(k=>{
+    const div=document.createElement('div');
+    div.className='a-item';div.dataset.part=k;
+    div.innerHTML=`<h5><span class="dot" style="background:${DESC[k][1]}"></span>${DESC[k][0]}</h5><p>${DESC[k][2]}</p>`;
+    div.addEventListener('mouseenter',()=>lit(k));
+    div.addEventListener('mouseleave',()=>lit(null));
+    list.appendChild(div);
+  });
+  function lit(part){
+    svg.classList.toggle('dimmed',!!part);
+    $$('#anatomySvg .seg-region').forEach(g=>g.classList.toggle('lit',!!part&&g.dataset.part===part));
+    $$('.a-item').forEach(it=>it.classList.toggle('on',!!part&&it.dataset.part===part));
+  }
+  lit('lead');setTimeout(()=>lit(null),2600);
+})();
+
+/* ============ 位编码 / 重复码 小图 ============ */
+(function miniSvgs(){
+  const NS='http://www.w3.org/2000/svg';
+  function build(id,items){
+    const svg=$('#'+id);
+    while(svg.firstChild)svg.removeChild(svg.firstChild);
+    const W=520,H=128,x0=64,x1=496;
+    const yH=34,yL=88;
+    const el=(tag,attrs)=>{const e=document.createElementNS(NS,tag);
+      for(const k in attrs)e.setAttribute(k,attrs[k]);svg.appendChild(e);return e;};
+    const defs=el('defs',{});
+    const pat=el('pattern',{id:id+'p',width:4,height:7,patternUnits:'userSpaceOnUse'},defs);
+    el('rect',{width:4,height:7,fill:'rgba(255,98,87,.14)'},pat);
+    el('line',{x1:1,y1:0,x2:1,y2:7,stroke:'rgba(255,98,87,.8)','stroke-width':1.3},pat);
+    [yH,yL].forEach(y=>el('line',{x1:x0-6,y1:y,x2:x1,y2:y,stroke:'rgba(220,150,130,.18)','stroke-dasharray':'2 5'}));
+    const unit=(x1-x0)/items.length;
+    items.forEach((it,idx)=>{
+      const bx=x0+idx*unit;
+      /* 背景区 */
+      el('rect',{x:bx+1,y:yH-8,width:unit-2,height:yL-yH+16,rx:4,fill:it.color,opacity:.06});
+      /* 载波填充矩形 */
+      it.segs.forEach(sg=>{
+        if(!sg[2])return;
+        const a=bx+sg[0]*unit,b=bx+sg[1]*unit;
+        el('rect',{x:a,y:yH,width:Math.max(2,b-a),height:yL-yH,fill:`url(#${id}p)`,stroke:C.em,'stroke-width':1,rx:1.5});
+      });
+      /* 波形折线：每个 burst 上升、结束回落 */
+      let d='M '+bx+' '+yL,lvl=0;
+      it.segs.forEach(sg=>{
+        if(!sg[2])return;
+        const a=(bx+sg[0]*unit).toFixed(1),b=(bx+sg[1]*unit).toFixed(1);
+        if(lvl===0){d+=' L '+a+' '+yL+' L '+a+' '+yH;lvl=1;}
+        d+=' L '+b+' '+yH+' L '+b+' '+yL;lvl=0;
+      });
+      d+=' L '+(bx+unit)+' '+yL;
+      const path=el('path',{d,fill:'none',stroke:C.em,'stroke-width':1.8,'stroke-linejoin':'round'});
+      path.style.filter='drop-shadow(0 0 4px rgba(255,98,87,.5))';
+      /* 标注 */
+      el('text',{x:bx+unit/2,y:yL+18,'text-anchor':'middle','font-size':12,fill:it.color,'font-weight':'bold'}).textContent=it.t;
+      it.notes.forEach(n=>{
+        el('text',{x:bx+n[0]*unit,y:n[2],'text-anchor':'middle','font-size':9.5,fill:'#a3908a'}).textContent=n[1];
+      });
+    });
+  }
+  /* NEC 位 0 / 位 1（单位=该位总宽） */
+  build('bitSvg',[
+    {t:'“0”',color:C.amber,segs:[[0,.5,1],[.5,1,0]],
+      notes:[[.25,'560µs',22],[.75,'560µs',22],[.5,'总宽 1.12 ms',112]]},
+    {t:'“1”',color:C.amber,segs:[[0,.25,1],[.25,1,0]],
+      notes:[[.125,'560µs',22],[.625,'1680µs',22],[.5,'总宽 2.25 ms',112]]},
+  ]);
+  /* 重复码 */
+  build('repSvg',[
+    {t:'重复码',color:C.pink,segs:[[0,.55,1],[.55,.75,0],[.75,.82,1],[.82,1,0]],
+      notes:[[.275,'9 ms',22],[.65,'2.25 ms',22],[.785,'560µs',10]]},
+    {t:'周期',color:C.cyan,segs:[[0,.02,1],[.03,.1,1],[.14,.2,1],[.3,.34,1],[.55,.58,1],[.7,.72,1],[.9,.91,1]],
+      notes:[[.5,'每 110 ms 一次',112]]},
+  ]);
+})();
+
+/* ============ 协议对比图：PWM vs 曼彻斯特 ============ */
+(function cmpSvg(){
+  const svg=$('#cmpSvg');
+  const NS='http://www.w3.org/2000/svg';
+  const W=520,x0=100,x1=486;
+  const el=(tag,attrs)=>{const e=document.createElementNS(NS,tag);
+    for(const k in attrs)e.setAttribute(k,attrs[k]);svg.appendChild(e);return e;};
+  const defs=el('defs',{});
+  ['c1','c2'].forEach((id,i)=>{
+    const pat=el('pattern',{id:'cmp'+id,width:4,height:7,patternUnits:'userSpaceOnUse'},defs);
+    el('rect',{width:4,height:7,fill:i?`rgba(255,180,84,.14)`:`rgba(255,98,87,.14)`},pat);
+    el('line',{x1:1,y1:0,x2:1,y2:7,stroke:i?C.amber:C.em,'stroke-width':1.3},pat);
+  });
+  /* 行：y 顶/底，位 segs（[from,to,burst] 单位=位宽比例） */
+  const row=(y,label,items,col,patId,bitW)=>{
+    const yH=y,yL=y+40;
+    el('text',{x:x0-10,y:(yH+yL)/2+4,'text-anchor':'end','font-size':10.5,fill:col}).textContent=label;
+    [yH,yL].forEach(yy=>el('line',{x1:x0-6,y1:yy,x2:x1,y2:yy,stroke:'rgba(220,150,130,.18)','stroke-dasharray':'2 5'}));
+    const unit=(x1-x0)/items.reduce((a,it)=>a+it.w,0);
+    let bx=x0;
+    items.forEach(it=>{
+      el('rect',{x:bx+1,y:yH-6,width:it.w*unit-2,height:yL-yH+12,rx:3,fill:col,opacity:.06});
+      let dd='M '+bx+' '+yL;
+      let lvl=0;
+      it.segs.forEach(sg=>{
+        const a=bx+sg[0]*it.w*unit,b=bx+sg[1]*it.w*unit;
+        if(sg[2]){
+          if(lvl===0){dd+=' L '+a.toFixed(1)+' '+yL+' L '+a.toFixed(1)+' '+yH;lvl=1;}
+          el('rect',{x:a,y:yH,width:Math.max(2,b-a),height:yL-yH,fill:`url(#cmp${patId})`,stroke:col,'stroke-width':1,rx:1.5});
+        }else{
+          if(lvl===1){dd+=' L '+a.toFixed(1)+' '+yH+' L '+a.toFixed(1)+' '+yL;lvl=0;}
+        }
+      });
+      dd+=' L '+(bx+it.w*unit).toFixed(1)+' '+yL;
+      const p=el('path',{d:dd,fill:'none',stroke:col,'stroke-width':1.8,'stroke-linejoin':'round'});
+      p.style.filter=`drop-shadow(0 0 4px ${col}88)`;
+      el('text',{x:bx+it.w*unit/2,y:yL+16,'text-anchor':'middle','font-size':11.5,fill:col,'font-weight':'bold'}).textContent=it.t;
+      if(it.note)el('text',{x:bx+it.w*unit/2,y:yH-10,'text-anchor':'middle','font-size':9.5,fill:'#a3908a'}).textContent=it.note;
+      bx+=it.w*unit;
+    });
+  };
+  /* NEC PWM：位1 = burst 0.25 + space 0.75；位0 = burst 0.5 + space 0.5（按时宽比例） */
+  row(46,'NEC·PWM',[
+    {t:'“1”',w:2,segs:[[0,.25,1],[.25,1,0]],note:'560µs + 1680µs'},
+    {t:'“0”',w:1,segs:[[0,.5,1],[.5,1,0]],note:'560µs + 560µs'},
+  ],C.em,'c1');
+  /* RC-5 曼彻斯特：0 = burst 前半，1 = burst 后半 */
+  row(140,'RC-5·MANCH',[
+    {t:'“0”',w:1,segs:[[0,.5,1],[.5,1,0]],note:'载波→空闲'},
+    {t:'“1”',w:1,segs:[[0,.5,0],[.5,1,1]],note:'空闲→载波'},
+  ],C.amber,'c2');
+  el('text',{x:x0,y:28,'font-size':10,fill:'#6f5d56'}).textContent='同样的比特 “1,0”，两种编码流派（时宽按真实比例）';
+  el('text',{x:(x0+x1)/2,y:118,'text-anchor':'middle','font-size':9.5,fill:'#6f5d56'}).textContent='每位中点必有一次跳变 —— 曼彻斯特自带时钟，收发无需严格约定位宽';
+})();
+
+/* ============ 波形实验室 ============ */
+const labCfg={addr:0x00,cmd:0x45,mode:'one',ghost:true,marks:true};
+const lab={t:0,playing:!reduced,speed:1,segs:[],total:0,pts:[],nextIdx:0,cycle:0,repeats:0,
+  samples:[],hover:null,visible:true,dec:{addr:0,invA:0,cmd:0,invC:0,n:0},doneShown:false};
+const labCv=$('#labCanvas');
+let labCtx,labW;const labH=320;
+function labResize(){const f=fitCanvas(labCv,labH);labCtx=f.ctx;labW=f.w;}
+
+function labRebuild(){
+  const frame=necSegs(labCfg.addr,labCfg.cmd);
+  const seq=frame.map(s=>Object.assign({},s));
+  const fEnd=segsEnd(frame);
+  const seqBuild=(arr)=>{
+    let t=0;arr.forEach(s=>{s.at=t;t+=s.len;});return t;
+  };
+  seqBuild(seq);
+  let t=fEnd;
+  const idle=(len,kind)=>{seq.push({lv:0,len,kind,at:t});t+=len;};
+  idle(labCfg.mode==='hold'?110-fEnd:34,'gap1');
+  let pts=[];
+  pts.push({at:frame[0].at+9,seg:frame[0],kind:'leadP'});
+  pts.push({at:13.5,seg:frame[1],kind:'leadS'});
+  frame.forEach(s=>{
+    if(s.kind==='space')pts.push({at:s.at+s.len/2,seg:s,kind:'bit'});
+  });
+  if(labCfg.mode==='hold'){
+    const rep=[{lv:1,len:9,kind:'rlead',part:'rep'},{lv:0,len:2.25,kind:'rspace',part:'rep'},
+      {lv:1,len:0.56,kind:'rburst',part:'rep'},{lv:0,len:98.19,kind:'gap2'}];
+    rep.forEach(s=>{s.at=t;t+=s.len;seq.push(s);});
+    pts.push({at:9+2.25+0.56,kind:'rpt'});
+    pts.sort((a,b)=>a.at-b.at);
+  }
+  lab.segs=seq;lab.total=t;lab.pts=pts;
+  lab.t=0;lab.nextIdx=0;lab.samples=[];lab.cycle=0;lab.repeats=0;
+  lab.dec={addr:0,invA:0,cmd:0,invC:0,n:0};lab.doneShown=false;
+  buildShift();
+  labStatus('空闲 · 等待引导码…','');
+  const fBits=32,frameMs=fEnd;
+  $('#txDisplay').innerHTML=
+    `TX: ADDR ${hex2(labCfg.addr)} · CMD ${hex2(labCfg.cmd)}`+
+    ` <span class="u">scancode 0x${((labCfg.addr<<8)|labCfg.cmd).toString(16).padStart(4,'0').toUpperCase()}</span>`;
+  $('#labInfo').innerHTML=
+    `<span>载波 <b>38 kHz</b> · 1/3 占空</span>`+
+    `<span>数据 <b>32 bit</b>（LSB 先行）</span>`+
+    `<span>本帧时长 <b>${frameMs.toFixed(1)} ms</b></span>`+
+    `<span>帧周期 <b>110 ms</b></span>`+
+    `<span>已循环 <b>${lab.cycle}</b> 帧</span>`+
+    `<span>重复码 <b>${lab.repeats}</b> 次</span>`;
+  $('#labDec').classList.remove('show');
+}
+function buildShift(){
+  const box=$('#irShift');box.innerHTML='';
+  [['addr','地址 ADDR'],['invA','反码 ~ADDR'],['cmd','命令 CMD'],['invC','反码 ~CMD']].forEach(([part,lab2])=>{
+    const g=document.createElement('div');g.className='grp';g.dataset.part=part;
+    const cells=document.createElement('div');cells.className='row';
+    let html=`<small>${lab2} <span class="hex" data-hex></span></small>`;
+    g.innerHTML=html;
+    for(let i=7;i>=0;i--){
+      const c=document.createElement('div');c.className='cell';c.dataset.i=i;
+      c.innerHTML=`<div class="box">·</div><small>D${i}</small>`;
+      cells.appendChild(c);
+    }
+    g.appendChild(cells);
+    box.appendChild(g);
+  });
+}
+function labStatus(msg,cls){const elSt=$('#labStatus');elSt.textContent=msg;elSt.className='status-line '+(cls||'');}
+function onLabSample(pt){
+  if(pt.kind==='leadP')labStatus('引导脉冲 9 ms（AGC 热身）…','ok');
+  else if(pt.kind==='leadS')labStatus('引导空闲 4.5 ms ✓ → 开始接收 32 位数据','ok');
+  else if(pt.kind==='bit'){
+    const s=pt.seg;
+    const cell=$(`#irShift .grp[data-part="${s.part}"] .cell[data-i="${s.i}"]`);
+    if(cell){cell.classList.add('filled');cell.querySelector('.box').textContent=s.bit;}
+    lab.dec[s.part]|=s.bit<<s.i;lab.dec.n++;
+    const idx=lab.dec.n;
+    let msg=`接收 ${PART_NAME[s.part]} D${s.i} = ${s.bit}（空闲 ${(s.bit?1.68:0.56).toFixed(2)} ms）`;
+    if(s.i===7){
+      const hex=hex2(lab.dec[s.part]);
+      const g=$(`#irShift .grp[data-part="${s.part}"] .hex`);
+      if(g)g.innerHTML=`<b>${hex}</b>`;
+      let cls='';
+      if(s.part==='invA'){const ok=lab.dec.invA===(~labCfg.addr&0xFF);msg+=` · 地址校验 ${ok?'✓':'✗'}`;cls=ok?'ok':'err';}
+      if(s.part==='invC'){const ok=lab.dec.invC===(~labCfg.cmd&0xFF);msg+=` · 命令校验 ${ok?'✓':'✗'}`;cls=ok?'ok':'err';}
+      labStatus(msg,cls||'ok');
+    }else labStatus(msg,'');
+  }else if(pt.kind==='rpt'){
+    lab.repeats++;
+    labStatus('✓ 重复码（9 + 2.25 + 0.56 ms）· 判定：按键仍按住','warn');
+    const spans=$('#labInfo span:last-child b');if(spans)spans.textContent=lab.repeats;
+  }
+}
+function labFrameDone(){
+  const a=lab.dec.addr,ia=lab.dec.invA,c=lab.dec.cmd,ic=lab.dec.invC;
+  const ok1=(a^ia)===0xFF,ok2=(c^ic)===0xFF;
+  const dec=$('#labDec');
+  dec.classList.add('show');
+  dec.innerHTML=`解码完成 → ADDR <b class="hl-g">${hex2(a)}</b>${ok1?' ✓反码':' ✗反码'} · `+
+    `CMD <b class="hl-a">${hex2(c)}</b>${ok2?' ✓反码':' ✗反码'} · `+
+    `Linux scancode <b class="hl-c">0x${((a<<8)|c).toString(16).padStart(4,'0').toUpperCase()}</b>`+
+    ((ok1&&ok2)?' —— 校验通过，执行动作':' —— 校验失败，丢弃本帧');
+  labStatus((ok1&&ok2)?'✓ 帧完成：反码校验通过':'✗ 帧完成：反码校验失败',(ok1&&ok2)?'ok':'err');
+}
+function labTick(dt){
+  if(!lab.visible)return;
+  if(lab.playing){
+    lab.t+=dt*4.5*lab.speed;
+    if(lab.t>=lab.total+2){
+      lab.t=0;lab.nextIdx=0;lab.samples=[];lab.cycle++;
+      lab.dec={addr:0,invA:0,cmd:0,invC:0,n:0};lab.doneShown=false;
+      $$('#irShift .cell').forEach(c=>{c.classList.remove('filled');c.querySelector('.box').textContent='·';});
+      $$('#irShift .hex').forEach(h=>h.innerHTML='');
+      labStatus('空闲 · 等待引导码…','');
+      const spans=$$('#labInfo span b');
+      if(spans[4])spans[4].textContent=lab.cycle;
+    }
+    while(lab.nextIdx<lab.pts.length&&lab.t>=lab.pts[lab.nextIdx].at){
+      const pt=lab.pts[lab.nextIdx++];
+      if(pt.kind==='bit')lab.samples.push(pt);
+      onLabSample(pt);
+    }
+    /* 帧完成时刻（数据最后一位置位后） */
+    if(!lab.doneShown){
+      const lastBit=lab.pts.filter(p=>p.kind==='bit').pop();
+      if(lastBit&&lab.t>=lastBit.at+0.6){lab.doneShown=true;labFrameDone();}
+    }
+  }
+}
+function labDraw(){
+  if(!labCtx)return;
+  const ctx=labCtx,W=labW,H=labH;
+  ctx.clearRect(0,0,W,H);
+  const padL=52,padR=16,padT=30,padB=54;
+  const plotW=W-padL-padR,bw=plotW/lab.total;
+  const x=v=>padL+v*bw;
+  /* 双通道 */
+  const tH0=padT+16,tH1=padT+62;      /* TX 高/低 */
+  const rH0=padT+96,rH1=padT+142;     /* RX 高/低（反相：载波=低） */
+  const txY=lv=>lv?tH0:tH1, rxY=lv=>lv?rH0:rH1;
+  /* 分区底色 */
+  const partSeq=['addr','invA','cmd','invC'];
+  const pr={};
+  lab.segs.forEach(s=>{if(s.part&&s.part!=='lead'&&s.part!=='rep'){
+    if(!pr[s.part])pr[s.part]={from:s.at,to:s.at+s.len};
+    else pr[s.part].to=Math.max(pr[s.part].to,s.at+s.len);}});
+  ctx.globalAlpha=.05;
+  ctx.fillStyle=C.cyan;ctx.fillRect(x(0),padT-6,x(13.5)-x(0),rH1-padT+14);
+  partSeq.forEach((p,i)=>{
+    if(!pr[p])return;
+    ctx.fillStyle=i%2?C.amber:C.em;
+    ctx.fillRect(x(pr[p].from),padT-6,x(pr[p].to)-x(pr[p].from),rH1-padT+14);
+  });
+  ctx.globalAlpha=1;
+  /* part 边界竖线 */
+  ctx.strokeStyle=C.grid;ctx.setLineDash([3,5]);ctx.lineWidth=1;
+  [0,13.5].concat(partSeq.map(p=>pr[p]?pr[p].to:0)).forEach(v=>{
+    ctx.beginPath();ctx.moveTo(x(v),padT-6);ctx.lineTo(x(v),rH1+8);ctx.stroke();});
+  ctx.setLineDash([]);
+  /* 轨线 + 标签 */
+  ctx.strokeStyle='rgba(220,150,130,.2)';
+  [tH0,tH1,rH0,rH1].forEach(y=>{ctx.beginPath();ctx.moveTo(padL-6,y);ctx.lineTo(W-padR,y);ctx.stroke();});
+  ctx.font='10px '+MONO;ctx.textAlign='right';
+  ctx.fillStyle=C.em;ctx.fillText('TX·发射',padL-10,(tH0+tH1)/2+3);
+  ctx.fillStyle=C.cyan;ctx.fillText('RX·OUT',padL-10,(rH0+rH1)/2+3);
+  ctx.textAlign='left';
+  ctx.fillStyle=C.mut2;ctx.fillText('9ms 引导',x(0.4),padT+6);
+  if(pr.addr)ctx.fillText('地址',x(pr.addr.from+0.3),padT+6);
+  if(pr.invA)ctx.fillText('~地址',x(pr.invA.from+0.3),padT+6);
+  if(pr.cmd)ctx.fillText('命令',x(pr.cmd.from+0.3),padT+6);
+  if(pr.invC)ctx.fillText('~命令',x(pr.invC.from+0.3),padT+6);
+  if(labCfg.mode==='hold'){
+    const g=lab.segs.find(s=>s.kind==='rlead');
+    if(g){ctx.fillStyle=C.pink;ctx.fillText('重复码',x(g.at+0.4),padT+6);
+      ctx.globalAlpha=.05;ctx.fillStyle=C.pink;
+      ctx.fillRect(x(g.at),padT-6,x(lab.total-g.len-98.19)-x(g.at),rH1-padT+14);
+      ctx.globalAlpha=1;}
+  }
+  /* 幽灵预览 */
+  if(labCfg.ghost){
+    ctx.globalAlpha=.13;
+    ctx.strokeStyle=C.em;ctx.lineWidth=2;
+    ctx.stroke(tracePath(lab.segs,0,lab.total,x,txY));
+    ctx.strokeStyle=C.cyan;
+    ctx.stroke(tracePath(lab.segs,0,lab.total,x,(lv)=>rxY(1-lv)));
+    ctx.globalAlpha=1;
+  }
+  const played=Math.min(lab.t,lab.total);
+  /* TX 载波填充 */
+  lab.segs.forEach(s=>{
+    if(s.lv===1&&s.kind!=='idle'&&s.at<=played){
+      const a=x(s.at),b=Math.min(x(s.at+s.len),x(played));
+      drawCarrier(ctx,a,Math.max(b,x(s.at)+2),tH0+2,tH1-2,C.em);
+    }
+  });
+  /* 实时轨迹 */
+  const tp=tracePath(lab.segs,0,played,x,txY);
+  ctx.save();ctx.shadowColor='rgba(255,98,87,.8)';ctx.shadowBlur=10;
+  ctx.strokeStyle=C.em;ctx.lineWidth=2.2;ctx.lineJoin='round';ctx.stroke(tp);ctx.restore();
+  const rp=tracePath(lab.segs,0,played,x,lv=>rxY(1-lv));
+  ctx.save();ctx.shadowColor='rgba(95,215,255,.8)';ctx.shadowBlur=10;
+  ctx.strokeStyle=C.cyan;ctx.lineWidth=2.2;ctx.lineJoin='round';ctx.stroke(rp);ctx.restore();
+  /* 采样点（判决发生在空闲段中点 → RX 为高） */
+  if(labCfg.marks){
+    lab.samples.forEach(pt=>{
+      const sx=x(pt.at),sy=rH0;
+      ctx.save();ctx.shadowColor='rgba(255,180,84,.9)';ctx.shadowBlur=8;
+      ctx.fillStyle=C.amber;ctx.beginPath();ctx.arc(sx,sy,3.6,0,7);ctx.fill();ctx.restore();
+    });
+  }
+  /* 悬停高亮 */
+  if(lab.hover){
+    const s=lab.hover;
+    ctx.fillStyle='rgba(255,255,255,.07)';
+    ctx.fillRect(x(s.at),padT-6,s.len*bw,rH1-padT+14);
+    ctx.strokeStyle='rgba(255,255,255,.22)';
+    ctx.strokeRect(x(s.at),padT-6,s.len*bw,rH1-padT+14);
+  }
+  /* 播放头 */
+  if(played<lab.total){
+    const px=x(played);
+    const grad=ctx.createLinearGradient(px-14,0,px+14,0);
+    grad.addColorStop(0,'rgba(255,255,255,0)');grad.addColorStop(.5,'rgba(255,255,255,.13)');grad.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.fillStyle=grad;ctx.fillRect(px-14,padT-6,28,rH1-padT+14);
+    ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(px,txY(levelAt(lab.segs,played)),3,0,7);ctx.fill();
+    ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(px,rxY(1-levelAt(lab.segs,played)),3,0,7);ctx.fill();
+  }
+  /* 时间刻度 */
+  ctx.font='10px '+MONO;ctx.fillStyle=C.mut2;ctx.textAlign='center';
+  const stepMs=labCfg.mode==='hold'?55:22;
+  for(let v=0;v<=lab.total;v+=stepMs){
+    ctx.fillText(v+'ms',x(v),rH1+24);
+    ctx.strokeStyle='rgba(220,150,130,.12)';ctx.setLineDash([2,6]);
+    ctx.beginPath();ctx.moveTo(x(v),padT-6);ctx.lineTo(x(v),rH1+8);ctx.stroke();ctx.setLineDash([]);
+  }
+}
+
+/* 实验室控件 */
+function parseByte(str){
+  const s=str.trim();let v=null;
+  if(/^0x[0-9a-f]+$/i.test(s))v=parseInt(s,16);
+  else if(/^[0-9]+$/.test(s))v=parseInt(s,10);
+  else if(/^[0-9a-f]{1,2}$/i.test(s))v=parseInt(s,16);
+  return (v===null||isNaN(v))?null:(v&0xFF);
+}
+$('#addrIn').addEventListener('change',e=>{
+  const v=parseByte(e.target.value);
+  if(v===null){e.target.value=hex2(labCfg.addr);return;}
+  labCfg.addr=v;e.target.value=hex2(v);syncChips();labRebuild();
+});
+$('#cmdIn').addEventListener('change',e=>{
+  const v=parseByte(e.target.value);
+  if(v===null){e.target.value=hex2(labCfg.cmd);return;}
+  labCfg.cmd=v;e.target.value=hex2(v);syncChips();labRebuild();
+});
+function syncChips(){
+  $$('.bchip').forEach(c=>c.classList.toggle('on',
+    parseInt(c.dataset.a,16)===labCfg.addr&&parseInt(c.dataset.c,16)===labCfg.cmd));
+}
+$$('.bchip').forEach(c=>c.addEventListener('click',()=>{
+  labCfg.addr=parseInt(c.dataset.a,16);labCfg.cmd=parseInt(c.dataset.c,16);
+  $('#addrIn').value=hex2(labCfg.addr);$('#cmdIn').value=hex2(labCfg.cmd);
+  syncChips();labRebuild();
+}));
+$('#selMode').addEventListener('change',e=>{labCfg.mode=e.target.value;labRebuild();});
+$('#spdRange').addEventListener('input',e=>{lab.speed=+e.target.value;});
+$('#btnPlay').addEventListener('click',e=>{
+  lab.playing=!lab.playing;
+  e.target.textContent=lab.playing?'⏸ 暂停':'▶ 播放';
+  e.target.classList.toggle('on',lab.playing);
+});
+$('#btnReset').addEventListener('click',()=>{lab.t=0;lab.nextIdx=0;lab.samples=[];labRebuild();});
+$('#ckGhost').addEventListener('change',e=>labCfg.ghost=e.target.checked);
+$('#ckMarks').addEventListener('change',e=>labCfg.marks=e.target.checked);
+labCv.addEventListener('mousemove',e=>{
+  const r=labCv.getBoundingClientRect();
+  const padL=52,padR=16,bw=(r.width-padL-padR)/lab.total;
+  const pos=(e.clientX-r.left-padL)/bw;
+  const s=segAt(lab.segs,pos);
+  lab.hover=s;
+  const hv=$('#labHover');
+  if(s){
+    let txt;
+    if(s.kind==='leadB')txt=`<b>引导脉冲</b> · 载波 9 ms`;
+    else if(s.kind==='leadS')txt=`<b>引导空闲</b> · 4.5 ms（2.25 ms 则为重复码）`;
+    else if(s.kind==='burst')txt=`<b>${PART_NAME[s.part]} 载波</b> · 560 µs（D${s.i}）`;
+    else if(s.kind==='space')txt=`<b>${PART_NAME[s.part]} 空闲</b> · ${(s.bit?1.68:0.56).toFixed(2)} ms → 判决 D${s.i}=${s.bit}`;
+    else if(s.kind==='rlead')txt=`<b>重复码</b> · 载波 9 ms`;
+    else if(s.kind==='rspace')txt=`<b>重复码空闲</b> · 2.25 ms → 判定「按住」`;
+    else if(s.kind==='rburst')txt=`<b>重复码尾脉冲</b> · 560 µs`;
+    else txt=`<b>空闲</b> · 帧间静默`;
+    hv.innerHTML=txt;
+  }else hv.textContent='把鼠标移到波形上，查看每一段的时序说明 ——';
+});
+labCv.addEventListener('mouseleave',()=>{lab.hover=null;$('#labHover').textContent='把鼠标移到波形上，查看每一段的时序说明 ——';});
+
+/* ============ 解码状态机推演 ============ */
+(function decoder(){
+  const ADDR=0x00,CMD=0x45;
+  /* 事件序列（模拟 mode2 输出，含轻微抖动） */
+  const jit=[0,24,-18,11,-7,19,-11,6];
+  const ev=[];
+  ev.push({t:'pulse',us:9024,st:'L9',note:'引导脉冲 9ms ✓'});
+  ev.push({t:'space',us:4497,st:'G',note:'引导空闲 4.5ms ✓ → 进入 32 位数据'});
+  const parts=[['addr',ADDR],['invA',(~ADDR)&0xFF],['cmd',CMD],['invC',(~CMD)&0xFF]];
+  let k=0;
+  parts.forEach(([part,b])=>{
+    for(let i=0;i<8;i++){
+      const bit=(b>>i)&1;
+      ev.push({t:'pulse',us:562+jit[k++%8],st:'B',note:`位载波 560µs ✓`});
+      const us=bit?1683+jit[k++%8]:561+jit[k++%8];
+      ev.push({t:'space',us:Math.round(us),st:'S',note:`${PART_NAME[part]} D${i} = ${bit}`,bit,part,i});
+    }
+  });
+  ev.push({t:'done',us:0,st:'DONE',note:'反码校验通过 → 输出键值'});
+
+  const st={i:0,timer:null};
+  /* 状态机 SVG */
+  const NS='http://www.w3.org/2000/svg';
+  const svg=$('#smSvg');
+  const nodes={
+    WAIT:{x:16,y:96,w:104,h:44,l:['空闲','等待载波']},
+    L9:{x:168,y:20,w:118,h:44,l:['引导脉冲','9 ms']},
+    G:{x:338,y:20,w:118,h:44,l:['引导空闲','4.5 / 2.25 ms']},
+    B:{x:508,y:20,w:104,h:44,l:['位载波','560 µs']},
+    S:{x:508,y:96,w:104,h:44,l:['位空闲','判 0 / 1']},
+    DONE:{x:338,y:96,w:118,h:44,l:['32 位收满','反码校验']},
+    RPT:{x:168,y:96,w:118,h:44,l:['重复帧','→ 按住']},
+  };
+  const el=(tag,attrs,parent)=>{const e=document.createElementNS(NS,tag);
+    for(const k in attrs)e.setAttribute(k,attrs[k]);(parent||svg).appendChild(e);return e;};
+  const arrow=(x1,y1,x2,y2,label,dx,dy)=>{
+    el('path',{d:`M ${x1},${y1} L ${x2},${y2}`,fill:'none',stroke:'#6f5d56','stroke-width':1.4,'marker-end':'url(#arr)'});
+    if(label)el('text',{x:(x1+x2)/2+dx,y:(y1+y2)/2+dy,'text-anchor':'middle','font-size':10,fill:'#a3908a'}).textContent=label;
+  };
+  const defs=el('defs',{});
+  const mk=el('marker',{id:'arr',markerWidth:7,markerHeight:7,refX:6,refY:3,orient:'auto'},defs);
+  el('path',{d:'M0,0 L6,3 L0,6 Z',fill:'#6f5d56'},mk);
+  arrow(120,118,166,64,'pulse≈9ms',22,-4);
+  arrow(286,42,338,42,'space 4.5ms',0,-6);
+  arrow(456,42,508,42,'开始收位',0,-6);
+  arrow(560,64,560,96,'space',26,4);
+  arrow(508,118,456,118,'×32',0,4);
+  Object.keys(nodes).forEach(key=>{
+    const n=nodes[key];
+    el('rect',{x:n.x,y:n.y,width:n.w,height:n.h,rx:9,'class':'sm-node','data-st':key});
+    el('text',{x:n.x+n.w/2,y:n.y+19,'text-anchor':'middle','font-size':12,fill:'#ecdcd4'}).textContent=n.l[0];
+    el('text',{x:n.x+n.w/2,y:n.y+35,'text-anchor':'middle','font-size':10,fill:'#a3908a'}).textContent=n.l[1];
+  });
+  arrow(226,64,226,96,'space≈2.25ms',72,0);
+  el('path',{d:`M 168,118 C 130,118 120,118 120,118`,fill:'none',stroke:'#6f5d56','stroke-width':1.4,'marker-end':'url(#arr)'});
+  el('text',{x:146,y:136,'text-anchor':'middle','font-size':10,fill:'#a3908a'}).textContent='输出「重复」';
+  el('path',{d:`M 338,118 C 300,150 160,168 68,140`,fill:'none',stroke:'#6f5d56','stroke-width':1.4,'marker-end':'url(#arr)'});
+  el('text',{x:210,y:172,'text-anchor':'middle','font-size':10,fill:'#a3908a'}).textContent='输出键值 (addr, cmd)';
+
+  const log=$('#dcLog'),dec=$('#dcDec');
+  const state={addr:0,invA:0,cmd:0,invC:0,n:0};
+  function renderDec(){
+    const show=(v,n2)=>state.n>=n2?hex2(v):'0x--';
+    dec.innerHTML=
+      `进度 <b class="hl-g">${state.n}/32</b> 位　`+
+      `ADDR <b class="hl-r">${show(state.addr,8)}</b>　`+
+      `~ADDR <b class="hl-r">${show(state.invA,16)}</b>　`+
+      `CMD <b class="hl-a">${show(state.cmd,24)}</b>　`+
+      `~CMD <b class="hl-a">${show(state.invC,32)}</b>`+
+      (state.n>=32?`<br>✓ 完成：NEC ADDR=0x00 CMD=0x45 · scancode <b class="hl-c">0x0045</b>`:'');
+  }
+  function apply(){
+    log.innerHTML='';
+    state.addr=state.invA=state.cmd=state.invC=state.n=0;
+    for(let i2=0;i2<st.i&&i2<ev.length;i2++){
+      const e=ev[i2];
+      const div=document.createElement('div');div.className='t-line';
+      if(e.t==='pulse')div.innerHTML=`<span class="pu">pulse ${String(e.us).padStart(5)}</span>　<span class="nt"># ${e.note}</span>`;
+      else if(e.t==='space')div.innerHTML=`<span class="sp">space ${String(e.us).padStart(5)}</span>　<span class="nt"># ${e.note}</span>`;
+      else div.innerHTML=`<span class="ok">✓ ${e.note}</span>`;
+      log.appendChild(div);
+      if(e.bit!==undefined){
+        state[e.part]|=e.bit<<e.i;state.n++;
+      }
+    }
+    log.scrollTop=log.scrollHeight;
+    const cur=st.i>0?ev[st.i-1]:null;
+    $$('#smSvg .sm-node').forEach(n=>n.classList.toggle('on',!!cur&&n.dataset.st===cur.st));
+    renderDec();
+    $('#dcAuto').classList.toggle('on',!!st.timer);
+  }
+  $('#dcNext').addEventListener('click',()=>{if(st.i<ev.length){st.i++;apply();}});
+  $('#dcPrev').addEventListener('click',()=>{if(st.i>0){st.i--;apply();}});
+  $('#dcReset').addEventListener('click',()=>{stopAuto();st.i=0;apply();});
+  function stopAuto(){if(st.timer){clearInterval(st.timer);st.timer=null;$('#dcAuto').classList.remove('on');}}
+  $('#dcAuto').addEventListener('click',()=>{
+    if(st.timer){stopAuto();return;}
+    st.timer=setInterval(()=>{
+      if(st.i>=ev.length){stopAuto();return;}
+      st.i++;apply();
+    },360);
+    $('#dcAuto').classList.add('on');
+    if(st.i===0){st.i=1;apply();}
+  });
+  if(!reduced){st.i=1;}
+  apply();
+})();
+
+/* ============ Linux 终端打字动画 ============ */
+const term={
+  lines:[
+    {c:'ir-keytable',n:'① 先问内核：系统里有哪个红外接收设备？支持什么协议？'},
+    {o:'Found /sys/class/rc/rc0/ with:'},
+    {o:'\tlirc_dev: gpio_ir_recv'},
+    {o:'\tCurrent protocols: nec'},
+    {c:'sudo ir-ctl -r -1',n:'② 实时收码（-1 = 收到一帧就退出）。按下遥控器电源键'},
+    {o:'129.501372: lirc protocol(nec): scancode = 0xa51c'},
+    {c:'sudo ir-ctl -r -m -1',n:'③ 原始脉冲（mode2 格式）：9ms 引导码清晰可见'},
+    {o:'pulse 9024'},
+    {o:'space 4497'},
+    {o:'pulse 562'},
+    {o:'space 1685'},
+    {o:'pulse 557'},
+    {o:'space 560'},
+    {o:'…'},
+    {c:'sudo ir-keytable -t',n:'④ 换个视角：按键事件（scancode→按键名 的映射来自 keymap）'},
+    {o:'Testing events. Please, press CTRL-C to abort.'},
+    {o:'131.220641: lirc protocol(nec): scancode = 0xa51c'},
+    {o:'131.220641: key event: KEY_POWER'},
+    {c:'sudo ir-keytable -w /etc/rc_keymaps/my.toml',n:'⑤ 按键不对？写 TOML 键映射表：0xa51c="KEY_POWER"，一条命令装入'},
+    {c:'ir-ctl -S nec:0xa51c',n:'⑥ 发送：把同一个扫描码发出去（需要 IR 发射硬件，如 GPIO 发射管）'},
+  ],
+  li:0,ci:0,wait:.4,visible:false,playing:!reduced,staticDone:false
+};
+function termReset(){term.li=0;term.ci=0;term.wait=.4;$('#termBody').innerHTML='';}
+function termStatic(){
+  const b=$('#termBody');b.innerHTML='';
+  term.lines.forEach(L=>{
+    if(L.c!==undefined){
+      const d=document.createElement('div');d.className='t-line';
+      d.innerHTML='<span class="t-prompt">$</span><span class="t-cmd"></span>'+
+        (L.n?'<span class="t-note"># '+L.n+'</span>':'');
+      d.querySelector('.t-cmd').textContent=L.c;
+      b.appendChild(d);
+    }else{
+      const d=document.createElement('div');d.className='t-line t-out';
+      d.textContent=L.o;b.appendChild(d);
+    }
+  });
+}
+function termTick(dt){
+  if(!term.visible)return;
+  if(reduced){if(!term.staticDone){termStatic();term.staticDone=true;}return;}
+  if(!term.playing)return;
+  if(term.wait>0){term.wait-=dt;if(term.wait>0)return;}
+  if(term.li>=term.lines.length){termReset();return;}
+  const L=term.lines[term.li],b=$('#termBody');
+  if(L.c!==undefined){
+    let div=b.querySelector('.t-line[data-i="'+term.li+'"]');
+    if(!div){
+      div=document.createElement('div');div.className='t-line';div.dataset.i=term.li;
+      div.innerHTML='<span class="t-prompt">$</span><span class="t-cmd"></span><span class="t-note"></span><span class="t-cursor"></span>';
+      b.appendChild(div);
+    }
+    term.ci+=dt*50;
+    const n=Math.min(L.c.length,Math.floor(term.ci));
+    div.querySelector('.t-cmd').textContent=L.c.slice(0,n);
+    if(n>=L.c.length){
+      if(L.n)div.querySelector('.t-note').textContent='# '+L.n;
+      const cu=div.querySelector('.t-cursor');if(cu)cu.remove();
+      term.li++;term.ci=0;term.wait=.55;
+      if(term.li>=term.lines.length)term.wait=5;
+    }
+  }else{
+    const d=document.createElement('div');d.className='t-line t-out';
+    d.textContent=L.o;b.appendChild(d);
+    term.li++;term.wait=.32;
+    if(term.li>=term.lines.length)term.wait=5;
+  }
+  b.scrollTop=b.scrollHeight;
+}
+$('#btnTermReplay').addEventListener('click',()=>{termReset();term.playing=true;});
+
+/* ============ 滚动浮现 + 导航高亮 + 可见性 ============ */
+const io=new IntersectionObserver(es=>es.forEach(e=>{
+  if(e.isIntersecting){e.target.classList.add('on');io.unobserve(e.target);}
+}),{threshold:.12});
+$$('.rv').forEach(el2=>io.observe(el2));
+
+const secIO=new IntersectionObserver(es=>es.forEach(e=>{
+  if(e.isIntersecting){
+    $$('.nav-links a').forEach(a=>a.classList.toggle('act',a.getAttribute('href')==='#'+e.target.id));
+  }
+}),{rootMargin:'-30% 0px -60% 0px'});
+$$('section[id]').forEach(s=>secIO.observe(s));
+
+function watchVisible(elm,obj){
+  const v=new IntersectionObserver(es=>es.forEach(e=>obj.visible=e.isIntersecting),{rootMargin:'60px'});
+  v.observe(elm);
+}
+watchVisible($('#carCv'),car);watchVisible($('#labCanvas'),lab);watchVisible($('#termBody'),term);
+
+/* ============ 主循环 ============ */
+labResize();labRebuild();
+if(!lab.playing){const b=$('#btnPlay');b.textContent='▶ 播放';b.classList.remove('on');}
+let last=performance.now();
+function loop(ts){
+  const dt=Math.min(0.05,(ts-last)/1000);last=ts;
+  car.tick(dt);labTick(dt);termTick(dt);
+  if(car.visible)car.draw();
+  if(lab.visible)labDraw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+let rzT;
+window.addEventListener('resize',()=>{
+  clearTimeout(rzT);
+  rzT=setTimeout(()=>{labResize();car.resize();},150);
+});
+})();
+</script>
+</body>
+</html>

@@ -7,6 +7,7 @@
 | [I²C](docs/i2c.html) | 起始/停止条件、应答机制、地址寻址、时钟拉伸、多主机仲裁 |
 | [I²S](docs/i2s.html) | Philips / LJ / RJ 数据格式对比、主从时钟关系、声道对齐 |
 | [UART](docs/uart.html) | 起始位、数据位、校验位、停止位帧结构与波特率动画 |
+| [IR 红外](docs/ir.html) | 38 kHz 载波调制、NEC/RC-5/SIRC 协议、波形实验室、解码状态机与 LIRC 实战 |
 
 ## 在线浏览（GitHub Pages）
 
