@@ -63,7 +63,7 @@ a.card:hover{border-color:rgba(52,224,138,.5);transform:translateY(-2px);box-sha
 .card .go{
   font-family:var(--mono);font-size:13px;color:var(--green);letter-spacing:.15em;white-space:nowrap;
 }
-.card .accent{color:var(--green)} .card:nth-child(2) .accent{color:var(--cyan)} .card:nth-child(3) .accent{color:var(--amber)} .card:nth-child(4) .accent{color:#ff6257}
+.card .accent{color:var(--green)} .card:nth-child(2) .accent{color:var(--cyan)} .card:nth-child(3) .accent{color:var(--amber)} .card:nth-child(4) .accent{color:#ff6257} .card:nth-child(5) .accent{color:#b98cff}
 .card .go::after{content:' →'}
 footer{
   border-top:1px solid var(--line);padding:22px 24px;text-align:center;
@@ -86,7 +86,7 @@ footer{
     <div class="wave"><svg viewBox="0 0 64 40"><path d="M4 30 h10 v-16 h10 v16 h10 v-16 h10 v16 h16" stroke="#34e08a" stroke-width="2.5" fill="none"/></svg></div>
     <div>
       <h2><span class="accent">I²C</span> 协议详解</h2>
-      <p>两线制同步总线：起始/停止条件、应答机制、地址寻址、时钟拉伸与多主机仲裁的交互式时序图解。</p>
+      <p>两线制同步总线：起始/停止条件、应答机制、地址寻址、时钟拉伸与多主机仲裁的交互式时序图解，附 i2cdetect/i2cget/i2cset 等 Linux 工具虚拟终端。</p>
     </div>
     <span class="go">ENTER</span>
   </a>
@@ -111,6 +111,14 @@ footer{
     <div>
       <h2><span class="accent">IR</span> 红外遥控协议详解</h2>
       <p>38 kHz 载波调制、NEC 帧结构与重复码、RC-5/SIRC 协议对比、解码状态机与 LIRC 实战。</p>
+    </div>
+    <span class="go">ENTER</span>
+  </a>
+  <a class="card" href="dmic.html">
+    <div class="wave"><svg viewBox="0 0 64 40"><path d="M4 22 h2 v-12 h2 v12 h3 v-12 h9 v12 h3 v-12 h9 v12 h2 v-12 h2 v12 h20" stroke="#b98cff" stroke-width="2.5" fill="none"/></svg></div>
+    <div>
+      <h2><span class="accent">DMIC / PDM</span> 协议详解</h2>
+      <p>数字 MEMS 麦克风接口：1-bit ΔΣ 密度调制、两线立体声与 L/R 时沿分离、÷64 抽取滤波动画与 Linux/Android 实战。</p>
     </div>
     <span class="go">ENTER</span>
   </a>

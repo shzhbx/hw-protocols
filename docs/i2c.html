@@ -323,6 +323,41 @@ select.speed{
 .od-badge.low b{color:var(--red)}
 .od-hint{font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.1em}
 
+/* ---------- Linux 虚拟终端 ---------- */
+.term{display:flex;flex-direction:column;background:var(--panel);min-width:0}
+.term-head{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line2);font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.12em}
+.term-head .dots{display:flex;gap:6px}
+.term-head .dots i{width:10px;height:10px;border-radius:50%}
+.term-head .dots i:nth-child(1){background:#ff5f57}
+.term-head .dots i:nth-child(2){background:#febc2e}
+.term-head .dots i:nth-child(3){background:#28c840}
+.term-reset{margin-left:auto;font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--dim);background:transparent;border:1px solid var(--line);padding:4px 10px;cursor:pointer;transition:color .2s,border-color .2s}
+.term-reset:hover{color:var(--sda);border-color:var(--sda-dim)}
+.term-body{
+  background:#060c0d;padding:12px 14px;height:400px;overflow:auto;
+  font-family:var(--mono);font-size:12.5px;line-height:1.62;scrollbar-width:thin;
+}
+.term-body::-webkit-scrollbar{width:8px;height:8px}
+.term-body::-webkit-scrollbar-thumb{background:var(--line)}
+.t-line{white-space:pre;min-height:1.62em}
+.t-out{color:var(--dim)}
+.t-p{color:var(--sda)}
+.t-c{color:#eafff2}
+.t-hi{color:var(--sda)}
+.t-uu{color:var(--red)}
+.t-err{color:var(--red)}
+.t-note{color:rgba(91,216,232,.78)}
+.term-in{display:flex;align-items:center;gap:10px;padding:10px 14px;border-top:1px solid var(--line2);background:#0a1214;cursor:text}
+.term-in .p{font-family:var(--mono);font-size:12.5px;color:var(--sda);white-space:nowrap}
+.term-in input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:var(--ink);font-family:var(--mono);font-size:12.5px;caret-color:var(--sda)}
+.term-in input::placeholder{color:var(--faint)}
+.cmd-btns{display:flex;flex-direction:column;gap:7px}
+.cmd-btn{display:block;text-align:left;font-family:var(--mono);font-size:12px;color:var(--ink);background:var(--panel2);border:1px solid var(--line);padding:9px 12px;cursor:pointer;transition:.2s;line-height:1.5}
+.cmd-btn:hover{border-color:var(--sda);color:var(--sda);background:rgba(62,240,140,.05)}
+.cmd-btn small{display:block;font-family:var(--body);font-size:11.5px;color:var(--faint);margin-top:2px}
+.cmd-btn:hover small{color:var(--dim)}
+.term-reset:focus-visible,.cmd-btn:focus-visible{outline:2px solid var(--sda);outline-offset:1px}
+
 /* ---------- 页脚 ---------- */
 footer{border-top:1px solid var(--line2);margin-top:80px;padding:36px 0 44px}
 footer .wrap{display:flex;gap:20px;flex-wrap:wrap;justify-content:space-between;align-items:baseline}
@@ -367,12 +402,14 @@ footer .fm{font-family:var(--mono);letter-spacing:.14em;font-size:11px}
     <a href="#s-arb">多主仲裁</a>
     <a href="#s-speed">速度模式</a>
     <a href="#s-practice">实战调试</a>
+    <a href="#s-linux">Linux 工具</a>
   </nav>
   <div class="xnav">
     <a href="index.html">« HOME</a>
     <a href="i2s.html">I²S</a>
     <a href="uart.html">UART</a>
     <a href="ir.html">IR</a>
+    <a href="dmic.html">DMIC</a>
   </div>
   <span class="plate">REF · NXP UM10204 REV 7.0</span>
 </header>
@@ -844,10 +881,103 @@ footer .fm{font-family:var(--mono);letter-spacing:.14em;font-size:11px}
   <div class="grid g3">
     <div class="panel tip"><h3>总线「卡死」在低电平</h3><p>某从机在字节中间复位，SDA 被永久按低。经典恢复术：主机手动补 <code>9 个 SCL</code> 让从机移完剩余位，再发一个 STOP。许多 MCU 的 I²C 外设内置此恢复序列。</p></div>
     <div class="panel tip"><h3>上拉电阻的边界</h3><p>下限由灌电流（约 3 mA）决定：3.3 V 时约 <code>1.1 kΩ</code>；上限由上升时间决定：tr ≈ 0.85·Rp·Cb，标准模式要求 ≤ 1000 ns。上升沿变圆 → 减小 Rp 或减短走线。</p></div>
-    <div class="panel tip"><h3>地址冲突</h3><p>两个器件都固定在 0x50？用它们的 <code>A0/A1/A2</code> 地址引脚错开；实在不行换型号或加 I²C 多路复用器（TCA9548A）。先跑一遍 <code>I²C 扫描</code> 列出在线地址。</p></div>
+    <div class="panel tip"><h3>地址冲突</h3><p>两个器件都固定在 0x50？用它们的 <code>A0/A1/A2</code> 地址引脚错开；实在不行换型号或加 I²C 多路复用器（TCA9548A）。先跑一遍 <a href="#s-linux"><code>i2cdetect</code> 扫描</a> 列出在线地址。</p></div>
     <div class="panel tip"><h3>仪器是标配</h3><p>逻辑分析仪（采样率 ≥ 10× SCL）开 I²C 解码，地址、ACK、字节一目了然；示波器则用来看<b>模拟质量</b>：上升沿陡不陡、低电平是否真低（&lt;0.4 V）。</p></div>
     <div class="panel tip"><h3>跨电平域</h3><p>3.3 V MCU 接 5 V 器件：两颗 <code>BSS138</code> MOSFET + 各自上拉即可双向移位，成品模块几毛钱。切勿靠两个上拉“凑合”出中间电平。</p></div>
     <div class="panel tip"><h3>信号完整性</h3><p>走线尽量短（&lt;30 cm 级别）、SDA/SCL 并肩走且下方完整地回流；振铃可串 <code>22–33 Ω</code> 抑制；不稳就降速——I²C 的可靠优先于速度。</p></div>
+  </div>
+</section>
+
+<!-- ================= 10 Linux 工具 ================= -->
+<section class="sec" id="s-linux">
+  <div class="sec-head">
+    <span class="sec-no">10</span>
+    <h2>Linux 实战：i2c-tools</h2>
+    <span class="en">Linux Command Line</span>
+  </div>
+  <p class="sec-lead">
+    Linux 把每条 I²C 控制器映射成字符设备 <code>/dev/i2c-N</code>，用户态的标配工具包是
+    <b>i2c-tools</b>（Debian/Ubuntu：<code>apt install i2c-tools</code>）。
+    下面是一台<b>可交互的虚拟终端</b>：虚拟板卡的总线 i2c-1 上挂着 EEPROM <b>0x50</b>、
+    RTC <b>0x51</b> 和 MPU6050 <b>0x68</b>——点击右侧命令直接运行，也可以自己敲。
+    EEPROM 是<b>有状态</b>的：i2cset 写进去的值，i2cget 真的能读回来。
+  </p>
+
+  <div class="lab-grid">
+    <div class="panel term">
+      <div class="term-head">
+        <span class="dots"><i></i><i></i><i></i></span>
+        <span>pi@board — /dev/i2c-1 · i2c-tools 4.3</span>
+        <button class="term-reset" id="termReset" title="恢复 EEPROM 初始内容">↺ RESET</button>
+      </div>
+      <div class="term-body" id="termBody" aria-live="polite"></div>
+      <div class="term-in">
+        <span class="p">pi@board:~$</span>
+        <input id="termInput" spellcheck="false" autocomplete="off" aria-label="终端命令输入"
+               placeholder="输入命令后回车 · help 查看命令 · ↑↓ 翻历史">
+      </div>
+    </div>
+    <div class="panel panel-pad">
+      <div class="panel-title">命令速查 · 点击即运行</div>
+      <div class="cmd-btns" id="cmdBtns">
+        <button class="cmd-btn" data-cmd="i2cdetect -l">i2cdetect -l<small>列出系统里的 I²C 适配器</small></button>
+        <button class="cmd-btn" data-cmd="i2cdetect -y 1">i2cdetect -y 1<small>扫描总线 1 · UU = 被内核驱动占用</small></button>
+        <button class="cmd-btn" data-cmd="i2cdump -y 1 0x50">i2cdump -y 1 0x50<small>把 EEPROM 256 字节全部倒出来</small></button>
+        <button class="cmd-btn" data-cmd="i2cget -y 1 0x50 0x10">i2cget -y 1 0x50 0x10<small>读 0x50 的寄存器 0x10</small></button>
+        <button class="cmd-btn" data-cmd="i2cget -y 1 0x68 0x75">i2cget -y 1 0x68 0x75<small>读 MPU6050 的 WHO_AM_I 身份寄存器</small></button>
+        <button class="cmd-btn" data-cmd="i2cset -y 1 0x50 0x10 0x2a">i2cset -y 1 0x50 0x10 0x2a<small>向 0x10 写入 0x2A（再读回试试）</small></button>
+        <button class="cmd-btn" data-cmd="i2ctransfer -y 1 w1@0x50 0x10 r1">i2ctransfer -y 1 w1@0x50 0x10 r1<small>组合传输：写寄存器号 + Sr 读 1 字节</small></button>
+        <button class="cmd-btn" data-cmd="dmesg | grep -i i2c">dmesg | grep -i i2c<small>看内核注册了哪些适配器与驱动</small></button>
+        <button class="cmd-btn" data-cmd="ls -l /dev/i2c-*">ls -l /dev/i2c-*<small>设备节点与权限</small></button>
+      </div>
+      <p class="cap" style="margin-top:14px">
+        终端是模拟的，但命令、参数与输出格式都按真实 i2c-tools 逐字复刻——
+        先在这里练熟，再到真板子上敲。
+      </p>
+    </div>
+  </div>
+
+  <div class="panel panel-pad" style="margin-top:14px">
+    <div class="panel-title">命令 ↔ 波形对照 · 每条命令都是本页某段动画</div>
+    <div class="tbl-scroll">
+      <table class="tbl">
+        <tr><th>命令</th><th>它实际对总线做了什么</th><th>对应本页</th></tr>
+        <tr>
+          <td class="m">i2cdetect -y 1</td>
+          <td>对 0x03–0x77 每个地址发「START + 地址」，等第 9 个时钟看有没有人拉 SDA 回 ACK</td>
+          <td><a href="#s-data">§04</a> 地址字节 + ACK；显示 <span class="m">--</span> 的就是 NACK</td>
+        </tr>
+        <tr>
+          <td class="m">i2cset -y 1 0x50 0x10 0x2a</td>
+          <td>S → 0x50+W → 寄存器号 0x10 → ACK → 数据 0x2A → ACK → P</td>
+          <td><a href="#s-lab">§05</a>「写入 EEPROM」整段动画</td>
+        </tr>
+        <tr>
+          <td class="m">i2cget -y 1 0x50 0x10</td>
+          <td>S → 0x50+W → 寄存器号 → <b> Sr </b> → 0x50+R → 读 1 字节 → 主机 NACK → P</td>
+          <td><a href="#s-lab">§05</a>「读取 EEPROM · 含 Sr」整段动画</td>
+        </tr>
+        <tr>
+          <td class="m">i2ctransfer -y 1 w1@0x50 0x10 r1</td>
+          <td>两条消息放进一次 ioctl(I2C_RDWR)：消息边界自动产生重复起始 Sr，总线全程不释放</td>
+          <td>同「读取」，但每条消息由你手工拼装</td>
+        </tr>
+        <tr>
+          <td class="m">i2cdump -y 1 0x50</td>
+          <td>循环单字节读，把 0x00–0xFF 全部倒出来（EEPROM 常用）</td>
+          <td>「读取」波形的连续版</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="grid g3" style="margin-top:14px">
+    <div class="panel tip"><h3>装好了却打不开设备？</h3><p><code>/dev/i2c-N</code> 默认归 root:i2c 所有：<code>sudo usermod -aG i2c $USER</code> 后重新登录即可免 sudo；节点由 <code>i2c-dev</code> 模块提供（内核需 <code>CONFIG_I2C_CHARDEV</code>）。</p></div>
+    <div class="panel tip"><h3>UU 不是故障</h3><p>i2cdetect 显示 <code>UU</code> 的地址已被内核驱动认领（本例 RTC pcf8563 占 0x51），用户态直接访问会被拒（EBUSY）——这是防止两边互踩的保护；要读数据请走驱动接口（/dev/rtc0、sysfs）。</p></div>
+    <div class="panel tip"><h3>没有开发板也能练</h3><p><code>sudo modprobe i2c-stub chip_addr=0x50</code> 会创建一条纯软件 I²C 总线 + 虚拟 EEPROM，i2c-tools 全套命令照常工作——学命令、调脚本两相宜。</p></div>
+    <div class="panel tip"><h3>-y 与 SMBus</h3><p><code>-y</code> 跳过「Continue? [Y/n]」交互确认，脚本里必加。i2cget/i2cset/i2cdump 走内核 SMBus 接口（字节/字/块读写）——SMBus 是 I²C 的规范化子集。</p></div>
+    <div class="panel tip"><h3>原生消息用 i2ctransfer</h3><p>需要<b>重复起始 Sr</b>、一次传输混合读写、或非标准消息长度时，SMBus 接口不够用——i2ctransfer 直接走 I2C_RDWR 消息数组，发出来的波形和 §05 实验室里的一模一样。</p></div>
+    <div class="panel tip"><h3>扫描有副作用</h3><p>i2cdetect 默认用 quick-write 探测（向每个地址写 0 位），个别器件（精密 RTC、写保护 EEPROM）可能被意外写入。生产板先核对原理图，或加 <code>-r</code> 改用读字节探测。</p></div>
   </div>
 </section>
 
@@ -1460,6 +1590,382 @@ new Scope(document.getElementById('scopeArb'),{
   ca.addEventListener('click',function(){od.a=!od.a;render();});
   cb.addEventListener('click',function(){od.b=!od.b;render();});
   render();
+})();
+
+/* ============ Linux i2c-tools 虚拟终端 ============ */
+(function(){
+var bodyEl=document.getElementById('termBody');
+if(!bodyEl)return;
+var inputEl=document.getElementById('termInput');
+var resetBtn=document.getElementById('termReset');
+var btnBox=document.getElementById('cmdBtns');
+var PROMPT='pi@board:~$';
+var ADDR_EE=0x50,ADDR_RTC=0x51,ADDR_MPU=0x68;
+var eeprom=new Uint8Array(256);
+var devs1={};
+devs1[ADDR_EE]={type:'eeprom'};
+devs1[ADDR_RTC]={type:'rtc',bound:'rtc-pcf8563'};
+devs1[ADDR_MPU]={type:'imu'};
+var buses={0:{name:'20804000.i2c',devices:{}},1:{name:'30a30000.i2c',devices:devs1}};
+var epoch=0;
+
+function resetBoard(){
+  var x=0x24fc39a1>>>0;
+  function rnd(){x^=x<<13;x>>>=0;x^=x>>>17;x^=x<<5;x>>>=0;return x&0xff;}
+  for(var i=0;i<256;i++)eeprom[i]=rnd();
+  var s='hw-protocols';
+  for(i=0;i<s.length;i++)eeprom[i]=s.charCodeAt(i);
+  eeprom[0x10]=0x5a;
+}
+resetBoard();
+function mpuRead(r){
+  if(r===0x75)return 0x68;   /* WHO_AM_I */
+  if(r===0x6b)return 0x40;   /* PWR_MGMT_1 · SLEEP */
+  if(r===0x6c)return 0x00;
+  return (r*67+0x1b)&0xff;
+}
+function rdByte(d,r){r&=0xff;return d.type==='eeprom'?eeprom[r]:mpuRead(r);}
+function h2(v){return ('0'+(v&0xff).toString(16)).slice(-2);}
+function pnum(s){
+  if(s==null)return null;
+  if(!/^(0x[0-9a-f]+|\d+)$/i.test(s))return null;
+  var v=/^0x/i.test(s)?parseInt(s.slice(2),16):parseInt(s,10);
+  return isNaN(v)?null:v;
+}
+function parse(arr){
+  var f=[],o=[];
+  arr.forEach(function(t){if(t.charAt(0)==='-')f.push(t);else o.push(t);});
+  return{flags:f,ops:o};
+}
+function line(html,cls){
+  var d=document.createElement('div');
+  d.className='t-line'+(cls?' '+cls:'');
+  d.innerHTML=html;
+  bodyEl.appendChild(d);
+  bodyEl.scrollTop=bodyEl.scrollHeight;
+  return d;
+}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function out(s){line(esc(s),'t-out');}
+function note(s){line('<span class="t-note"># '+esc(s)+'</span>');}
+function err(s){line('<span class="t-err">'+esc(s)+'</span>');}
+function delay(ms){return new Promise(function(r){if(REDUCED||ms<=0){r();return;}setTimeout(r,ms);});}
+function banner(){
+  note('hw-protocols 虚拟板卡 · i2c-1: EEPROM 24C02@0x50 · RTC pcf8563@0x51 (已绑内核驱动) · MPU6050@0x68');
+  note('输入 help 查看命令 · ↑/↓ 翻历史 · 或点击右侧「命令速查」按钮');
+}
+function openBus(n){
+  if(n==null){err('Usage: i2cdetect [-y] I2CBUS   |   i2cdetect -l');return null;}
+  if(!buses[n]){err("Error: Could not open file `/dev/i2c-"+n+"': No such file or directory");return null;}
+  return buses[n];
+}
+function guard(bus,a,op){
+  var d=bus.devices[a];
+  if(d&&d.bound){
+    err('Error: Device or resource busy');
+    note('0x'+h2(a)+' 已被内核驱动 '+d.bound+' 认领（i2cdetect 显示 UU），内核拒绝用户态直接访问');
+    return null;
+  }
+  if(!d){
+    err(op==='w'?'Error: Write failed':'Error: Read failed');
+    note('0x'+h2(a)+' 无应答（NACK）：地址错 / 器件不在线 / 总线缺上拉');
+    return null;
+  }
+  return d;
+}
+function devLabel(a,d){
+  var t=d.type==='eeprom'?'EEPROM':d.type==='rtc'?'RTC':'MPU6050';
+  return t+'@0x'+h2(a)+(d.bound?'(UU)':'');
+}
+
+/* ---- 命令实现 ---- */
+function cmdHelp(){
+  out('i2cdetect -l                        列出系统中的 I²C 适配器');
+  out('i2cdetect -y 1                      扫描总线 1（-y 跳过确认）');
+  out('i2cdump  -y 1 0x50                  dump 0x50 全部 256 字节');
+  out('i2cget   -y 1 0x50 0x10             读一个寄存器');
+  out('i2cget   -y 1 0x68 0x75             读 MPU6050 WHO_AM_I');
+  out('i2cset   -y 1 0x50 0x10 0x2a        写一个寄存器');
+  out('i2ctransfer -y 1 w1@0x50 0x10 r1    组合传输（含重复起始 Sr）');
+  out('dmesg | grep -i i2c                 内核 I²C 适配器/驱动注册信息');
+  out('ls -l /dev/i2c-*                    设备节点与权限');
+  out('clear / reset                       清屏 / 复位虚拟板卡');
+  return delay(0);
+}
+function cmdClear(){bodyEl.innerHTML='';return delay(0);}
+function cmdDetectList(){
+  out('i2c-0   i2c      20804000.i2c                       I2C adapter');
+  out('i2c-1   i2c      30a30000.i2c                       I2C adapter');
+  out('i2c-2   i2c      dw_hdmi i2c controller             I2C adapter');
+  note('每个适配器对应一个 /dev/i2c-N；HDMI 的 DDC 通道（读显示器 EDID）走的也是 I²C');
+  return delay(0);
+}
+function cmdDetect(rest){
+  var p=parse(rest);
+  if(p.flags.some(function(f){return f.indexOf('l')>=0;}))return cmdDetectList();
+  var bus=openBus(pnum(p.ops[0]));
+  if(!bus)return delay(0);
+  var ep=epoch;
+  line(esc('     0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f'),'t-out');
+  var rows=[],cells=[],seq=[],r,c;
+  for(r=0;r<8;r++){rows.push(line(esc(r.toString(16)+'0: '),'t-out'));cells.push([]);}
+  for(r=0;r<8;r++)for(c=0;c<16;c++){
+    var a=r*16+c;
+    if(a<0x03||a>0x77)seq.push({r:r,h:'--',fast:true});
+    else{
+      var d=bus.devices[a];
+      seq.push(d&&d.bound?{r:r,h:'<span class="t-uu">UU</span>'}:
+              d?{r:r,h:'<span class="t-hi">'+h2(a)+'</span>'}:{r:r,h:'--'});
+    }
+  }
+  var cur=0;
+  function step(){
+    if(ep!==epoch)return delay(0);
+    if(cur>=seq.length){
+      var names=[];
+      for(var a in bus.devices)names.push(devLabel(parseInt(a,10),bus.devices[a]));
+      if(names.length)note('在线: '+names.join(' · ')+'    (-- = NACK 无应答)');
+      else note('总线上没有器件应答 —— 本页的器件挂在 i2c-1 上');
+      note('UU = 地址已被内核驱动绑定，内核拒绝用户态直接访问（防抢占保护）');
+      return delay(0);
+    }
+    var s=seq[cur++];
+    cells[s.r].push(s.h);
+    rows[s.r].innerHTML=esc(s.r.toString(16)+'0: ')+cells[s.r].join(' ');
+    bodyEl.scrollTop=bodyEl.scrollHeight;
+    return delay(s.fast?1:13).then(step);
+  }
+  return step();
+}
+function cmdDump(rest){
+  var p=parse(rest);
+  var bus=openBus(pnum(p.ops[0]));
+  if(!bus)return delay(0);
+  var a=pnum(p.ops[1]);
+  if(a==null||a<0x03||a>0x77){err('Usage: i2cdump [-y] I2CBUS ADDRESS');return delay(0);}
+  var dev=guard(bus,a,'r');
+  if(!dev)return delay(0);
+  var ep=epoch;
+  line(esc('     0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f    0123456789abcdef'),'t-out');
+  var r=0;
+  function step(){
+    if(ep!==epoch)return delay(0);
+    if(r>=16){
+      if(dev.type==='eeprom')note('第 0x10 行就是时序实验室里读写的那个寄存器（当前 0x'+h2(eeprom[0x10])+'）');
+      else note('传感器寄存器页同样能 dump —— 0x75 处可见 WHO_AM_I = 0x68');
+      return delay(0);
+    }
+    var bs='',as='';
+    for(var c=0;c<16;c++){
+      var v=rdByte(dev,r*16+c);
+      bs+=h2(v)+' ';
+      as+=(v>=32&&v<127)?String.fromCharCode(v):'.';
+    }
+    line(esc(r.toString(16)+'0: '+bs+' '+as),'t-out');
+    r++;
+    return delay(26).then(step);
+  }
+  return step();
+}
+function cmdGet(rest){
+  var p=parse(rest);
+  var bus=openBus(pnum(p.ops[0]));
+  if(!bus)return delay(0);
+  var a=pnum(p.ops[1]);
+  if(a==null||a<0x03||a>0x77){err('Usage: i2cget [-y] I2CBUS CHIP-ADDRESS DATA-ADDRESS [b|w|c]');return delay(0);}
+  var dev=guard(bus,a,'r');
+  if(!dev)return delay(0);
+  var reg=pnum(p.ops[2]);
+  if(reg==null||reg>0xff){err('Usage: i2cget [-y] I2CBUS CHIP-ADDRESS DATA-ADDRESS [b|w|c]');return delay(0);}
+  var mode=(p.ops[3]||'b').toLowerCase();
+  if(mode==='w')out('0x'+((rdByte(dev,reg)|(rdByte(dev,reg+1)<<8))&0xffff).toString(16));
+  else out('0x'+h2(rdByte(dev,reg)));
+  if(dev.type==='imu'&&reg===0x75)note('WHO_AM_I 回读 0x68 —— 芯片「身份证」，实战常用它确认器件是否在线');
+  else if(dev.type==='eeprom'&&reg===0x10)note('先跑 i2cset -y 1 0x50 0x10 0x2a 再回来读，值会变');
+  return delay(0);
+}
+function cmdSet(rest){
+  var p=parse(rest);
+  var bus=openBus(pnum(p.ops[0]));
+  if(!bus)return delay(0);
+  var a=pnum(p.ops[1]);
+  if(a==null||a<0x03||a>0x77){err('Usage: i2cset [-y] I2CBUS CHIP-ADDRESS DATA-ADDRESS VALUE [b|w|c]');return delay(0);}
+  var dev=guard(bus,a,'w');
+  if(!dev)return delay(0);
+  var reg=pnum(p.ops[2]);
+  if(reg==null||reg>0xff){err('Usage: i2cset [-y] I2CBUS CHIP-ADDRESS DATA-ADDRESS VALUE [b|w|c]');return delay(0);}
+  var val=pnum(p.ops[3]);
+  if(val==null){err('Usage: i2cset [-y] I2CBUS CHIP-ADDRESS DATA-ADDRESS VALUE [b|w|c]');return delay(0);}
+  var mode=(p.ops[4]||'b').toLowerCase();
+  if(mode==='w'){
+    if(val>0xffff){err('Error: Data value out of range!');return delay(0);}
+    if(dev.type==='eeprom'){eeprom[reg&0xff]=val&0xff;eeprom[(reg+1)&0xff]=(val>>8)&0xff;}
+  }else{
+    if(val>0xff){err('Error: Data value out of range!');return delay(0);}
+    if(dev.type==='eeprom')eeprom[reg&0xff]=val;
+    else note('虚拟 MPU6050 寄存器为只读演示，写入被忽略');
+  }
+  note('i2cset 成功时不输出任何内容（真实工具如此）');
+  note('读回验证: i2cget -y 1 0x'+h2(a)+' 0x'+h2(reg));
+  return delay(0);
+}
+function cmdXfer(rest){
+  var p=parse(rest);
+  var bus=openBus(pnum(p.ops[0]));
+  if(!bus)return delay(0);
+  var msgs=[],cur=null,i;
+  for(i=1;i<p.ops.length;i++){
+    var t=p.ops[i],m=/^([wr])(\d+)(?:@(.+))?$/i.exec(t);
+    if(m){
+      var ad;
+      if(m[3]!=null){
+        ad=pnum(m[3]);
+        if(ad==null){err('Error: bad descriptor '+t);return delay(0);}
+      }else if(msgs.length){
+        ad=msgs[msgs.length-1].addr;   /* 省略 @addr 时沿用上一条消息的地址 */
+      }else{
+        err('Error: first descriptor must carry an address: '+t);return delay(0);
+      }
+      cur={dir:m[1].toLowerCase(),n:+m[2],addr:ad,data:[]};
+      msgs.push(cur);continue;
+    }
+    var b=pnum(t);
+    if(b==null||b>0xff){err('Error: invalid byte '+t);return delay(0);}
+    if(!cur||cur.dir!=='w'){err('Error: data byte without active write descriptor');return delay(0);}
+    cur.data.push(b);
+  }
+  if(!msgs.length){err('Usage: i2ctransfer [-y] I2CBUS DESC [DATA]... [DESC]...');return delay(0);}
+  var ptr=null,reads=[];
+  for(i=0;i<msgs.length;i++){
+    var mm=msgs[i];
+    var dev=bus.devices[mm.addr];
+    if(dev&&dev.bound){
+      err('Error: Transfer failed: Device or resource busy');
+      note('0x'+h2(mm.addr)+' 被内核驱动占用（UU）');
+      return delay(0);
+    }
+    if(!dev){
+      err('Error: Transfer failed: Remote I/O error');
+      note('0x'+h2(mm.addr)+' 无应答（NACK）');
+      return delay(0);
+    }
+    if(mm.dir==='w'){
+      if(mm.data.length){
+        ptr=mm.data[0];
+        for(var k=1;k<mm.data.length;k++){
+          if(dev.type==='eeprom')eeprom[ptr&0xff]=mm.data[k];
+          ptr++;
+        }
+      }
+    }else{
+      for(var j=0;j<mm.n;j++){reads.push(rdByte(dev,ptr==null?0:ptr));ptr=(ptr==null?0:ptr)+1;}
+    }
+  }
+  if(reads.length)out(reads.map(function(v){return '0x'+h2(v);}).join(' '));
+  if(msgs.length>1)note(msgs.length+' 条消息在同一次 ioctl(I2C_RDWR) 中发出 —— 消息边界即重复起始 Sr');
+  else note('单条消息 = 一次 START…STOP；多条消息之间不释放总线');
+  return delay(0);
+}
+function cmdDmesg(){
+  out('[    0.812400] i2c i2c-0: 20804000.i2c: I2C adapter registered');
+  out('[    0.874921] i2c i2c-1: 30a30000.i2c: I2C adapter registered');
+  out('[    1.902233] i2c i2c-2: DesignWare HDMI I2C adapter registered');
+  out('[    2.317640] rtc-pcf8563 1-0051: chip found, RTC registered');
+  out('[    2.540112] i2c-dev: adapter (i2c-1) registered as minor 1');
+  note('「1-0051」= 总线 1 · 地址 0x51 —— 驱动绑定后 i2cdetect 里它显示 UU');
+  note('看不到适配器？检查设备树是否使能 i2c 节点、内核是否打开 CONFIG_I2C_CHARDEV');
+  return delay(0);
+}
+function cmdLs(){
+  out('crw------- 1 root i2c 89, 0 Aug 28 09:41 /dev/i2c-0');
+  out('crw------- 1 root i2c 89, 1 Aug 28 09:41 /dev/i2c-1');
+  out('crw------- 1 root i2c 89, 2 Aug 28 09:41 /dev/i2c-2');
+  note('组为 i2c：sudo usermod -aG i2c $USER 重新登录后即可免 sudo');
+  note('没有 /dev/i2c-*？sudo modprobe i2c-dev（内核需 CONFIG_I2C_CHARDEV）');
+  return delay(0);
+}
+
+/* ---- 调度 ---- */
+function echo(cmd,animate){
+  return new Promise(function(res){
+    var ep=epoch;
+    var d=line('<span class="t-p">'+PROMPT+'</span> <span class="t-c"></span>');
+    var sp=d.querySelector('.t-c');
+    if(!animate||REDUCED){sp.textContent=cmd;res();return;}
+    var i=0;
+    (function tick(){
+      if(ep!==epoch||i>=cmd.length){sp.textContent=cmd;res();return;}
+      sp.textContent+=cmd.charAt(i++);
+      bodyEl.scrollTop=bodyEl.scrollHeight;
+      setTimeout(tick,12);
+    })();
+  });
+}
+function exec(raw,animate){
+  var parts=raw.split(/\s+/);
+  var hadSudo=parts[0]==='sudo';
+  if(hadSudo)parts.shift();
+  var c=parts[0]||'';
+  return echo(raw,animate).then(function(){
+    if(hadSudo)note('虚拟终端假定你已在 i2c 组 —— 不需要 sudo');
+    switch(c){
+      case 'help':case '?':return cmdHelp();
+      case 'clear':return cmdClear();
+      case 'reset':
+        resetBoard();note('板卡已复位：EEPROM 恢复初始内容（0x10 = 0x5a）');return delay(0);
+      case 'i2cdetect':return cmdDetect(parts.slice(1));
+      case 'i2cdump':return cmdDump(parts.slice(1));
+      case 'i2cget':return cmdGet(parts.slice(1));
+      case 'i2cset':return cmdSet(parts.slice(1));
+      case 'i2ctransfer':return cmdXfer(parts.slice(1));
+      case 'dmesg':return cmdDmesg();
+      case 'ls':return cmdLs();
+      default:
+        err(c+': command not found');
+        note('输入 help 查看本终端支持的命令');
+        return delay(0);
+    }
+  });
+}
+var q=Promise.resolve();
+function run(cmd,animate){
+  cmd=(cmd||'').trim();
+  if(!cmd)return;
+  q=q.then(function(){return exec(cmd,animate);}).catch(function(){});
+}
+
+/* ---- 交互绑定 ---- */
+var hist=[],hi=0;
+inputEl.addEventListener('keydown',function(e){
+  if(e.key==='Enter'){
+    var v=inputEl.value;
+    inputEl.value='';
+    if(v.trim()){hist.push(v);hi=hist.length;run(v,false);}
+  }else if(e.key==='ArrowUp'){
+    if(hi>0){hi--;inputEl.value=hist[hi];e.preventDefault();}
+  }else if(e.key==='ArrowDown'){
+    if(hi<hist.length-1){hi++;inputEl.value=hist[hi];}
+    else{hi=hist.length;inputEl.value='';}
+    e.preventDefault();
+  }
+});
+btnBox.addEventListener('click',function(e){
+  var b=e.target&&e.target.closest?e.target.closest('.cmd-btn'):null;
+  if(!b)return;
+  run(b.getAttribute('data-cmd'),true);
+  inputEl.focus();
+});
+bodyEl.addEventListener('click',function(){inputEl.focus();});
+resetBtn.addEventListener('click',function(){
+  epoch++;
+  q=Promise.resolve();
+  resetBoard();
+  bodyEl.innerHTML='';
+  banner();
+  note('板卡已复位：EEPROM 恢复初始内容（0x10 = 0x5a）');
+});
+
+banner();
 })();
 
 /* ============ 导航高亮 ============ */
