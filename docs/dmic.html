@@ -1,0 +1,1502 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DMIC / PDM 协议详解 · 交互式时序图解</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%23070b09'/><path d='M2 22 h3 v-12 h2 v12 h2 v-12 h8 v12 h2 v-12 h3 v12 h8' stroke='%2334e08a' stroke-width='2.5' fill='none'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#070b09;
+  --bg2:#0a100c;
+  --panel:#0d1510;
+  --panel2:#101a13;
+  --line:#1d2c22;
+  --line2:#27392d;
+  --ink:#dcebe1;
+  --dim:#8aa294;
+  --faint:#5c7264;
+  --green:#34e08a;
+  --green-dim:#1d8a55;
+  --amber:#ffb02e;
+  --cyan:#57d8f2;
+  --red:#ff6478;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --disp:'Chakra Petch','Noto Sans SC',sans-serif;
+  --sans:'Noto Sans SC',-apple-system,sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--sans);
+  font-weight:300;
+  line-height:1.8;
+  letter-spacing:.01em;
+  overflow-x:hidden;
+}
+/* 全局网格纸背景 */
+body::before{
+  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:
+    linear-gradient(rgba(52,224,138,.028) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(52,224,138,.028) 1px,transparent 1px),
+    linear-gradient(rgba(52,224,138,.014) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(52,224,138,.014) 1px,transparent 1px);
+  background-size:120px 120px,120px 120px,24px 24px,24px 24px;
+}
+body::after{ /* 轻微暗角 */
+  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(ellipse 120% 90% at 50% 0%,transparent 60%,rgba(0,0,0,.5));
+}
+main{position:relative;z-index:1}
+::selection{background:rgba(52,224,138,.3)}
+
+/* ============ 导航 ============ */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  display:flex;align-items:center;gap:22px;
+  padding:0 26px;height:52px;
+  background:rgba(7,11,9,.82);backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--line);
+}
+nav .logo{font-family:var(--disp);font-weight:700;font-size:17px;color:var(--green);letter-spacing:.04em}
+nav a{
+  color:var(--dim);text-decoration:none;font-size:12.5px;
+  font-family:var(--mono);letter-spacing:.05em;
+  transition:color .2s;
+}
+nav a:hover{color:var(--green)}
+nav .spacer{flex:1}
+nav .live{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11px;color:var(--faint)}
+nav .live i{width:7px;height:7px;border-radius:50%;background:var(--green);animation:blink 1.6s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+/* ---- 跨页导航 ---- */
+nav .xnav{display:flex;gap:6px;margin-left:4px;padding-left:16px;border-left:1px solid var(--line);white-space:nowrap}
+nav .xnav a{
+  display:inline-block;font-size:11px;letter-spacing:.08em;
+  color:var(--dim);padding:5px 10px;border:1px solid var(--line);border-radius:3px;
+}
+nav .xnav a:hover{color:var(--green);border-color:rgba(52,224,138,.45)}
+
+/* ============ Hero ============ */
+.hero{
+  min-height:92vh;display:flex;flex-direction:column;justify-content:center;
+  padding:110px 6vw 40px;position:relative;
+}
+.hero .eyebrow{
+  font-family:var(--mono);font-size:12px;color:var(--amber);
+  letter-spacing:.32em;margin-bottom:22px;
+  display:flex;align-items:center;gap:14px;
+}
+.hero .eyebrow::before{content:"";width:44px;height:1px;background:var(--amber)}
+.hero h1{
+  font-family:var(--disp);font-weight:700;
+  font-size:clamp(56px,11vw,148px);
+  line-height:.95;letter-spacing:-.01em;
+  color:var(--ink);
+}
+.hero h1 sup{color:var(--green);font-size:.55em}
+.hero h1 .zh{
+  display:block;font-family:var(--sans);font-weight:300;
+  font-size:clamp(18px,2.4vw,30px);color:var(--dim);
+  letter-spacing:.42em;margin-top:18px;
+}
+.hero p.lede{
+  max-width:640px;margin-top:34px;font-size:16px;color:var(--dim);
+}
+.hero p.lede b{color:var(--ink);font-weight:500}
+.hero .chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:30px}
+.hero .chips span{
+  font-family:var(--mono);font-size:11.5px;padding:5px 12px;
+  border:1px solid var(--line2);border-radius:3px;color:var(--dim);
+  background:rgba(13,21,16,.6);
+}
+.hero .chips span b{color:var(--green);font-weight:500}
+.hero .scope-wrap{
+  margin-top:52px;border:1px solid var(--line);border-radius:6px;
+  overflow:hidden;background:rgba(9,14,11,.75);position:relative;
+}
+.hero .scope-wrap::after{ /* 扫描线 */
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.16) 3px 4px);
+}
+.hero canvas{display:block;width:100%;height:118px}
+.hero .scroll-hint{
+  margin-top:40px;font-family:var(--mono);font-size:11px;color:var(--faint);
+  letter-spacing:.2em;display:flex;align-items:center;gap:10px;
+}
+.hero .scroll-hint svg{animation:bounce 1.8s infinite}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(6px)}}
+
+/* ============ 通用 section ============ */
+section{padding:96px 6vw;max-width:1280px;margin:0 auto;position:relative}
+.sec-head{display:flex;align-items:baseline;gap:20px;margin-bottom:16px}
+.sec-head .no{
+  font-family:var(--mono);font-size:13px;color:var(--green);
+  letter-spacing:.1em;border:1px solid var(--green-dim);
+  padding:3px 10px;border-radius:3px;white-space:nowrap;
+}
+.sec-head h2{
+  font-family:var(--disp);font-weight:600;font-size:clamp(26px,3.6vw,40px);
+  letter-spacing:.01em;
+}
+.sec-head .en{
+  font-family:var(--mono);font-size:12px;color:var(--faint);letter-spacing:.24em;
+  text-transform:uppercase;margin-left:auto;white-space:nowrap;
+}
+.sec-sub{color:var(--dim);max-width:760px;margin-bottom:44px;font-size:15px}
+.sec-sub b{color:var(--ink);font-weight:500}
+.reveal{opacity:0;transform:translateY(26px);transition:opacity .7s ease,transform .7s ease}
+.reveal.in{opacity:1;transform:none}
+
+/* ============ §01 是什么 ============ */
+.two-col{display:grid;grid-template-columns:1.25fr .9fr;gap:44px;align-items:start}
+.prose p{margin-bottom:18px;color:var(--dim);font-size:15px}
+.prose p b{color:var(--ink);font-weight:500}
+.prose .kw{color:var(--green);font-family:var(--mono);font-size:.92em}
+.prose .kw2{color:var(--amber);font-family:var(--mono);font-size:.92em}
+.cmp-table{width:100%;border-collapse:collapse;font-size:13px}
+.cmp-table th{
+  font-family:var(--mono);font-weight:500;color:var(--faint);text-align:left;
+  padding:9px 12px;border-bottom:1px solid var(--line2);font-size:11.5px;letter-spacing:.06em;
+}
+.cmp-table td{
+  padding:10px 12px;border-bottom:1px solid var(--line);color:var(--dim);vertical-align:top;
+}
+.cmp-table td:first-child{color:var(--ink);font-weight:400;white-space:nowrap}
+.cmp-table .yes{color:var(--green)}
+.cmp-table .no{color:var(--red)}
+.fact-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:36px}
+.fact{
+  border:1px solid var(--line);border-radius:6px;padding:20px 20px 18px;
+  background:linear-gradient(160deg,var(--panel) 0%,rgba(13,21,16,.4) 100%);
+  transition:border-color .25s,transform .25s;
+}
+.fact:hover{border-color:var(--green-dim);transform:translateY(-3px)}
+.fact .f-no{font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.14em}
+.fact h4{font-family:var(--disp);font-size:16.5px;font-weight:600;margin:8px 0 8px}
+.fact h4 code{font-family:var(--mono);font-size:.85em;color:var(--green)}
+.fact p{font-size:12.8px;color:var(--dim);line-height:1.7}
+
+/* ============ §02 信号线 ============ */
+.sig-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+.sig-card{
+  border:1px solid var(--line);border-radius:8px;overflow:hidden;
+  background:var(--panel);display:flex;flex-direction:column;
+  transition:border-color .25s;
+}
+.sig-card:hover{border-color:var(--line2)}
+.sig-card .scope{background:#080d0a;border-bottom:1px solid var(--line);position:relative}
+.sig-card .scope::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.18) 3px 4px);
+}
+.sig-card canvas{display:block;width:100%;height:84px}
+.sig-card .body{padding:20px 22px 22px}
+.sig-card .names{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.sig-card .names .main{font-family:var(--disp);font-size:21px;font-weight:600}
+.sig-card .names .alias{font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.06em}
+.sig-card .names .pin{
+  margin-left:auto;font-family:var(--mono);font-size:10px;letter-spacing:.1em;
+  padding:2px 8px;border-radius:3px;
+}
+.sig-card p{font-size:13px;color:var(--dim);margin-top:10px;line-height:1.75}
+.sig-card p b{color:var(--ink);font-weight:500}
+.sig-card .formula{
+  font-family:var(--mono);font-size:12px;color:var(--green);
+  margin-top:12px;padding:8px 12px;background:rgba(52,224,138,.06);
+  border-left:2px solid var(--green-dim);border-radius:0 3px 3px 0;
+}
+.c-clk .main,.c-clk .pin{color:var(--green)} .c-clk .pin{background:rgba(52,224,138,.1);border:1px solid var(--green-dim)}
+.c-dat .main,.c-dat .pin{color:var(--cyan)} .c-dat .pin{background:rgba(87,216,242,.08);border:1px solid rgba(87,216,242,.3)}
+.c-lr  .main,.c-lr  .pin{color:var(--amber)} .c-lr .pin{background:rgba(255,176,46,.08);border:1px solid rgba(255,176,46,.35)}
+.c-aux .main,.c-aux .pin{color:var(--dim)} .c-aux .pin{background:rgba(140,162,148,.08);border:1px dashed var(--faint)}
+.c-aux{border-style:dashed}
+
+/* ============ §03 主时序动画 ============ */
+.lab{
+  border:1px solid var(--line);border-radius:10px;background:var(--panel);
+  overflow:hidden;
+}
+.lab-bar{
+  display:flex;flex-wrap:wrap;align-items:center;gap:18px;
+  padding:16px 20px;border-bottom:1px solid var(--line);background:rgba(10,16,12,.7);
+}
+.ctrl{display:flex;align-items:center;gap:9px}
+.ctrl label{font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.1em}
+.seg{display:flex;border:1px solid var(--line2);border-radius:5px;overflow:hidden}
+.seg button{
+  font-family:var(--mono);font-size:12px;padding:7px 13px;border:none;cursor:pointer;
+  background:transparent;color:var(--dim);border-right:1px solid var(--line2);
+  transition:all .18s;letter-spacing:.02em;
+}
+.seg button:last-child{border-right:none}
+.seg button:hover{color:var(--ink);background:rgba(52,224,138,.06)}
+.seg button.on{background:var(--green);color:#052013;font-weight:600}
+.icon-btn{
+  width:32px;height:32px;border:1px solid var(--line2);border-radius:5px;background:transparent;
+  color:var(--dim);cursor:pointer;font-family:var(--mono);font-size:14px;
+  transition:all .18s;display:flex;align-items:center;justify-content:center;
+}
+.icon-btn:hover{color:var(--green);border-color:var(--green-dim)}
+.icon-btn.play.on{color:var(--green);border-color:var(--green-dim);background:rgba(52,224,138,.08)}
+input[type=range]{
+  -webkit-appearance:none;width:120px;height:2px;background:var(--line2);border-radius:2px;outline:none;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--green);
+  cursor:pointer;box-shadow:0 0 8px rgba(52,224,138,.5);
+}
+.lab-body{display:grid;grid-template-columns:1fr 264px;gap:0}
+.scope-main{position:relative;background:#080d0a;min-width:0}
+.scope-main::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.14) 3px 4px);
+}
+.scope-main canvas{display:block;width:100%;height:360px}
+.readout{
+  border-left:1px solid var(--line);background:#0a110d;
+  padding:18px 18px 14px;display:flex;flex-direction:column;gap:0;min-width:0;
+}
+.readout .r-title{
+  font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.22em;
+  margin-bottom:14px;display:flex;align-items:center;gap:8px;
+}
+.readout .r-title::before{content:"";width:6px;height:6px;background:var(--red);border-radius:50%;animation:blink 1.4s infinite}
+.r-row{
+  display:flex;justify-content:space-between;align-items:baseline;
+  font-family:var(--mono);padding:7px 0;border-bottom:1px dashed var(--line);
+}
+.r-row .k{font-size:11px;color:var(--faint);letter-spacing:.08em}
+.r-row .v{font-size:13px;color:var(--ink);text-align:right}
+.r-row .v.g{color:var(--green)} .r-row .v.a{color:var(--amber)} .r-row .v.c{color:var(--cyan)}
+.r-note{font-size:11px;color:var(--faint);line-height:1.65;margin-top:12px;font-family:var(--mono)}
+.r-note b{color:var(--dim);font-weight:500}
+.decode-box{margin-top:14px}
+.decode-box .d-title{font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.18em;margin-bottom:8px}
+.decode-box canvas{display:block;width:100%;height:86px;background:#070c09;border:1px solid var(--line);border-radius:4px}
+.lab-foot{
+  padding:14px 20px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:10px 28px;
+  background:rgba(10,16,12,.6);
+}
+.legend{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;color:var(--dim)}
+.legend i{width:18px;height:2px;border-radius:2px}
+.rule-callout{
+  margin-top:26px;display:grid;grid-template-columns:auto 1fr;gap:22px;align-items:center;
+  border:1px solid rgba(255,176,46,.3);border-radius:8px;padding:20px 26px;
+  background:linear-gradient(120deg,rgba(255,176,46,.06),transparent 60%);
+}
+.rule-callout .mnemonic{
+  font-family:var(--disp);font-weight:700;font-size:clamp(19px,2.6vw,26px);
+  color:var(--amber);letter-spacing:.08em;white-space:nowrap;
+}
+.rule-callout .mnemonic small{display:block;font-size:11px;font-weight:500;color:var(--faint);letter-spacing:.24em;margin-top:6px;font-family:var(--mono)}
+.rule-callout p{font-size:13.5px;color:var(--dim)}
+.rule-callout p b{color:var(--ink);font-weight:500}
+
+/* ============ §04 编码原理 ============ */
+.fmt-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+.fmt-card{border:1px solid var(--line);border-radius:8px;background:var(--panel);overflow:hidden}
+.fmt-card .fh{
+  display:flex;align-items:baseline;gap:12px;padding:16px 20px 12px;border-bottom:1px solid var(--line);
+}
+.fmt-card .fh .tag{
+  font-family:var(--mono);font-size:10px;letter-spacing:.14em;padding:3px 8px;border-radius:3px;
+}
+.fmt-card .fh h4{font-family:var(--disp);font-size:17px;font-weight:600}
+.fmt-card .fh .en{font-family:var(--mono);font-size:10.5px;color:var(--faint);margin-left:auto}
+.fmt-card svg{display:block;width:100%;height:auto;background:#080d0a}
+.fmt-card .fb{padding:14px 20px 18px;font-size:12.8px;color:var(--dim);line-height:1.75}
+.fmt-card .fb b{color:var(--ink);font-weight:500}
+.t-mod .tag{color:var(--green);border:1px solid var(--green-dim);background:rgba(52,224,138,.07)}
+.t-enc .tag{color:var(--cyan);border:1px solid rgba(87,216,242,.3);background:rgba(87,216,242,.06)}
+.t-dec .tag{color:var(--amber);border:1px solid rgba(255,176,46,.35);background:rgba(255,176,46,.06)}
+.t-ns  .tag{color:var(--red);border:1px solid rgba(255,100,120,.35);background:rgba(255,100,120,.06)}
+.fmt-note{
+  margin-top:26px;padding:18px 22px;border-left:2px solid var(--red);
+  background:rgba(255,100,120,.05);border-radius:0 6px 6px 0;font-size:13.5px;color:var(--dim);
+}
+.fmt-note b{color:var(--red);font-weight:500}
+.fmt-note code{font-family:var(--mono);font-size:.9em;color:var(--amber)}
+
+/* ============ §05 立体声 ============ */
+.ms-grid{display:grid;grid-template-columns:1.1fr 1fr;gap:40px;align-items:start}
+.ms-diagram{
+  border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:26px;
+}
+.ms-diagram svg{width:100%;height:auto;display:block}
+.arch-cards{display:flex;flex-direction:column;gap:14px}
+.arch{
+  border:1px solid var(--line);border-radius:6px;padding:18px 22px;background:var(--panel);
+}
+.arch h5{font-family:var(--disp);font-size:15px;font-weight:600;display:flex;align-items:center;gap:10px}
+.arch h5 .b{font-family:var(--mono);font-size:10px;color:var(--green);border:1px solid var(--green-dim);padding:1px 7px;border-radius:3px}
+.arch p{font-size:12.8px;color:var(--dim);margin-top:8px;line-height:1.7}
+.arch p b{color:var(--ink);font-weight:500}
+
+/* ============ §06 计算器 ============ */
+.calc{
+  border:1px solid var(--line);border-radius:10px;background:var(--panel);
+  display:grid;grid-template-columns:1fr 1fr;overflow:hidden;
+}
+.calc .inputs{padding:30px 32px;border-right:1px solid var(--line)}
+.calc .outputs{padding:30px 32px;background:#0a110d}
+.calc h5{font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.22em;margin-bottom:18px}
+.field{margin-bottom:20px}
+.field label{display:block;font-family:var(--mono);font-size:11.5px;color:var(--dim);margin-bottom:8px;letter-spacing:.06em}
+.field select{
+  width:100%;font-family:var(--mono);font-size:14px;color:var(--ink);
+  background:#080d0a;border:1px solid var(--line2);border-radius:5px;padding:10px 12px;outline:none;
+  cursor:pointer;transition:border-color .2s;
+}
+.field select:focus{border-color:var(--green-dim)}
+.out-row{
+  display:flex;justify-content:space-between;align-items:baseline;
+  padding:13px 0;border-bottom:1px dashed var(--line);
+}
+.out-row .ok{font-size:12.5px;color:var(--dim)}
+.out-row .ok small{display:block;font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.08em}
+.out-row .ov{font-family:var(--mono);font-size:19px;font-weight:600;color:var(--green)}
+.out-row .ov small{font-size:11px;color:var(--faint);font-weight:400;margin-left:4px}
+.out-row.big .ov{font-size:26px;color:var(--amber)}
+.calc-formula{
+  grid-column:1/-1;padding:15px 32px;border-top:1px solid var(--line);
+  font-family:var(--mono);font-size:12.5px;color:var(--dim);background:rgba(10,17,13,.8);
+}
+.calc-formula b{color:var(--green);font-weight:500}
+
+/* ============ §07 Linux 终端 ============ */
+.term-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+.term{
+  border:1px solid var(--line);border-radius:8px;background:#070c09;
+  overflow:hidden;display:flex;flex-direction:column;min-width:0;
+  transition:border-color .25s;
+}
+.term:hover{border-color:var(--line2)}
+.term.wide{grid-column:1/-1}
+.term-bar{
+  display:flex;align-items:center;gap:7px;padding:10px 14px;
+  border-bottom:1px solid var(--line);background:rgba(10,16,12,.85);
+}
+.term-bar i{width:10px;height:10px;border-radius:50%}
+.term-bar .d1{background:rgba(255,100,120,.55)}
+.term-bar .d2{background:rgba(255,176,46,.5)}
+.term-bar .d3{background:rgba(52,224,138,.5)}
+.term-bar span{margin-left:8px;font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.12em}
+.term-body{
+  padding:15px 18px 17px;font-family:var(--mono);font-size:12.3px;
+  line-height:1.95;overflow-x:auto;flex:1;
+}
+.term-body div{white-space:pre;min-height:1.35em}
+.t-ps{color:#3f5247;user-select:none}
+.t-cmd{
+  color:var(--green);cursor:pointer;font-family:inherit;
+  border-bottom:1px dotted transparent;transition:border-color .15s;
+}
+.t-cmd:hover{border-bottom-color:var(--green)}
+.t-cmd.copied{color:#052013;background:var(--green);border-radius:2px;padding:0 4px}
+.t-out{color:var(--dim)}
+.t-hl{color:var(--amber)}
+.t-cmt{color:#516657}
+.t-tag{color:var(--cyan)}
+.lnx-note{
+  margin-top:26px;padding:18px 22px;border-left:2px solid var(--cyan);
+  background:rgba(87,216,242,.05);border-radius:0 6px 6px 0;font-size:13.5px;color:var(--dim);
+}
+.lnx-note b{color:var(--cyan);font-weight:500}
+.lnx-note code{font-family:var(--mono);font-size:.9em;color:var(--amber)}
+
+/* ============ §08 调试指南 ============ */
+.dbg-steps{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.dbg-step{
+  flex:1;min-width:138px;display:flex;align-items:center;gap:10px;
+  padding:11px 14px;border:1px solid var(--line2);border-radius:6px;
+  background:var(--panel);cursor:pointer;transition:all .18s;text-align:left;
+  font-family:inherit;color:var(--dim);font-size:13px;
+}
+.dbg-step .n{
+  font-family:var(--mono);font-size:15px;font-weight:600;color:var(--faint);
+  width:1.2em;transition:color .18s;
+}
+.dbg-step:hover{border-color:var(--green-dim);color:var(--ink)}
+.dbg-step.on{border-color:var(--green);background:rgba(52,224,138,.08);color:var(--ink)}
+.dbg-step.on .n{color:var(--green)}
+.dbg-verdict{
+  border-left:2px solid var(--amber);background:rgba(255,176,46,.06);
+  padding:13px 18px;border-radius:0 5px 5px 0;font-size:13.2px;color:var(--dim);
+  margin-bottom:16px;line-height:1.75;
+}
+.dbg-verdict b{color:var(--amber);font-weight:500}
+.dbg-cols{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.eq-table{width:100%;border-collapse:collapse;font-size:12.3px;margin-top:30px}
+.eq-table th{
+  font-family:var(--mono);font-weight:500;color:var(--faint);text-align:left;
+  padding:9px 12px;border-bottom:1px solid var(--line2);font-size:11px;letter-spacing:.08em;
+}
+.eq-table td{padding:10px 12px;border-bottom:1px solid var(--line);color:var(--dim);vertical-align:top}
+.eq-table td:first-child{color:var(--ink);white-space:nowrap}
+.eq-table td code{font-family:var(--mono);font-size:11.5px;color:var(--cyan);word-break:break-all}
+.eq-table tr td:nth-child(2) code{color:var(--green)}
+.and-note{
+  margin-top:26px;padding:18px 22px;border-left:2px solid var(--red);
+  background:rgba(255,100,120,.05);border-radius:0 6px 6px 0;font-size:13.5px;color:var(--dim);
+}
+.and-note b{color:var(--red);font-weight:500}
+.and-note code{font-family:var(--mono);font-size:.9em;color:var(--amber)}
+
+/* ============ §09 踩坑 ============ */
+.pit-list{display:flex;flex-direction:column;gap:12px}
+.pit{
+  display:grid;grid-template-columns:44px 1fr;gap:18px;align-items:start;
+  border:1px solid var(--line);border-radius:6px;padding:17px 20px;background:var(--panel);
+  transition:border-color .2s;
+}
+.pit:hover{border-color:rgba(255,100,120,.4)}
+.pit .symptom{
+  font-family:var(--mono);font-size:10px;letter-spacing:.06em;color:var(--red);
+  border:1px solid rgba(255,100,120,.35);border-radius:4px;padding:5px 7px;text-align:center;
+  line-height:1.5;background:rgba(255,100,120,.05);height:fit-content;
+}
+.pit .fix b{display:block;font-size:14px;font-weight:500;color:var(--ink);margin-bottom:4px}
+.pit .fix b code{font-family:var(--mono);font-size:.88em;color:var(--green)}
+.pit .fix p{font-size:12.8px;color:var(--dim);line-height:1.7}
+.pit .fix p code{font-family:var(--mono);font-size:.9em;color:var(--amber)}
+
+/* ============ footer ============ */
+footer{
+  border-top:1px solid var(--line);padding:44px 6vw 60px;margin-top:40px;
+  display:flex;flex-wrap:wrap;gap:24px;align-items:baseline;justify-content:space-between;
+}
+footer .f-l{font-family:var(--mono);font-size:11.5px;color:var(--faint);line-height:2.1}
+footer .f-l b{color:var(--dim);font-weight:500}
+footer a{color:var(--faint);text-decoration:none;border-bottom:1px dotted var(--faint)}
+footer a:hover{color:var(--green);border-color:var(--green)}
+footer .f-r{font-family:var(--disp);font-weight:700;font-size:22px;color:var(--green)}
+
+/* ============ 响应式 ============ */
+@media (max-width:1000px){
+  .two-col,.ms-grid{grid-template-columns:1fr}
+  .lab-body{grid-template-columns:1fr}
+  .readout{border-left:none;border-top:1px solid var(--line)}
+  .calc{grid-template-columns:1fr}
+  .calc .inputs{border-right:none;border-bottom:1px solid var(--line)}
+  .dbg-cols{grid-template-columns:1fr}
+}
+@media (max-width:720px){
+  .sig-grid,.fmt-grid,.fact-grid,.term-grid{grid-template-columns:1fr}
+  nav a{display:none}
+  section{padding:70px 5vw}
+  .sec-head .en{display:none}
+}
+</style>
+</head>
+<body>
+<nav>
+  <div class="logo">PDM</div>
+  <a href="#s1">概述</a><a href="#s2">信号线</a><a href="#s3">时序动画</a><a href="#s4">编码原理</a><a href="#s5">立体声</a><a href="#s6">时钟计算</a><a href="#s7">Linux 实战</a><a href="#s8">调试指南</a><a href="#s9">踩坑指南</a>
+  <div class="xnav"><a href="index.html">« HOME</a><a href="i2c.html">I²C</a><a href="i2s.html">I²S</a><a href="uart.html">UART</a><a href="ir.html">IR</a></div>
+  <div class="spacer"></div>
+  <div class="live"><i></i>LOGIC&nbsp;ANALYZER</div>
+</nav>
+
+<main>
+<!-- ================= HERO ================= -->
+<header class="hero">
+  <div class="eyebrow">DIGITAL MEMS MICROPHONE · 图解硬件协议</div>
+  <h1>PDM
+    <span class="zh">数 字 麦 克 风 · D M I C 协 议 详 解</span>
+  </h1>
+  <p class="lede">
+    两根线，请进整个麦克风阵列。PDM（脉冲密度调制）把「模数转换」直接塞进麦克风封装——
+    出来的不是电压，而是<b>密度随声压变化的 1-bit 码流</b>。<b>往下滚动，看声音如何被编码成一串 0 和 1。</b>
+  </p>
+  <div class="chips">
+    <span><b>2</b> 根信号线（立体声）</span>
+    <span><b>1-bit</b> ΔΣ 密度码流</span>
+    <span><b>64×</b> 过采样抽取</span>
+    <span>fs = <b>CLK ÷ 64</b></span>
+  </div>
+  <div class="scope-wrap"><canvas id="heroScope"></canvas></div>
+  <div class="scroll-hint">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+    SCROLL · 时序动画在 03 节
+  </div>
+</header>
+
+<!-- ================= §01 ================= -->
+<section id="s1">
+  <div class="sec-head reveal"><span class="no">01</span><h2>它是什么，为什么需要它</h2><span class="en">What &amp; Why</span></div>
+  <p class="sec-sub reveal">一句话：<b>PDM 是用「1 出现的密度」表示模拟量的 1-bit 编码；DMIC 是只说这门语言的数字 MEMS 麦克风</b>——主控给它时钟，它就吐码流，其余什么都不需要。</p>
+  <div class="two-col">
+    <div class="prose reveal">
+      <p>
+        PDM（<b>Pulse Density Modulation</b>，脉冲密度调制）严格说不是「总线协议」，而是一种编码方式；DMIC
+        （数字硅麦克风）则在芯片内部用 <b>Δ-Σ 调制器</b>把膜片声压直接转成 PDM 码流。手机、智能音箱、TWS 耳机里的拾音孔后面，
+        八成就是一颗 <span class="kw">SPH0641</span> / <span class="kw">MP34DT01</span> / <span class="kw">IM69D130</span>。
+      </p>
+      <p>
+        为什么不用模拟麦克风？模拟输出只有几毫伏，从麦克风走到 ADC 的一路上，电源纹波、射频干扰（旁边 Wi-Fi/BT
+        发射功率比它大几个数量级）全都往里灌。DMIC 把 ADC 塞进麦克风封装，出来就是数字。为什么不用 I²S？
+        I²S 传 16/24-bit 的 PCM，麦克风侧也要 BCK/WS/SD 三根线；PDM 只要 <span class="kw">CLK</span> + <span class="kw">DATA</span>
+        两根，而且<b>两支麦克风还能共享同一根 DATA</b>——2~8 麦的阵列布线，PDM 是成本与空间的最优解。
+      </p>
+      <p>
+        代价在主控侧：1-bit 密度码不能直接用，要经 <span class="kw2">÷64 抽取滤波器</span>（CIC/FIR）还原成常规 PCM。
+        好在现代 SoC（STM32 <span class="kw">DFSDM</span>、ESP32 <span class="kw">PDM-RX</span>、nRF <span class="kw">PDM</span>、RK/MTK <span class="kw">PDM</span>）都内置了这套硬件。
+      </p>
+    </div>
+    <table class="cmp-table reveal">
+      <tr><th></th><th>PDM / DMIC</th><th>I²S</th><th>模拟麦克风</th></tr>
+      <tr><td>信号形式</td><td>1-bit 密度码</td><td>16/24-bit PCM</td><td class="no">模拟电压（mV 级）</td></tr>
+      <tr><td>布线（立体声）</td><td class="yes">2 线共享</td><td>3 线（+MCLK）</td><td class="no">屏蔽双绞 ×2</td></tr>
+      <tr><td>ADC 在哪</td><td class="yes">麦克风内部</td><td>Codec 内部</td><td>Codec / 主控</td></tr>
+      <tr><td>抗干扰</td><td class="yes">数字传输</td><td class="yes">数字传输</td><td class="no">一路捡噪声</td></tr>
+      <tr><td>后端处理</td><td>需 ÷64 抽取</td><td class="yes">直接可用</td><td>需 AGC / 滤波</td></tr>
+      <tr><td>典型角色</td><td>拾音入口</td><td>音频数据面</td><td>老式 / 超低成本</td></tr>
+    </table>
+  </div>
+  <div class="fact-grid reveal">
+    <div class="fact"><div class="f-no">FACT / A</div><h4>ΔΣ 调制器在麦克风里 <code>ADC</code></h4><p>声压→1-bit 码流的转换在麦克风芯片内部完成，出厂即标定灵敏度，主控不用碰模拟。</p></div>
+    <div class="fact"><div class="f-no">FACT / B</div><h4>密度即幅度 <code>DENSITY</code></h4><p>+满幅≈全 1，0 电平≈0101 交替（50% 密度），−满幅≈全 0。「1」的密度正比于瞬时声压。</p></div>
+    <div class="fact"><div class="f-no">FACT / C</div><h4>两线立体声 <code>CLK+DATA</code></h4><p>两支麦克风分别占用时钟的下降沿/上升沿驱动同一根 DATA，L/R 引脚（硬接线）决定谁用哪个沿。</p></div>
+    <div class="fact"><div class="f-no">FACT / D</div><h4>64 抽 1 <code>DECIMATE</code></h4><p>fs = CLK ÷ 64：3.072 MHz 时钟 → 48 kHz PCM。抽取滤波器（CIC/FIR）是接收端标配。</p></div>
+  </div>
+</section>
+
+<!-- ================= §02 ================= -->
+<section id="s2">
+  <div class="sec-head reveal"><span class="no">02</span><h2>两根信号线（+供电与配置脚）</h2><span class="en">Signals</span></div>
+  <p class="sec-sub reveal">PDM 的信号世界极其克制：一根时钟、一根数据，仅此而已。每张卡片里都是<b>正在运行的实时波形</b>。</p>
+  <div class="sig-grid">
+    <div class="sig-card c-clk reveal">
+      <div class="scope"><canvas data-scope="clk"></canvas></div>
+      <div class="body">
+        <div class="names"><span class="main">CLK</span><span class="alias">PDM CLK / 时钟</span><span class="pin">CLOCK</span></div>
+        <p>主控单向驱动的时钟，<b>麦克风完全被动</b>——给时钟才说话，时钟一停数据口立刻高阻。每个 CLK 周期允许输出 1 个密度位，常见 1.2–3.25 MHz、占空比 45–55%：</p>
+        <div class="formula">f(CLK) = fs × 64（3.072 MHz → 48 kHz）</div>
+      </div>
+    </div>
+    <div class="sig-card c-dat reveal">
+      <div class="scope"><canvas data-scope="data"></canvas></div>
+      <div class="body">
+        <div class="names"><span class="main">DATA</span><span class="alias">PDM DATA / 密度码流</span><span class="pin">DATA</span></div>
+        <p>麦克风输出：1-bit ΔΣ 密度码流。「1」的密度正比于瞬时声压；<b>无声时是 0101 交替码型</b>（50% 密度 = 0 电平）。立体声时两支麦克风轮流驱动这根线（03 节动画）：</p>
+        <div class="formula">密度 D = (1 + V / V_FS) / 2</div>
+      </div>
+    </div>
+    <div class="sig-card c-lr reveal">
+      <div class="scope"><canvas data-scope="lr"></canvas></div>
+      <div class="body">
+        <div class="names"><span class="main">L/R</span><span class="alias">声道选择（配置脚，非总线信号）</span><span class="pin">SELECT</span></div>
+        <p>硬接线的<b>配置引脚</b>：接地 = 左声道，在 CLK <b>下降沿</b>更新数据；接电源 = 右声道，在<b>上升沿</b>更新。个别型号定义相反，以数据手册为准——上图青色/琥珀色分别对应左/右的时隙。</p>
+        <div class="formula">GND → 左 · 下降沿更新 ｜ VDD → 右 · 上升沿更新</div>
+      </div>
+    </div>
+    <div class="sig-card c-aux reveal">
+      <div class="scope"><canvas data-scope="idle"></canvas></div>
+      <div class="body">
+        <div class="names"><span class="main">VDD</span><span class="alias">供电 · 上拉 · 去耦</span><span class="pin">AUX</span></div>
+        <p>供电典型 1.62–3.63 V，就近放 <b>100 nF 去耦</b>。DATA 输出多为三态/开漏结构——立体声的「非本声道时隙」与停时钟期间都会松手（上图即空闲 0101 码型），因此：</p>
+        <div class="formula">DATA 常需上拉电阻（几十 kΩ 量级，按手册）</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= §03 交互时序 ================= -->
+<section id="s3">
+  <div class="sec-head reveal"><span class="no">03</span><h2>时序动画 · 看密度随声音起伏</h2><span class="en">Interactive Timing</span></div>
+  <p class="sec-sub reveal">
+    下面是一台「虚拟逻辑分析仪」：CLK 与 DATA 向左滚动，<b style="color:var(--red)">红色探针</b>是接收端的采样点。
+    拖动「幅度」，看 DATA 里「1」的密度如何变稠变稀；切换「单声道/立体声」，看两支麦克风如何共用一根线。
+    右侧面板是接收端按 <b>升采左 / 降采右</b> 规则锁存、每 64 位抽 1 个样本的实时解码。
+  </p>
+  <div class="lab reveal">
+    <div class="lab-bar">
+      <div class="ctrl"><label>模式</label>
+        <div class="seg" id="modeSeg">
+          <button data-mode="st" class="on">立体声</button>
+          <button data-mode="mono">单声道</button>
+        </div>
+      </div>
+      <div class="ctrl"><label>幅度 <span id="ampVal">75 %</span></label><input type="range" id="amp" min="0" max="95" step="5" value="75"></div>
+      <div class="ctrl"><label>速度</label><input type="range" id="speed" min="4" max="160" value="30"></div>
+      <div class="ctrl">
+        <button class="icon-btn" id="zoomOut" title="缩小">−</button>
+        <button class="icon-btn" id="zoomIn" title="放大">＋</button>
+        <button class="icon-btn play on" id="playBtn" title="暂停/播放">❚❚</button>
+      </div>
+    </div>
+    <div class="lab-body">
+      <div class="scope-main"><canvas id="mainScope"></canvas></div>
+      <div class="readout">
+        <div class="r-title">RECEIVER · 实时解码</div>
+        <div class="r-row"><span class="k">采样沿</span><span class="v g" id="rEdge">↑ RISING</span></div>
+        <div class="r-row"><span class="k">声道</span><span class="v a" id="rCh">LEFT</span></div>
+        <div class="r-row"><span class="k">锁存位</span><span class="v c" id="rBit">1</span></div>
+        <div class="r-row"><span class="k">密度 · 64b 窗</span><span class="v" id="rDens">50.0 %</span></div>
+        <div class="r-row"><span class="k">抽取进度</span><span class="v" id="rProg">0 / 64</span></div>
+        <div class="decode-box">
+          <div class="d-title">解码输出 · 左/右声道（÷64 抽取）</div>
+          <canvas id="decodeScope"></canvas>
+        </div>
+        <div class="r-note">
+          <b>规则</b>：接收端在 CLK <b>上升沿</b>锁存左声道位、<b>下降沿</b>锁存右声道位；每 64 个时钟周期，抽取滤波器把这串位平均成一个 PCM 样本。
+        </div>
+      </div>
+    </div>
+    <div class="lab-foot">
+      <div class="legend"><i style="background:var(--green)"></i>CLK 时钟</div>
+      <div class="legend"><i style="background:var(--cyan)"></i>DATA · 左声道时隙</div>
+      <div class="legend"><i style="background:var(--amber)"></i>DATA · 右声道时隙</div>
+      <div class="legend"><i style="background:var(--red);height:8px;width:8px;border-radius:50%"></i>采样探针</div>
+      <div class="legend">背景带 = 64-bit 抽取组</div>
+    </div>
+  </div>
+  <div class="rule-callout reveal">
+    <div class="mnemonic">升采左 · 降采右 · 64 抽 1<small>MNEMONIC</small></div>
+    <p>
+      立体声下，接收端在 CLK <b>上升沿</b>锁存左声道位、<b>下降沿</b>锁存右声道位——半周期错开，
+      两支麦克风共线不打架。每 64 个时钟周期，抽取滤波器把这串位<b>平均成一个 PCM 样本</b>：
+      密度即幅度，这就是 PDM 的全部。
+    </p>
+  </div>
+</section>
+
+<!-- ================= §04 ================= -->
+<section id="s4">
+  <div class="sec-head reveal"><span class="no">04</span><h2>编码原理 · 从声压到 PCM 的四级流水线</h2><span class="en">How PDM Works</span></div>
+  <p class="sec-sub reveal">
+    1-bit 怎么可能装下 16-bit 的动态范围？答案靠两件事：<b>过采样</b>（64 倍冗余）和<b>噪声整形</b>（把量化噪声赶到听不见的高频）。
+  </p>
+  <div class="fmt-grid">
+    <div class="fmt-card t-mod reveal"><div class="fh"><span class="tag">ΔΣ</span><h4>Δ-Σ 调制器</h4><span class="en">MODULATOR</span></div><div id="svgMod"></div>
+      <div class="fb">声压经膜片与预放大后进入<b>环路</b>：积分器累加「输入 − 反馈」，1-bit 量化器只判断正负，结果又经 1-bit DAC 送回输入。环路把量化误差<b>推到高频</b>，低频处码流密度的平均值精确跟随输入。</div></div>
+    <div class="fmt-card t-enc reveal"><div class="fh"><span class="tag">PDM</span><h4>密度即幅度</h4><span class="en">DENSITY = AMPLITUDE</span></div><div id="svgEnc"></div>
+      <div class="fb">同一条码流：波峰附近「1」连成片，波谷附近「0」连成片，过零处均匀交替。注意它<b>不是 PWM</b>——脉冲位置被环路随机化，携带信息的只有密度，这让它对时钟抖动远不如 PWM 敏感。</div></div>
+    <div class="fmt-card t-dec reveal"><div class="fh"><span class="tag">÷64</span><h4>抽取滤波器</h4><span class="en">DECIMATION</span></div><div id="svgDec"></div>
+      <div class="fb">接收端两步走：<b>CIC</b>（级联积分梳状滤波）把 64 个 1-bit 平均成一个多位值、速率降 64 倍；<b>FIR</b> 再修平频率响应、滤掉镜频。输出就是普通 PCM，直接进 ALSA / HAL。</div></div>
+    <div class="fmt-card t-ns reveal"><div class="fh"><span class="tag">SNR</span><h4>噪声整形</h4><span class="en">NOISE SHAPING</span></div><div id="svgNs"></div>
+      <div class="fb">1-bit 量化本身噪声巨大，但 ΣΔ 环路让噪声<b>低频被压制、高频抬升</b>——恰好音频信号待在低频带。只要抽取滤波器把带外噪声滤干净，带内剩下的就是高信噪比信号。</div></div>
+  </div>
+  <div class="fmt-note reveal">
+    <b>致命细节：</b>PDM 位流不能当 PCM「按位拼起来」用——跳过抽取滤波器得到的是纯量化噪声（满幅沙沙声）。
+    主控没有 PDM/DFSDM 外设时，有人用 GPIO+DMA 高频采样再软件抽取：教学可以，产品别这么干（时钟精度与 CPU 都扛不住）。
+  </div>
+</section>
+
+<!-- ================= §05 ================= -->
+<section id="s5">
+  <div class="sec-head reveal"><span class="no">05</span><h2>立体声 · 两支麦克风共享一根线</h2><span class="en">Stereo &amp; Arrays</span></div>
+  <p class="sec-sub reveal">PDM 的「总线仲裁」朴素到极致：<b>左右各占时钟的一个沿</b>，L/R 引脚一接电源一接地，永不冲突。</p>
+  <div class="ms-grid">
+    <div class="ms-diagram reveal" id="stDiagram"></div>
+    <div class="arch-cards reveal">
+      <div class="arch">
+        <h5><span class="b">架构 A</span>立体声 · 共享 DATA</h5>
+        <p>两支麦克风 L/R 一接地一接电源，分别用<b>下降沿 / 上升沿</b>更新数据；主控在两个沿各采一位。一根 DATA 线，两路音频，互不干扰。</p>
+      </div>
+      <div class="arch">
+        <h5><span class="b">架构 B</span>单声道</h5>
+        <p>只有一支麦克风时，数据只在自己的半相位上翻转；主控仍按 CLK÷64 抽取。想再加一支？直接挂上同一根 DATA、把 L/R 反接即可。</p>
+      </div>
+      <div class="arch">
+        <h5><span class="b">架构 C</span>阵列 · 多路 PDM</h5>
+        <p>回声消除 / 波束成形要 2~8 麦：要么选带多组 PDM 控制器的 SoC（如 <span>RK3308 内置 8 通道 PDM</span>），要么用麦克风阵列前端芯片把多路 PDM 汇成 TDM/I²S 再喂主控。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= §06 ================= -->
+<section id="s6">
+  <div class="sec-head reveal"><span class="no">06</span><h2>时钟计算器</h2><span class="en">Clock Math</span></div>
+  <p class="sec-sub reveal">PDM 没有独立的「采样率寄存器」——<b>fs 完全由时钟频率除以抽取比决定</b>。配时钟树之前先算，再拿示波器对。</p>
+  <div class="calc reveal">
+    <div class="inputs">
+      <h5>INPUT · 输入</h5>
+      <div class="field"><label>PDM 时钟频率 f(CLK)（受麦克风手册范围限制）</label>
+        <select id="cClk">
+          <option value="1024000">1.024 MHz</option>
+          <option value="1152000">1.152 MHz</option>
+          <option value="2048000">2.048 MHz</option>
+          <option value="2304000">2.304 MHz</option>
+          <option value="3072000" selected>3.072 MHz · 最常用</option>
+          <option value="4096000">4.096 MHz</option>
+          <option value="4800000">4.800 MHz</option>
+        </select>
+      </div>
+      <div class="field"><label>抽取比 decimation ratio</label>
+        <select id="cDec">
+          <option value="32">÷32 · 高带宽（少见）</option>
+          <option value="64" selected>÷64 · 业界标准</option>
+          <option value="128">÷128 · 更高 SNR</option>
+        </select>
+      </div>
+    </div>
+    <div class="outputs">
+      <h5>OUTPUT · 输出</h5>
+      <div class="out-row big"><span class="ok">PCM 采样率 fs<small>SAMPLE RATE</small></span><span class="ov" id="oFs">48<small>kHz</small></span></div>
+      <div class="out-row"><span class="ok">DATA 线位率（立体声共享）<small>BIT RATE</small></span><span class="ov" id="oRate">3.072<small>Mbps</small></span></div>
+      <div class="out-row"><span class="ok">音频带宽 ≈ fs / 2<small>AUDIO BAND</small></span><span class="ov" id="oBw">24<small>kHz</small></span></div>
+      <div class="out-row"><span class="ok">CLK 周期<small>CLOCK PERIOD</small></span><span class="ov" id="oPer">325.5<small>ns</small></span></div>
+    </div>
+    <div class="calc-formula">fs = f(CLK) ÷ 64 = <b id="fExpr">3.072 MHz ÷ 64 = 48 kHz</b> · 每声道每秒恰好 f(CLK) 个密度位</div>
+  </div>
+</section>
+
+<!-- ================= §07 Linux ================= -->
+<section id="s7">
+  <div class="sec-head reveal"><span class="no">07</span><h2>Linux 上的 DMIC · 命令实战</h2><span class="en">Linux Cheat Sheet</span></div>
+  <p class="sec-sub reveal">
+    DMIC 在 Linux 里同样归 <b>ALSA / ASoC</b> 管：SoC 的 PDM/DFSDM 控制器负责采码流并硬件抽取，codec 侧用通用的
+    <b>dmic-codec</b> 绑定。注意：<b>PDM 麦克风没有 I²C 寄存器</b>——增益一律在主控/数字侧调。
+    <b>点击任意命令行即可复制。</b>
+  </p>
+  <div class="term-grid">
+    <div class="term reveal">
+      <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span>ls — 你的 DMIC 声卡在哪</span></div>
+      <div class="term-body">
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="arecord -l">arecord -l</code><span class="t-cmt">           # 列出录音设备（找 capture）</span></div>
+        <div class="t-out">card 1: dmic [dmic], device 0</div>
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="cat /proc/asound/cards">cat /proc/asound/cards</code><span class="t-cmt"> # 声卡总览</span></div>
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="dmesg | grep -iE 'pdm|dmic|snd'">dmesg | grep -iE 'pdm|dmic|snd'</code></div>
+        <div class="t-out">asoc-simple-card dmic-sound: dmic ↔ <span class="t-hl">fe410000.pdm</span> mapping ok</div>
+      </div>
+    </div>
+    <div class="term reveal">
+      <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span>rec — 录一段验证</span></div>
+      <div class="term-body">
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="arecord -D hw:1,0 -f S16_LE -r 48000 -c 2 /tmp/mic.wav -d 5">arecord -D hw:1,0 -f S16_LE -r 48000 -c 2 /tmp/mic.wav -d 5</code></div>
+        <div class="t-cmt">  # 对着麦克风说话，录 5 秒</div>
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="aplay /tmp/mic.wav">aplay /tmp/mic.wav</code><span class="t-cmt">          # 回放听一听</span></div>
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="sox /tmp/mic.wav -n spectrogram -o mic.png">sox /tmp/mic.wav -n spectrogram -o mic.png</code></div>
+        <div class="t-cmt">  # 生成频谱图：看带内是否干净、DC 偏移多大</div>
+      </div>
+    </div>
+    <div class="term reveal">
+      <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span>hw_params — 验证 fs = CLK÷64</span></div>
+      <div class="term-body">
+        <div class="t-cmt"># 录音进行中执行（pcm0c = capture）</div>
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="cat /proc/asound/card1/pcm0c/sub0/hw_params">cat /proc/asound/card1/pcm0c/sub0/hw_params</code></div>
+        <div class="t-out">format: <span class="t-hl">S16_LE</span>   rate: <span class="t-hl">48000</span> (48.000 kHz)   channels: 2</div>
+        <div class="t-hl">→ 反推 CLK = 48000 × 64 = 3.072 MHz，拿示波器对！</div>
+      </div>
+    </div>
+    <div class="term reveal">
+      <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span>amixer — 增益在主控侧调</span></div>
+      <div class="term-body">
+        <div class="t-cmt"># PDM 麦克风本体无寄存器，增益 = 主控数字增益</div>
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="amixer -c 1 scontrols">amixer -c 1 scontrols</code></div>
+        <div class="t-out">Simple mixer control:'<span class="t-hl">Mic Capture Volume</span>',0</div>
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="amixer -c 1 cset name='Mic Capture Volume' 80%">amixer -c 1 cset name='Mic Capture Volume' 80%</code></div>
+        <div class="t-cmt"># 部分平台还提供 DMIC 高通滤波控件（去 DC）</div>
+      </div>
+    </div>
+    <div class="term reveal">
+      <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span>Android — tinyalsa 抓 DMIC</span></div>
+      <div class="term-body">
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="adb shell tinycap /sdcard/m.wav -D 0 -d 0 -c 2 -r 48000 -b 16">adb shell tinycap /sdcard/m.wav -D 0 -d 0 -c 2 -r 48000 -b 16</code></div>
+        <div class="t-cmt"># 录几秒：Ctrl-C 停止后 adb pull /sdcard/m.wav</div>
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="adb shell grep -i dmic /vendor/etc/audio_policy_configuration.xml">adb shell grep -i dmic /vendor/etc/audio_policy_configuration.xml</code></div>
+        <div class="t-out">&lt;profile ... samplingRates="<span class="t-hl">48000</span>" format="AUDIO_FORMAT_PCM_16_BIT"/&gt;</div>
+        <div class="t-cmt"># input profile 没声明 dmic → tinycap 打不开设备</div>
+      </div>
+    </div>
+    <div class="term reveal">
+      <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span>dmesg — 出问题先看内核日志</span></div>
+      <div class="term-body">
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="dmesg | grep -iE 'pdm|dmic|asoc'">dmesg | grep -iE 'pdm|dmic|asoc'</code></div>
+        <div class="t-out">rockchip-pdm fe410000.pdm: ...</div>
+        <div class="t-hl">→ PDM 控制器 probe 失败 = 时钟/引脚没配好，后面全白搭</div>
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="cat /proc/asound/card1/pcm0c/sub0/status">cat /proc/asound/card1/pcm0c/sub0/status</code></div>
+        <div class="t-out">state: RUNNING   xrun: <span class="t-hl">0</span>   # 欠载计数，断流时增长</div>
+      </div>
+    </div>
+    <div class="term wide reveal">
+      <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span>DTS — 声卡绑定：dmic-codec + PDM 控制器（以 RK 平台为例）</span></div>
+      <div class="term-body">
+        <div class="t-cmt">/* 通用 dmic-codec 绑定：两支 PDM 麦克风共享一根 DATA */</div>
+        <div class="t-tag">dmic_codec: dmic-codec</div><div class="t-out"> {</div>
+        <div class="t-out">    status = "okay";</div>
+        <div class="t-out">    compatible = <span class="t-hl">"dmic-codec"</span>;</div>
+        <div class="t-out">    num-channels = <span class="t-hl">&lt;2&gt;</span>;          /* ←→ 05 节：两支麦克风 = 两声道 */</div>
+        <div class="t-out">    ports { dmic_port: port { dmic_ep: endpoint { remote-endpoint = &lt;&amp;pdm_ep&gt;; }; }; };</div>
+        <div class="t-out">};</div>
+        <div class="t-cmt">/* SoC 侧 PDM 控制器（各平台节点名不同：RK = pdm · STM32 = dfsdm · ESP32 无 DTS）*/</div>
+        <div class="t-tag">&amp;pdm</div><div class="t-out"> {</div>
+        <div class="t-out">    status = "okay";</div>
+        <div class="t-out">    pinctrl-names = "default";</div>
+        <div class="t-out">    pinctrl-0 = &lt;&amp;pdm_m0_clk <span class="t-hl">&amp;pdm_m0_sdi0</span>&gt;;   /* CLK + DATA 引脚复用 */</div>
+        <div class="t-out">    pdm_port: port { pdm_ep: endpoint { remote-endpoint = &lt;&amp;dmic_ep&gt;; }; };</div>
+        <div class="t-out">};</div>
+      </div>
+    </div>
+  </div>
+  <div class="lnx-note reveal">
+    <b>两个高频坑：</b>① 静音时录出来应是「中位」码型（波形贴着零点小幅抖动），若恒 0 / 恒 1 → 上拉或时钟问题（08 节第 2 步）；
+    ② 采样率对不上 → 时钟树配错，回 06 节用 <code>fs = CLK÷64</code> 核对。
+    另注：<b>树莓派没有 PDM 输入外设</b>，玩 DMIC 请选带 DFSDM / SAI-PDM / PDM 控制器的平台（STM32、ESP32、nRF52/91、RK、MTK…）。
+  </div>
+</section>
+
+<!-- ================= §08 调试指南 ================= -->
+<section id="s8">
+  <div class="sec-head reveal"><span class="no">08</span><h2>调试指南 · Linux / Android</h2><span class="en">Debug Flow</span></div>
+  <p class="sec-sub reveal">
+    出问题时别乱试参数——<b>按证据推进</b>：每一步验证通过再进下一步，六步之内必能锁定故障层。
+    点击下面的步骤，查看该步骤在 <b>Linux（ALSA）</b> 与 <b>Android（tinyalsa / adb）</b> 上的对应操作。
+  </p>
+  <div class="dbg-steps reveal" id="dbgSteps"></div>
+  <div class="dbg-panel reveal">
+    <div class="dbg-verdict" id="dbgVerdict"></div>
+    <div class="dbg-cols">
+      <div class="term">
+        <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span id="dbgTitleL">LINUX</span></div>
+        <div class="term-body" id="dbgBodyL"></div>
+      </div>
+      <div class="term">
+        <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span id="dbgTitleA">ANDROID</span></div>
+        <div class="term-body" id="dbgBodyA"></div>
+      </div>
+    </div>
+  </div>
+  <table class="eq-table reveal">
+    <tr><th>任务</th><th>Linux（ALSA）</th><th>Android（tinyalsa / adb）</th></tr>
+    <tr><td>录音</td><td><code>arecord -D hw:1,0 -f S16_LE -r 48000 -c 2 m.wav</code></td><td><code>adb shell tinycap /sdcard/m.wav -D 0 -d 0 -c 2 -r 48000 -b 16</code></td></tr>
+    <tr><td>看运行参数</td><td><code>cat /proc/asound/…/hw_params</code></td><td><code>adb shell dumpsys media.audio_flinger</code></td></tr>
+    <tr><td>列设备 / 能力</td><td><code>arecord -l</code> · <code>arecord -L</code></td><td><code>adb shell ls /dev/snd</code> · <code>tinypcminfo -D 0 -d 0</code></td></tr>
+    <tr><td>调增益</td><td><code>amixer -c 1 cset name='Mic Capture Volume' 80%</code></td><td><code>adb shell tinymix -D 0 set 'MIC Gain' 84</code></td></tr>
+    <tr><td>看日志</td><td><code>dmesg | grep -iE 'pdm|dmic|snd'</code></td><td><code>adb logcat -s audioserver audio_hw_primary</code></td></tr>
+    <tr><td>板级配置</td><td>设备树 <code>&amp;pdm</code> + <code>dmic-codec</code> 绑定</td><td><code>/vendor/etc/audio_policy_configuration.xml</code></td></tr>
+  </table>
+  <div class="and-note reveal">
+    <b>Android 特有的四个坑：</b>
+    ① <b>权限</b>：user 版没有 root，dmesg / 部分 /proc 不可读，调试请用 userdebug（<code>adb root</code>）；
+    ② <b>SELinux</b>：<code>avc: denied</code> 打不开 <code>/dev/snd/*</code> 时，改的是 sepolicy 而不是权限位；
+    ③ <b>input profile</b>：<code>audio_policy_configuration.xml</code> 没声明 dmic 输入口 → tinycap 直接打不开设备；
+    ④ <b>路由</b>：QCOM/MTK 平台 <code>mixer_paths*.xml</code> 没把 DMIC 通道路由打开 → 一切正常但录音全零。
+  </div>
+</section>
+
+<!-- ================= §09 ================= -->
+<section id="s9">
+  <div class="sec-head reveal"><span class="no">09</span><h2>踩坑指南 · 症状 → 病因</h2><span class="en">Troubleshooting</span></div>
+  <p class="sec-sub reveal">调 DMIC 的时间几乎都花在下面这些地方。按症状对号入座。</p>
+  <div class="pit-list reveal">
+    <div class="pit"><div class="symptom">完全<br>无声</div><div class="fix"><b>没有时钟 / PDM 外设未使能</b><p>PDM 麦克风<b>无时钟即无输出</b>。先用示波器量麦克风 CLK 脚有没有波形，再查设备树 <code>pdm</code> 节点 status 与 pinctrl。时钟停了 DATA 还会进高阻——别被「数据线死掉」迷惑。</p></div></div>
+    <div class="pit"><div class="symptom">恒0<br>恒1</div><div class="fix"><b>缺上拉 / 采样沿选错</b><p>DATA 恒定一个电平：多半是<b>上拉缺失</b>导致高阻被固定读值，或主控只开了右声道滤波而麦克风接成了左。静音时的正确形态是 0101 中位码型（02 节右下图）。</p></div></div>
+    <div class="pit"><div class="symptom">半周期<br>打架</div><div class="fix"><b>两支麦克风驱动了同一个沿</b><p>立体声下 L/R 引脚接成一样（都接地或都接电源），两支麦在同一边沿一起驱动 DATA——波形在半周期边界毛刺跳变。一支接地、一支接电源即可。</p></div></div>
+    <div class="pit"><div class="symptom">左右<br>互换</div><div class="fix"><b>L/R 引脚电平反了</b><p>声像左右颠倒，直接交换两支麦克风的 L/R 接线，或在主控侧交换声道映射。个别厂商 L/R 定义相反，换料时务必重查手册。</p></div></div>
+    <div class="pit"><div class="symptom">变调<br>加速</div><div class="fix"><b>CLK 与抽取比不匹配</b><p>播放「快进小嗓门」= 实际 fs 与预期不一致。用 06 节公式核对 <code>fs = CLK ÷ 64</code>：时钟树分频错一格，音调就差一截。</p></div></div>
+    <div class="pit"><div class="symptom">直流<br>偏移</div><div class="fix"><b>没做高通滤波</b><p>PDM 解码天生带直流失调，波形整体浮在零线上方。抽取链路里加 <code>20~50 Hz 高通</code>（很多主控/HAL 有现成控件），别让 DC 吃掉动态范围。</p></div></div>
+    <div class="pit"><div class="symptom">底噪<br>大</div><div class="fix"><b>时钟质量 / 走线 / 供电</b><p>CLK 抖动直接换算成码流噪声；DATA 线浮空段还可能捡干扰。CLK 与 DATA 短而等长、远离开关电源与射频天线；麦克风 VDD 用独立 LDO + 就近去耦。</p></div></div>
+  </div>
+</section>
+
+<footer>
+  <div class="f-l">
+    <b>参考</b> · Knowles SPH0641LU4H-1 · ST MP34DT01-M · Infineon IM69D130 数据手册 · Linux ASoC「dmic-codec」设备树绑定<br>
+    本页为单文件交互式图解，可离线打开 · 波形由浏览器实时渲染
+  </div>
+  <div class="f-r">PDM·DMIC</div>
+</footer>
+</main>
+
+<script>
+/* ================================================================
+   DMIC/PDM 交互引擎 —— 所有波形共用一个模型：
+   t 以 CLK 周期为单位连续增长（浮点相位）。
+   约定：CLK 在整数 t 处为上升沿，t+0.5 处为下降沿。
+   立体声：左声道位占据 [c-0.5, c)（下降沿更新、上升沿被采样），
+           右声道位占据 [c, c+0.5)（上升沿更新、下降沿被采样）。
+   单声道：位 c 占据 [c-0.5, c+0.5)，接收端在上升沿锁存。
+   接收端每 64 个周期把码流平均成一个 PCM 样本（÷64 抽取）。
+================================================================ */
+const CFG = { stereo:true, amp:75 };
+const OSR = 64;                               // 抽取比：64 个密度位 → 1 个 PCM 样本
+const N   = 15360;                            // 码流图案长度（左右正弦周期的公倍数）
+const PER = { L:3072, R:2560 };               // 左右声道"音频"正弦周期（CLK 数）→ 解码后 48/40 样本每周期
+const COL = { clk:'#34e08a', dl:'#57d8f2', dr:'#ffb02e', red:'#ff6478',
+              grid:'rgba(52,224,138,.07)', grid2:'rgba(52,224,138,.16)' };
+
+const mod = (a,m)=>((a%m)+m)%m;
+let PL = new Uint8Array(N), PR = new Uint8Array(N);
+
+/* 离线生成 PDM 码流：一阶 ΣΔ（积分器形式），输出位的局部密度精确跟随输入正弦 */
+function genPDM(){
+  const build = (period, phase, dst)=>{
+    let u = 0, b = 0;
+    for (let i=0;i<N;i++){
+      const x = (1 + Math.sin(2*Math.PI*i/period + phase) * (CFG.amp/100)) / 2;   // 密度目标 ∈ [0,1]
+      u += x - b;                        // 积分器：误差有界 ⇒ 平均密度 = 平均输入
+      b = u >= 0.5 ? 1 : 0;
+      dst[i] = b;
+    }
+  };
+  build(PER.L, 0,    PL);
+  build(PER.R, 1.05, PR);
+}
+genPDM();
+
+/* 第 h 个半周期的电平与归属（h 奇 = 左时隙，h 偶 = 右时隙） */
+function dataHalf(h){
+  if (CFG.stereo)
+    return h % 2
+      ? { v: PL[mod((h+1)/2, N)], ch:'L' }
+      : { v: PR[mod(h/2,     N)], ch:'R' };
+  return { v: PL[mod(Math.floor((h+1)/2), N)], ch:'L' };   // 单声道：下降沿更新，整周期保持
+}
+
+/* ---------------- Scope 类：一块画布一份配置 ---------------- */
+const scopes = [];
+class Scope{
+  constructor(canvas, opts){
+    this.cv = canvas; this.o = Object.assign({
+      signals:['clk','data'], faint:[], pb:13, speed:30,
+      labels:true, probe:false, glow:false, bands:false, edgeColor:false,
+      height:null, readout:false
+    }, opts);
+    this.phase = 40; this.paused = false;
+    this.ctx = canvas.getContext('2d');
+    new ResizeObserver(()=>this.resize()).observe(canvas.parentElement);
+    this.resize();
+    scopes.push(this);
+  }
+  resize(){
+    const r = this.cv.parentElement.getBoundingClientRect();
+    const dpr = Math.min(devicePixelRatio||1, 2);
+    this.w = Math.max(300, r.width); this.h = this.o.height || this.cv.clientHeight || 118;
+    this.cv.width = this.w*dpr; this.cv.height = this.h*dpr;
+    this.cv.style.height = this.h+'px';
+    this.ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  layout(){ // 每个信号的行几何
+    const n = this.o.signals.length, pad = 14, top = this.o.bands ? 26 : 8, bot = 12;
+    const rowH = (this.h - top - bot) / n, amp = rowH*0.30;
+    return this.o.signals.map((k,idx)=>({ key:k,
+      y0: top + rowH*idx + rowH/2, amp: this.o.faint.includes(k)? amp*0.8 : amp }));
+  }
+  xOf(t){ return (t - this.phase) * this.o.pb; }
+  update(dt){
+    if (!this.paused) this.phase += this.o.speed * dt;
+  }
+  draw(){
+    const c = this.ctx, w = this.w, h = this.h, pb = this.o.pb;
+    const t0 = this.phase, t1 = t0 + w/pb;
+    c.clearRect(0,0,w,h);
+    /* 64-bit 抽取组背景带 */
+    if (this.o.bands){
+      for (let g = Math.floor((t0-2)/OSR); g <= Math.floor(t1/OSR)+1; g++){
+        const x1 = Math.max(0, this.xOf(g*OSR)), x2 = Math.min(w, this.xOf((g+1)*OSR));
+        if (x2 <= 0 || x1 >= w) continue;
+        c.fillStyle = g%2 ? 'rgba(87,216,242,.045)' : 'rgba(52,224,138,.045)';
+        c.fillRect(x1, 22, x2-x1, h-22-8);
+        if (x2-x1 > 70){
+          c.font = '600 10px "IBM Plex Mono"'; c.textAlign = 'center';
+          c.fillStyle = g%2 ? 'rgba(87,216,242,.55)' : 'rgba(52,224,138,.55)';
+          c.fillText('↓64', (x1+x2)/2, 15);
+        }
+      }
+    }
+    /* 网格：每 CLK 一条淡线，抽取组边界一条亮线 */
+    if (pb >= 7){
+      for (let i = Math.ceil(t0); i < t1; i++){
+        const x = this.xOf(i);
+        c.strokeStyle = mod(i,OSR)===0 ? COL.grid2 : COL.grid;
+        c.lineWidth = 1; c.beginPath(); c.moveTo(x+.5, 20); c.lineTo(x+.5, h-8); c.stroke();
+      }
+    }
+    /* 波形 */
+    const rows = this.layout();
+    const isFaint = k => this.o.faint.includes(k);
+    for (const r of rows){
+      const yHi = r.y0 - r.amp, yLo = r.y0 + r.amp;
+      if (r.key === 'clk'){
+        c.strokeStyle = COL.clk; c.lineWidth = isFaint(r.key)?1.2:2;
+        c.globalAlpha = isFaint(r.key)? .28 : 1;
+        if (this.o.glow && !isFaint(r.key)){ c.shadowColor = COL.clk; c.shadowBlur = 9; }
+        c.beginPath();
+        let px = null, py = null;
+        const i0 = Math.floor(t0) - 2, i1 = Math.ceil(t1) + 2;
+        for (let i = i0; i <= i1; i++){                      // 高半周期 + 低半周期
+          const segs = [[i, i+0.5, yHi],[i+0.5, i+1, yLo]];
+          for (const [a,b,y] of segs){
+            const xa = this.xOf(a), xb = this.xOf(b);
+            if (px === null){ c.moveTo(xa,y); } else if (py !== y){ c.lineTo(xa,y); }
+            c.lineTo(xb,y); px = xb; py = y;
+          }
+        }
+        c.stroke(); c.shadowBlur = 0; c.globalAlpha = 1;
+      } else {
+        const idle = r.key === 'idle';
+        const lv = hh => idle ? (Math.floor((hh+1)/2) % 2) : dataHalf(hh).v;
+        c.strokeStyle = COL.dl; c.lineWidth = isFaint(r.key)?1.2:2;
+        c.globalAlpha = isFaint(r.key)? .28 : 1;
+        if (this.o.glow && !isFaint(r.key)){ c.shadowColor = COL.dl; c.shadowBlur = 9; }
+        c.beginPath();
+        let px = null, py = null;
+        const h0 = Math.floor(t0*2) - 2, h1 = Math.ceil(t1*2) + 2;
+        for (let hh = h0; hh <= h1; hh++){                   // 逐半周期画数据
+          const y = lv(hh) ? yHi : yLo, xa = this.xOf(hh/2), xb = this.xOf((hh+1)/2);
+          if (px === null){ c.moveTo(xa,y); } else if (py !== y){ c.lineTo(xa,y); }
+          c.lineTo(xb,y); px = xb; py = y;
+        }
+        c.stroke(); c.shadowBlur = 0; c.globalAlpha = 1;
+        /* 右声道时隙重新着色（立体声教学可视化） */
+        if (this.o.edgeColor && CFG.stereo && !idle){
+          c.strokeStyle = COL.dr; c.lineWidth = isFaint(r.key)?1.2:2;
+          c.globalAlpha = isFaint(r.key)? .40 : 1;
+          c.beginPath();
+          for (let hh = Math.max(h0, Math.floor(t0*2)); hh <= h1; hh++){
+            if (dataHalf(hh).ch !== 'R') continue;
+            const y = lv(hh) ? yHi : yLo;
+            c.moveTo(this.xOf(hh/2), y); c.lineTo(this.xOf((hh+1)/2), y);
+          }
+          c.stroke(); c.globalAlpha = 1;
+        }
+      }
+      /* 左侧信号名 */
+      if (this.o.labels){
+        const col = r.key==='clk' ? COL.clk : COL.dl;
+        c.fillStyle = 'rgba(7,11,9,.88)'; c.fillRect(0, r.y0-9, 70, 18);
+        c.font = '600 11px "IBM Plex Mono"'; c.textAlign = 'left'; c.fillStyle = col;
+        c.fillText({clk:'CLK',data:'DATA',idle:'DATA'}[r.key], 8, r.y0+4);
+        c.fillStyle = 'rgba(140,162,148,.7)'; c.font = '9px "IBM Plex Mono"';
+        c.fillText({clk:'时钟',data:'密度码',idle:'空闲码'}[r.key], 40, r.y0+4);
+      }
+    }
+    /* 探针 + 采样沿标记 */
+    if (this.o.probe){
+      const xp = w * 0.62, tp = t0 + xp/pb;
+      const hh = Math.round(tp*2);                // 最近采样沿（半周期粒度）
+      const xe = this.xOf(hh/2);
+      c.strokeStyle = COL.red; c.lineWidth = 1; c.setLineDash([5,4]);
+      c.beginPath(); c.moveTo(xe+.5, 20); c.lineTo(xe+.5, h-6); c.stroke(); c.setLineDash([]);
+      c.fillStyle = COL.red; c.font = '600 9px "IBM Plex Mono"'; c.textAlign = 'left';
+      c.fillText('PROBE', xe+6, 30);
+      const rising = hh % 2 === 0;
+      for (const r of rows){
+        let y;
+        if (r.key === 'clk') y = r.y0 + (rising ? -r.amp : r.amp);
+        else if (r.key === 'idle') y = r.y0 + ((Math.floor(hh/2) % 2) ? -r.amp : r.amp);
+        else y = r.y0 + (dataHalf(hh-1).v ? -r.amp : r.amp);   // 刚被锁存的那一位
+        c.beginPath(); c.arc(xe, y, 3.2, 0, 7); c.fillStyle = COL.red; c.fill();
+      }
+      c.fillStyle = 'rgba(255,100,120,.85)'; c.font = '9px "IBM Plex Mono"'; c.textAlign = 'center';
+      c.fillText(rising ? '↑ 采样沿' : '↓ 采样沿', xe, h-4 < 30 ? h-4 : 24);
+      if (this.o.readout) this.updateReadout(hh);
+    }
+  }
+  updateReadout(hh){
+    const rising = hh % 2 === 0;
+    const d = dataHalf(hh-1);                     // 该沿刚锁存的位（属于上一个半周期）
+    const cyc = rising ? hh/2 : (hh-1)/2;         // 被采样位的周期号
+    document.getElementById('rEdge').textContent = (rising ? '↑ #' : '↓ #') + cyc;
+    document.getElementById('rCh').textContent = CFG.stereo ? (d.ch==='L' ? '← LEFT' : 'RIGHT →') : 'MONO';
+    const el = document.getElementById('rBit');
+    el.textContent = d.v; el.style.color = d.v ? 'var(--cyan)' : 'var(--faint)';
+    /* 64 位滑窗密度：正比于瞬时声压 */
+    const src = (CFG.stereo && d.ch==='R') ? PR : PL;
+    let s = 0; for (let k=cyc-63; k<=cyc; k++) s += src[mod(k,N)];
+    document.getElementById('rDens').textContent = (s/OSR*100).toFixed(1) + ' %';
+    document.getElementById('rProg').textContent = dec.cnt + ' / ' + OSR;
+  }
+}
+
+/* ---------------- 抽取解码器（右侧小示波器） ----------------
+   示波器画面是"慢镜头"（真实 CLK 是 MHz 级），解码侧单独快进，
+   否则慢镜头下要几分钟才能看到一个 PCM 样本。 */
+const DECODE_MULT = 14;
+const decodeBuf = { L:[], R:[] };
+const dec = { phase:40, accL:0, accR:0, cnt:0 };
+function decodeTick(dt){
+  const target = dec.phase + mainScope.o.speed * DECODE_MULT * dt;
+  const h0 = Math.floor(dec.phase*2), h1 = Math.floor(target*2);
+  for (let h=h0; h<h1; h++){
+    if (h % 2 === 0) dec.accL += PL[mod(h/2, N)];            // 上升沿：采左
+    else {
+      if (CFG.stereo) dec.accR += PR[mod((h-1)/2, N)];       // 下降沿：采右
+      if (++dec.cnt === OSR){                                 // 每 64 周期出 1 个样本
+        pushDecode(dec.accL/OSR, CFG.stereo ? dec.accR/OSR : null);
+        dec.accL = dec.accR = dec.cnt = 0;
+      }
+    }
+  }
+  dec.phase = target;
+}
+function pushDecode(vL, vR){
+  decodeBuf.L.push(2*vL - 1); if (decodeBuf.L.length > 90) decodeBuf.L.shift();
+  if (vR !== null){ decodeBuf.R.push(2*vR - 1); if (decodeBuf.R.length > 90) decodeBuf.R.shift(); }
+}
+const dcv = document.getElementById('decodeScope'), dctx = dcv.getContext('2d');
+function drawDecode(){
+  const dpr = Math.min(devicePixelRatio||1,2);
+  const w = dcv.clientWidth || 220, h = 86;
+  if (dcv.width !== w*dpr){ dcv.width = w*dpr; dcv.height = h*dpr; }
+  dctx.setTransform(dpr,0,0,dpr,0,0);
+  dctx.clearRect(0,0,w,h);
+  dctx.strokeStyle = 'rgba(52,224,138,.12)'; dctx.lineWidth = 1;
+  dctx.beginPath(); dctx.moveTo(0,h/2+.5); dctx.lineTo(w,h/2+.5); dctx.stroke();
+  [[decodeBuf.L,'rgba(52,224,138,.95)',2],[decodeBuf.R,'rgba(87,216,242,.5)',1.4]].forEach(([buf,col,lw])=>{
+    if (buf.length < 2) return;
+    dctx.strokeStyle = col; dctx.lineWidth = lw; dctx.beginPath();
+    buf.forEach((v,i)=>{
+      const x = i/(90-1)*w, y = h/2 - v*(h/2-6)*0.95;
+      i ? dctx.lineTo(x,y) : dctx.moveTo(x,y);
+    });
+    dctx.stroke();
+  });
+  dctx.font = '9px "IBM Plex Mono"'; dctx.fillStyle = 'rgba(140,162,148,.6)';
+  dctx.fillText('L', 5, 12); dctx.fillStyle = 'rgba(87,216,242,.5)'; dctx.fillText('R', 5, 24);
+}
+
+/* ---------------- 实例化各画布 ---------------- */
+new Scope(document.getElementById('heroScope'),
+  { signals:['clk','data'], pb:11, speed:34, labels:false, bands:false, glow:true, height:118 });
+document.querySelectorAll('[data-scope]').forEach(cv=>{
+  const kind = cv.dataset.scope;
+  const cfgs = {
+    clk : { signals:['clk'], pb:18, speed:46, labels:false, bands:false, height:84 },
+    data: { signals:['data'], pb:9, speed:30, labels:false, bands:false, height:84 },
+    lr  : { signals:['clk','data'], faint:['clk'], pb:16, speed:22, labels:false, bands:false, edgeColor:true, height:84 },
+    idle: { signals:['clk','idle'], faint:['clk'], pb:16, speed:22, labels:false, bands:false, height:84 },
+  }[kind];
+  new Scope(cv, cfgs);
+});
+const mainScope = new Scope(document.getElementById('mainScope'),
+  { signals:['clk','data'], pb:13, speed:30, labels:true, bands:true, probe:true,
+    glow:true, height:360, readout:true, edgeColor:true });
+
+/* ---------------- 主循环 ---------------- */
+let lastT = performance.now();
+function loop(now){
+  const dt = Math.min((now-lastT)/1000, .1); lastT = now;
+  try {
+    for (const s of scopes){ s.update(dt); s.draw(); }
+    if (!mainScope.paused) decodeTick(dt);
+    drawDecode();
+  } catch (err) {                      // 单帧异常不应杀死整个动画循环
+    if (!window.__pdmLoopErr){ window.__pdmLoopErr = String(err && err.stack || err); console.error(err); }
+  }
+  requestAnimationFrame(loop);
+}
+const playBtn0 = document.getElementById('playBtn');
+function setPlay0(p){ mainScope.paused = !p; playBtn0.textContent = p ? '❚❚' : '▶'; playBtn0.classList.toggle('on', p); }
+if (matchMedia('(prefers-reduced-motion: reduce)').matches){ setPlay0(false); }  // 同步按钮初始状态
+requestAnimationFrame(loop);
+
+/* ---------------- 控件 ---------------- */
+function bindSeg(id, attr, fn){
+  const seg = document.getElementById(id);
+  seg.addEventListener('click', e=>{
+    const b = e.target.closest('button'); if (!b) return;
+    seg.querySelectorAll('button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on'); fn(b.dataset[attr]);
+  });
+}
+function clearDecode(){ decodeBuf.L.length = decodeBuf.R.length = 0; dec.accL = dec.accR = dec.cnt = 0; }
+bindSeg('modeSeg','mode', v=>{ CFG.stereo = v === 'st'; clearDecode(); });
+const ampInput = document.getElementById('amp');
+ampInput.addEventListener('input', ()=>{
+  CFG.amp = +ampInput.value;
+  document.getElementById('ampVal').textContent = CFG.amp + ' %';
+  genPDM(); clearDecode();
+});
+const speedInput = document.getElementById('speed');
+speedInput.addEventListener('input', ()=>{ mainScope.o.speed = +speedInput.value; });
+document.getElementById('playBtn').addEventListener('click', ()=> setPlay0(mainScope.paused));
+document.addEventListener('keydown', e=>{
+  if (e.code === 'Space' && !/INPUT|SELECT|BUTTON/.test(document.activeElement.tagName)){
+    e.preventDefault(); setPlay0(mainScope.paused);
+  }
+});
+document.getElementById('zoomIn').addEventListener('click', ()=>{ mainScope.o.pb = Math.min(30, mainScope.o.pb+3); });
+document.getElementById('zoomOut').addEventListener('click', ()=>{ mainScope.o.pb = Math.max(7, mainScope.o.pb-3); });
+
+/* ---------------- §04 原理图（SVG 生成） ---------------- */
+const AR = 'marker-end="url(#ar2)"';
+document.getElementById('svgMod').innerHTML = `
+<svg viewBox="0 0 500 172" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono,monospace">
+  <defs><marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path d="M0,0 L10,5 L0,10 z" fill="context-stroke"/></marker></defs>
+  <text x="8" y="84" fill="rgba(140,162,148,.7)" font-size="10">声压</text>
+  <line x1="44" y1="80" x2="66" y2="80" stroke="#34e08a" stroke-width="1.6" ${AR}/>
+  <rect x="70" y="58" width="88" height="44" rx="5" fill="rgba(52,224,138,.06)" stroke="rgba(52,224,138,.5)"/>
+  <text x="114" y="77" text-anchor="middle" fill="#dcebe1" font-size="10.5">膜片 +</text>
+  <text x="114" y="92" text-anchor="middle" fill="#dcebe1" font-size="10.5">预放大</text>
+  <line x1="158" y1="80" x2="182" y2="80" stroke="#34e08a" stroke-width="1.6" ${AR}/>
+  <circle cx="196" cy="80" r="13" fill="rgba(87,216,242,.07)" stroke="rgba(87,216,242,.5)"/>
+  <text x="196" y="85" text-anchor="middle" fill="#57d8f2" font-size="13">Σ</text>
+  <line x1="209" y1="80" x2="228" y2="80" stroke="#34e08a" stroke-width="1.6" ${AR}/>
+  <rect x="232" y="58" width="84" height="44" rx="5" fill="rgba(52,224,138,.06)" stroke="rgba(52,224,138,.5)"/>
+  <text x="274" y="77" text-anchor="middle" fill="#dcebe1" font-size="10.5">积分器 ∫</text>
+  <text x="274" y="92" text-anchor="middle" fill="rgba(140,162,148,.6)" font-size="8.5">误差累积</text>
+  <line x1="316" y1="80" x2="336" y2="80" stroke="#34e08a" stroke-width="1.6" ${AR}/>
+  <rect x="340" y="58" width="96" height="44" rx="5" fill="rgba(255,176,46,.07)" stroke="rgba(255,176,46,.5)"/>
+  <text x="388" y="77" text-anchor="middle" fill="#ffb02e" font-size="10.5">1-bit 量化</text>
+  <text x="388" y="92" text-anchor="middle" fill="rgba(140,162,148,.6)" font-size="8.5">只判正负</text>
+  <line x1="436" y1="80" x2="462" y2="80" stroke="#57d8f2" stroke-width="1.8" ${AR}/>
+  <text x="462" y="62" text-anchor="end" fill="#57d8f2" font-size="10">PDM 1-bit</text>
+  <path d="M448,80 L448,140 L196,140" stroke="rgba(52,224,138,.6)" stroke-width="1.6" fill="none"/>
+  <rect x="238" y="127" width="96" height="26" rx="5" fill="rgba(52,224,138,.06)" stroke="rgba(52,224,138,.45)"/>
+  <text x="286" y="144" text-anchor="middle" fill="#dcebe1" font-size="9.5">1-bit DAC 反馈</text>
+  <path d="M196,140 L196,94" stroke="rgba(52,224,138,.6)" stroke-width="1.6" ${AR}/>
+  <text x="70" y="164" fill="rgba(140,162,148,.5)" font-size="9">环路让密度的低频平均值精确跟随输入，误差被推往高频 → 见右下「噪声整形」</text>
+</svg>`;
+
+document.getElementById('svgEnc').innerHTML = (function(){
+  const M=240, per=260, pw=1.9, x0=14;
+  const bits=[]; let u=0, b=0;
+  for (let i=0;i<M;i++){                       // 慢正弦 → 一阶 ΣΔ 码流
+    const x = (1 + Math.sin(2*Math.PI*i/per)*0.85) / 2;
+    u += x - b; b = u >= 0.5 ? 1 : 0;
+    bits.push(b);
+  }
+  let sine='M'+x0+','+ (46-22*Math.sin(0));
+  for (let x=2; x<=M*pw; x+=2){
+    const t=x/pw, a=Math.sin(2*Math.PI*t/per)*0.85;
+    sine+=' L'+(x0+x)+','+(46-a*22).toFixed(1);
+  }
+  let pdm='', y1=118, y2=150;
+  bits.forEach((b,i)=>{
+    const y=b?y1:y2, xa=x0+i*pw, xb=xa+pw;
+    pdm += (i===0?'M':' L')+xa.toFixed(1)+','+y+' L'+xb.toFixed(1)+','+y;
+  });
+  const xPk=x0+65*pw, xTr=x0+195*pw;
+  return `
+<svg viewBox="0 0 500 172" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono,monospace">
+  <text x="8" y="20" fill="rgba(140,162,148,.6)" font-size="9">模拟输入</text>
+  <path d="${sine}" stroke="#34e08a" stroke-width="1.8" fill="none"/>
+  <line x1="${xPk}" y1="26" x2="${xPk}" y2="100" stroke="rgba(255,100,120,.5)" stroke-dasharray="3 3"/>
+  <line x1="${xTr}" y1="26" x2="${xTr}" y2="100" stroke="rgba(255,100,120,.5)" stroke-dasharray="3 3"/>
+  <text x="${xPk+5}" y="38" fill="#ff6478" font-size="9">密 →「1」成片</text>
+  <text x="${xTr-5}" y="38" fill="#ff6478" font-size="9" text-anchor="end">疏 →「0」成片</text>
+  <text x="8" y="112" fill="rgba(140,162,148,.6)" font-size="9">PDM 码流</text>
+  <path d="${pdm}" stroke="#57d8f2" stroke-width="1.4" fill="none"/>
+  <text x="${x0+8}" y="166" fill="rgba(140,162,148,.5)" font-size="9">密度 ∝ 瞬时幅度：+FS≈全1 · 0≈0101 · −FS≈全0</text>
+</svg>`;
+})();
+
+document.getElementById('svgDec').innerHTML = `
+<svg viewBox="0 0 500 140" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono,monospace">
+  <defs><marker id="ar3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path d="M0,0 L10,5 L0,10 z" fill="context-stroke"/></marker></defs>
+  ${[
+    ['PDM 1-bit', '3.072 Mb/s', 'rgba(87,216,242,.08)','rgba(87,216,242,.5)','#57d8f2', 14],
+    ['CIC 抽取 ↓64', '积分+梳状', 'rgba(52,224,138,.06)','rgba(52,224,138,.5)','#34e08a', 142],
+    ['FIR 整形', '修响应/去镜频', 'rgba(255,176,46,.06)','rgba(255,176,46,.5)','#ffb02e', 270],
+    ['PCM 16-bit', '48 kHz', 'rgba(255,100,120,.06)','rgba(255,100,120,.5)','#ff6478', 398],
+  ].map(([t,s,f,st,fc,x],i,arr)=>`
+    <rect x="${x}" y="34" width="88" height="46" rx="5" fill="${f}" stroke="${st}"/>
+    <text x="${x+44}" y="53" text-anchor="middle" fill="${fc}" font-size="10.5">${t}</text>
+    <text x="${x+44}" y="70" text-anchor="middle" fill="rgba(140,162,148,.65)" font-size="8.5">${s}</text>
+    ${i<arr.length-1?`<line x1="${x+88}" y1="57" x2="${x+118}" y2="57" stroke="rgba(220,235,225,.55)" stroke-width="1.6" marker-end="url(#ar3)"/>`:''}
+  `).join('')}
+  <text x="110" y="110" text-anchor="middle" fill="rgba(87,216,242,.6)" font-size="9">64 个密度位</text>
+  <path d="M110,96 L110,84" stroke="rgba(87,216,242,.5)" stroke-dasharray="2 3"/>
+  <text x="238" y="110" text-anchor="middle" fill="rgba(52,224,138,.6)" font-size="9">平均成 1 个多位值</text>
+  <text x="442" y="110" text-anchor="middle" fill="rgba(255,100,120,.6)" font-size="9">标准 PCM</text>
+  <text x="250" y="130" text-anchor="middle" fill="rgba(140,162,148,.5)" font-size="9">输出可直接进 ALSA / HAL —— 主控 PDM/DFSDM 外设通常已内置整条流水线</text>
+</svg>`;
+
+document.getElementById('svgNs').innerHTML = `
+<svg viewBox="0 0 500 172" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono,monospace">
+  <line x1="30" y1="150" x2="470" y2="150" stroke="rgba(52,224,138,.4)"/>
+  <line x1="30" y1="150" x2="30" y2="16" stroke="rgba(52,224,138,.4)"/>
+  <text x="470" y="164" text-anchor="end" fill="rgba(140,162,148,.5)" font-size="9">频率（对数）→</text>
+  <text x="38" y="30" fill="rgba(140,162,148,.5)" font-size="9">噪声功率</text>
+  <rect x="30" y="16" width="256" height="134" fill="rgba(52,224,138,.05)"/>
+  <line x1="286" y1="16" x2="286" y2="150" stroke="rgba(52,224,138,.5)" stroke-dasharray="3 4"/>
+  <text x="282" y="30" text-anchor="end" fill="rgba(52,224,138,.8)" font-size="9.5">fs/2 音频带内</text>
+  <text x="292" y="30" fill="rgba(140,162,148,.5)" font-size="9">带外（被丢弃）</text>
+  <line x1="30" y1="96" x2="470" y2="96" stroke="rgba(255,100,120,.5)" stroke-dasharray="5 4"/>
+  <text x="466" y="90" text-anchor="end" fill="rgba(255,100,120,.7)" font-size="9.5">1-bit 量化噪声（未整形）</text>
+  <path d="M30,116 C120,124 220,128 286,118 C350,106 410,64 466,24" stroke="#ffb02e" stroke-width="2" fill="none"/>
+  <text x="380" y="52" fill="#ffb02e" font-size="9.5">ΣΔ 噪声整形（+12 dB/oct）</text>
+  <line x1="70" y1="104" x2="70" y2="126" stroke="#34e08a" stroke-width="3"/>
+  <text x="70" y="140" text-anchor="middle" fill="#34e08a" font-size="9.5">信号</text>
+  <text x="160" y="70" fill="rgba(52,224,138,.7)" font-size="9">带内：噪声被压低 → 高 SNR</text>
+</svg>`;
+
+/* ---------------- §05 立体声接线图 ---------------- */
+document.getElementById('stDiagram').innerHTML = `
+<svg viewBox="0 0 520 280" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono,monospace">
+  <defs><marker id="ar5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path d="M0,0 L10,5 L0,10 z" fill="context-stroke"/></marker></defs>
+  <rect x="14" y="70" width="150" height="140" rx="8" fill="rgba(52,224,138,.05)" stroke="rgba(52,224,138,.5)"/>
+  <text x="89" y="102" text-anchor="middle" fill="#34e08a" font-size="15" font-weight="600">SoC</text>
+  <text x="89" y="122" text-anchor="middle" fill="rgba(140,162,148,.8)" font-size="10">PDM 控制器</text>
+  <text x="89" y="190" text-anchor="middle" fill="rgba(140,162,148,.55)" font-size="9">内置 CIC ÷64 抽取</text>
+  <rect x="340" y="16" width="168" height="86" rx="8" fill="rgba(87,216,242,.05)" stroke="rgba(87,216,242,.45)"/>
+  <text x="424" y="44" text-anchor="middle" fill="#57d8f2" font-size="14" font-weight="600">DMIC · 左</text>
+  <text x="424" y="64" text-anchor="middle" fill="rgba(140,162,148,.8)" font-size="9.5">L/R ⟶ GND</text>
+  <text x="424" y="82" text-anchor="middle" fill="rgba(140,162,148,.55)" font-size="9">下降沿更新数据</text>
+  <rect x="340" y="178" width="168" height="86" rx="8" fill="rgba(255,176,46,.05)" stroke="rgba(255,176,46,.4)"/>
+  <text x="424" y="206" text-anchor="middle" fill="#ffb02e" font-size="14" font-weight="600">DMIC · 右</text>
+  <text x="424" y="226" text-anchor="middle" fill="rgba(140,162,148,.8)" font-size="9.5">L/R ⟶ VDD</text>
+  <text x="424" y="244" text-anchor="middle" fill="rgba(140,162,148,.55)" font-size="9">上升沿更新数据</text>
+  <path d="M164,110 L250,110 L250,52 L340,52" stroke="#34e08a" stroke-width="2" fill="none" marker-end="url(#ar5)"/>
+  <path d="M164,110 L250,110 L250,228 L340,228" stroke="#34e08a" stroke-width="2" fill="none" marker-end="url(#ar5)"/>
+  <text x="258" y="98" fill="#34e08a" font-size="10.5" font-weight="600">CLK</text>
+  <text x="258" y="126" fill="rgba(140,162,148,.6)" font-size="8.5">1.2–3.25 MHz · 45–55%</text>
+  <path d="M340,74 L215,74 L215,150 L164,150" stroke="#57d8f2" stroke-width="2" fill="none" marker-end="url(#ar5)"/>
+  <path d="M340,206 L215,206 L215,150" stroke="#ffb02e" stroke-width="1.8" fill="none"/>
+  <text x="277" y="68" text-anchor="middle" fill="#57d8f2" font-size="10" font-weight="600">DATA · 左时隙</text>
+  <text x="277" y="200" text-anchor="middle" fill="#ffb02e" font-size="10" font-weight="600">DATA · 右时隙</text>
+  <line x1="190" y1="150" x2="190" y2="118" stroke="rgba(140,162,148,.7)" stroke-width="1.4"/>
+  <text x="196" y="128" fill="rgba(140,162,148,.8)" font-size="8.5">R 上拉 3V3</text>
+  <text x="260" y="272" text-anchor="middle" fill="rgba(140,162,148,.5)" font-size="9.5">两支麦克风轮流驱动同一根 DATA · 接收端按 ↑↓ 两个沿分离左右声道</text>
+</svg>`;
+
+/* ---------------- §06 计算器 ---------------- */
+function fmtHz(v){
+  if (v >= 1e6) return [(v/1e6).toFixed(3).replace(/0+$/,'').replace(/\.$/,''), 'MHz'];
+  if (v >= 1e3) return [(v/1e3).toFixed(2).replace(/0+$/,'').replace(/\.$/,''), 'kHz'];
+  return [v, 'Hz'];
+}
+function calc(){
+  const f = +document.getElementById('cClk').value;
+  const R = +document.getElementById('cDec').value;
+  const fs = f / R;
+  const put = (id,v)=>{ const [n,u]=fmtHz(v); document.getElementById(id).innerHTML = n+'<small>'+u+'</small>'; };
+  put('oFs', fs); put('oRate', f); put('oBw', fs/2);
+  document.getElementById('oPer').innerHTML = (1e9/f).toFixed(1) + '<small>ns</small>';
+  const fm = (v)=> (v/1e6).toFixed(3).replace(/0+$/,'').replace(/\.$/,'');
+  document.getElementById('fExpr').textContent =
+    `${fm(f)} MHz ÷ ${R} = ${fs%1000? (fs/1000).toFixed(1) : fs/1000} kHz`;
+}
+document.getElementById('cClk').addEventListener('change', calc);
+document.getElementById('cDec').addEventListener('change', calc);
+calc();
+
+/* ---------------- 命令点击复制（事件委托，覆盖动态生成的节点） ---------------- */
+const escHtml = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+  .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+document.addEventListener('click', async e=>{
+  const el = e.target.closest('.t-cmd');
+  if (!el) return;
+  const txt = el.dataset.copy || el.textContent;
+  let okFlag = false;
+  try { await navigator.clipboard.writeText(txt); okFlag = true; }
+  catch {
+    const ta = document.createElement('textarea');
+    ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { okFlag = document.execCommand('copy'); } catch {}
+    ta.remove();
+  }
+  const old = el.textContent;
+  el.classList.add('copied');
+  el.textContent = okFlag ? '已复制 ✓' : '复制失败';
+  setTimeout(()=>{ el.classList.remove('copied'); el.textContent = old; }, 900);
+});
+
+/* ---------------- §08 六步调试流程（Linux / Android 对照） ---------------- */
+const DBG = [
+  { t:'时钟 · 物理层',
+    v:'<b>判读：</b>PDM 麦克风无时钟即无输出。量 CLK 脚：完全不动 → 外设没使能/引脚复用没生效；频率或占空比出界（应 1.2–3.25 MHz、45–55%）→ 麦克风拒绝工作或指标劣化。录音时才有时钟是正常的。',
+    ln:[['cmt','# 示波器 / 逻辑分析仪量 CLK 与 DATA（保持录音状态）'],
+        ['cmd','sudo dmesg | grep -iE "pdm|dmic|sound"'],
+        ['cmt','# 期望值：CLK = fs × 64（06 节计算器）'],
+        ['cmt','# DATA 应持续翻转；平坦 → 有时钟没数据，跳到第 2 步']],
+    an:[['cmt','# userdebug 版先提权，否则 dmesg 不完整'],
+        ['cmd','adb root && adb shell dmesg | grep -iE "pdm|dmic|asoc|snd"'],
+        ['cmt','# 同样量 CLK/DATA；Android 常见坑：HAL 没起，'],
+        ['cmt','# 控制器 ready 但没人打开 PCM —— 看第 2 步的 lshal']] },
+  { t:'数据线 · 电平',
+    v:'<b>判读：</b>DATA 恒 0 / 恒 1 → 上拉缺失或时钟停止后的高阻被固定读值；立体声下波形在半周期边界「打架」毛刺 → 两支麦克风驱动了同一个沿（L/R 接成一样）。静音时正确形态是 0101 中位码型。',
+    ln:[['cmt','# 量 DATA 直流电平：应被上拉到高，而非浮空/贴地'],
+        ['cmt','# 检查原理图：两支麦克风 L/R 一支接 GND、一支接 VDD'],
+        ['cmt','# 检查主控只采的声道与麦克风 L/R 配置是否对上']],
+    an:[['cmt','# Android 没有 i2c-tools，硬件检查同左（示波器）'],
+        ['cmd','adb shell ls -l /dev/snd/'],
+        ['cmt','# 应有 pcmC*D*c（capture）节点；没有 → 板级没使能'],
+        ['cmd','adb shell lshal | grep -i audio'],
+        ['cmt','# 确认 android.hardware.audio 服务在运行']] },
+  { t:'注册 · 找到声卡',
+    v:'<b>判读：</b>看不到声卡 → 设备树/overlay 没生效、dmic-codec 与 PDM 控制器没连上（07 节 DTS）；Android 还要求 audio HAL 在跑——HAL 死了 /dev/snd 再正常也没声。',
+    ln:[['cmd','cat /proc/asound/cards'],
+        ['cmt','# 应能看到 dmic 声卡（card 1: ...）'],
+        ['cmd','dmesg | grep -iE "asoc|registered"'],
+        ['out','asoc-simple-card dmic-sound: mapping ok'],
+        ['cmt','# 没有这行 → 检查 DTS 的 status 与 endpoint 连接']],
+    an:[['cmd','adb shell cat /proc/asound/cards'],
+        ['cmd','adb shell tinypcminfo -D 0 -d 0'],
+        ['cmt','# 该 PCM 支持的采样率/格式/声道范围'],
+        ['cmt','# 打不开设备 → 看 and-note 的 input profile 问题']] },
+  { t:'参数 · fs = CLK÷64',
+    v:'<b>判读：</b>hw_params 只在录音进行中才有内容。反推验证：rate × 64 应等于时钟树上配的 PDM CLK；对不上 = 时钟分频错，症状是变调（09 节）。',
+    ln:[['cmt','# 录音中执行（pcm0c = capture）'],
+        ['cmd','cat /proc/asound/card1/pcm0c/sub0/hw_params'],
+        ['out','format: S16_LE      rate: 48000      channels: 2'],
+        ['cmt','# 48000 × 64 = 3.072 MHz，拿示波器对！'],
+        ['cmd','cat /proc/asound/card1/pcm0c/sub0/status'],
+        ['cmt','# state 应为 RUNNING；xrun 增长 = 供给不上']],
+    an:[['cmt','# Android 的格式声明在 HAL 配置里（vendor 分区）'],
+        ['cmd','adb shell "grep -iE \'samplingRates|format\' /vendor/etc/audio_policy_configuration.xml | head"'],
+        ['out','samplingRates="48000" format="AUDIO_FORMAT_PCM_16_BIT"'],
+        ['cmd','adb shell dumpsys media.audio_flinger | grep -iE "sample rate|format" | head'],
+        ['cmt','# 运行时实际参数以 dumpsys 为准']] },
+  { t:'数据 · 录音验证',
+    v:'<b>判读：</b>录 5 秒先看波形：静音段应贴零点小幅抖动（中位码型）；恒 0/满幅 → 回第 2 步；整体浮在零线上方 → DC 偏移，开高通滤波控件。能录通再谈音质。',
+    ln:[['cmd','arecord -D hw:1,0 -f S16_LE -r 48000 -c 2 /tmp/m.wav -d 5'],
+        ['cmd','aplay /tmp/m.wav'],
+        ['cmt','# 或 sox /tmp/m.wav -n spectrogram -o mic.png 看频谱'],
+        ['cmt','# 对着麦克风说话：电平应明显起伏；左右分别测'],
+        ['cmt','# 录音通、放音不通 → 只查输出方向，与 DMIC 无关']],
+    an:[['cmd','adb shell tinycap /sdcard/m.wav -D 0 -d 0 -c 2 -r 48000 -b 16'],
+        ['cmt','# 按 Ctrl-C 停止后：'],
+        ['cmd','adb pull /sdcard/m.wav'],
+        ['cmt','# 拖进 audacity 看波形/频谱，判读同左']] },
+  { t:'对齐 · 声道与路由',
+    v:'<b>判读：</b>「左右互换」= L/R 引脚接反，交换接线或声道映射即可；Android 还要多对一层：DTS 声道数 ↔ audio_policy 的 input profile ↔ mixer_paths 的 DMIC 路由，任何一层断开都是「一切正常但全零」。',
+    ln:[['cmt','# ① DTS: num-channels 与实际麦克风数一致'],
+        ['cmt','# ② 声道映射：部分平台可在 pdm 节点配 channel mapping'],
+        ['cmd','dmesg | grep -iE "pdm|channel"'],
+        ['cmt','# ③ 应用请求的参数（hw_params）——三处一致再谈音质']],
+    an:[['cmt','# Android 三层：内核 DTS ↔ HAL profile ↔ QCOM 路由表'],
+        ['cmd','adb shell grep -i dmic /vendor/etc/audio_policy_configuration.xml'],
+        ['cmd','adb shell "head -50 /vendor/etc/mixer_paths.xml"'],
+        ['cmt','# 检查 input profile 与 DMIC 通道路由是否打开'],
+        ['cmt','# 改完 reboot，别依赖热重载']] },
+];
+(function initDbg(){
+  const stepsEl = document.getElementById('dbgSteps');
+  const verdict = document.getElementById('dbgVerdict');
+  const bodyL = document.getElementById('dbgBodyL');
+  const bodyA = document.getElementById('dbgBodyA');
+  const clsMap = { out:'t-out', cmt:'t-cmt', hl:'t-hl', tag:'t-tag' };
+  const render = lines => lines.map(([k,txt])=>{
+    if (k === 'cmd')
+      return `<div><span class="t-ps">$ </span><code class="t-cmd" data-copy="${escHtml(txt)}">${escHtml(txt)}</code></div>`;
+    return `<div class="${clsMap[k]||'t-out'}">${escHtml(txt)}</div>`;
+  }).join('');
+  const select = idx => {
+    stepsEl.querySelectorAll('.dbg-step').forEach((b,i)=>b.classList.toggle('on', i===idx));
+    const d = DBG[idx];
+    verdict.innerHTML = d.v;
+    bodyL.innerHTML = render(d.ln);
+    bodyA.innerHTML = render(d.an);
+  };
+  DBG.forEach((d,i)=>{
+    const b = document.createElement('button');
+    b.className = 'dbg-step'; b.type = 'button';
+    b.innerHTML = `<span class="n">${String(i+1).padStart(2,'0')}</span><span>${d.t}</span>`;
+    b.addEventListener('click', ()=>select(i));
+    stepsEl.appendChild(b);
+  });
+  select(0);
+})();
+
+/* ---------------- 滚动显现 ---------------- */
+const io = new IntersectionObserver(es=>es.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target);} }),{threshold:.12});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+</body>
+</html>
