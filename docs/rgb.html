@@ -1,0 +1,1766 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RGB 并行显示接口 · 交互式图解</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%23070b09'/><rect x='4' y='6' width='6' height='20' fill='%23ff6478'/><rect x='13' y='6' width='6' height='20' fill='%2334e08a'/><rect x='22' y='6' width='6' height='20' fill='%2357d8f2'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#070b09;
+  --bg2:#0a100c;
+  --panel:#0d1510;
+  --panel2:#101a13;
+  --line:#1d2c22;
+  --line2:#27392d;
+  --ink:#dcebe1;
+  --dim:#8aa294;
+  --faint:#5c7264;
+  --green:#34e08a;
+  --green-dim:#1d8a55;
+  --amber:#ffb02e;
+  --cyan:#57d8f2;
+  --red:#ff6478;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --disp:'Chakra Petch','Noto Sans SC',sans-serif;
+  --sans:'Noto Sans SC',-apple-system,sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box} html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--sans);
+  font-weight:300;
+  line-height:1.8;
+  letter-spacing:.01em;
+  overflow-x:hidden;
+}
+/* 全局网格纸背景 */
+body::before{
+  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:
+    linear-gradient(rgba(52,224,138,.028) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(52,224,138,.028) 1px,transparent 1px),
+    linear-gradient(rgba(52,224,138,.014) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(52,224,138,.014) 1px,transparent 1px);
+  background-size:120px 120px,120px 120px,24px 24px,24px 24px;
+}
+body::after{ /* 轻微暗角 */
+  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(ellipse 120% 90% at 50% 0%,transparent 60%,rgba(0,0,0,.5));
+}
+main{position:relative;z-index:1} ::selection{background:rgba(52,224,138,.3)}
+
+/* ============ 导航 ============ */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  background:rgba(7,11,9,.85);backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--line);
+}
+.nav-in{
+  display:flex;align-items:center;gap:16px;
+  height:52px;max-width:1560px;margin:0 auto;padding:0 26px;
+}
+.brand{font-family:var(--disp);font-weight:700;font-size:17px;color:var(--green);letter-spacing:.04em;white-space:nowrap} .brand b{color:var(--amber)}
+nav a{
+  color:var(--dim);text-decoration:none;font-size:12.5px;
+  font-family:var(--mono);letter-spacing:.05em;
+  transition:color .2s;
+}
+nav a:hover{color:var(--green)} .nav-links{display:flex;gap:4px;white-space:nowrap}
+/* ---- 跨页导航（可横向滚动） ---- */
+.nav-x{
+  display:flex;gap:6px;margin-left:4px;padding-left:16px;
+  border-left:1px solid var(--line);white-space:nowrap;
+  overflow-x:auto;scrollbar-width:none;flex:1;min-width:0;
+}
+.nav-x::-webkit-scrollbar{display:none}
+.nav-x a{
+  display:inline-block;font-size:11px;letter-spacing:.08em;
+  color:var(--dim);padding:5px 10px;border:1px solid var(--line);border-radius:3px;
+  flex:none;
+}
+.nav-x a:hover{color:var(--green);border-color:rgba(52,224,138,.45)}
+.nav .live{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11px;color:var(--faint);white-space:nowrap}
+.nav .live i{width:7px;height:7px;border-radius:50%;background:var(--green);animation:blink 1.6s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+
+/* ============ Hero ============ */
+.hero{
+  min-height:92vh;display:flex;flex-direction:column;justify-content:center;
+  padding:110px 6vw 40px;position:relative;
+}
+.hero .eyebrow{
+  font-family:var(--mono);font-size:12px;color:var(--amber);
+  letter-spacing:.32em;margin-bottom:22px;
+  display:flex;align-items:center;gap:14px;
+}
+.hero .eyebrow::before{content:"";width:44px;height:1px;background:var(--amber)}
+.hero h1{
+  font-family:var(--disp);font-weight:700;
+  font-size:clamp(52px,10vw,132px);
+  line-height:.95;letter-spacing:-.01em;
+  color:var(--ink);
+}
+.hero h1 sup{color:var(--green);font-size:.55em}
+.hero h1 .zh{
+  display:block;font-family:var(--sans);font-weight:300;
+  font-size:clamp(17px,2.3vw,28px);color:var(--dim);
+  letter-spacing:.4em;margin-top:18px;
+}
+.hero p.lede{
+  max-width:660px;margin-top:32px;font-size:16px;color:var(--dim);
+}
+.hero p.lede b{color:var(--ink);font-weight:500} .hero .chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:28px}
+.hero .chips span{
+  font-family:var(--mono);font-size:11.5px;padding:5px 12px;
+  border:1px solid var(--line2);border-radius:3px;color:var(--dim);
+  background:rgba(13,21,16,.6);
+}
+.hero .chips span b{color:var(--green);font-weight:500} .hero .hero-cta{display:flex;gap:14px;flex-wrap:wrap;margin-top:30px}
+.btn{
+  font-family:var(--disp);font-weight:600;font-size:14.5px;letter-spacing:.06em;
+  padding:11px 24px;border-radius:6px;text-decoration:none;
+  transition:transform .2s,box-shadow .2s,border-color .2s;cursor:pointer;
+}
+.btn.primary{color:#052013;background:var(--green);box-shadow:0 0 22px rgba(52,224,138,.3)}
+.btn.primary:hover{transform:translateY(-2px);box-shadow:0 6px 28px rgba(52,224,138,.45)}
+.btn.ghost{color:var(--ink);border:1px solid var(--line2);background:rgba(16,26,19,.5)}
+.btn.ghost:hover{border-color:rgba(52,224,138,.4);color:var(--green)}
+.hero-schema{
+  margin-top:44px;border:1px solid var(--line);border-radius:6px;
+  overflow:hidden;background:rgba(9,14,11,.75);position:relative;
+}
+.hero-schema::after{ /* 扫描线 */
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.16) 3px 4px);
+}
+.hero-schema svg{width:100%;height:auto;display:block}
+.hero-caption{
+  font-family:var(--mono);font-size:11px;color:var(--faint);margin-top:10px;letter-spacing:.06em;
+}
+.hero .scroll-hint{
+  margin-top:36px;font-family:var(--mono);font-size:11px;color:var(--faint);
+  letter-spacing:.2em;display:flex;align-items:center;gap:10px;
+}
+.hero .scroll-hint svg{animation:bounce 1.8s infinite}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(6px)}}
+/* hero svg 内部动效 */
+.flow{stroke-dasharray:5 5;animation:dashmove .7s linear infinite}
+@keyframes dashmove{to{stroke-dashoffset:-10}}
+.flow-slow{stroke-dasharray:7 7;animation:dashmove 1.6s linear infinite}
+
+/* ============ 通用 section ============ */
+section{padding:96px 6vw;max-width:1280px;margin:0 auto;position:relative} .sec-head{display:flex;align-items:baseline;gap:20px;margin-bottom:16px}
+.sec-head .no{
+  font-family:var(--mono);font-size:13px;color:var(--green);
+  letter-spacing:.1em;border:1px solid var(--green-dim);
+  padding:3px 10px;border-radius:3px;white-space:nowrap;
+}
+.sec-head h2{
+  font-family:var(--disp);font-weight:600;font-size:clamp(26px,3.6vw,40px);
+  letter-spacing:.01em;
+}
+.sec-head .en{
+  font-family:var(--mono);font-size:12px;color:var(--faint);letter-spacing:.24em;
+  text-transform:uppercase;margin-left:auto;white-space:nowrap;
+}
+.sec-sub{color:var(--dim);max-width:780px;margin-bottom:44px;font-size:15px} .sec-sub b{color:var(--ink);font-weight:500}
+.reveal{opacity:0;transform:translateY(26px);transition:opacity .7s ease,transform .7s ease} .reveal.in{opacity:1;transform:none}
+
+/* ============ §01 是什么 ============ */
+.two-col{display:grid;grid-template-columns:1.25fr .9fr;gap:44px;align-items:start}
+.prose p{margin-bottom:18px;color:var(--dim);font-size:15px} .prose p b{color:var(--ink);font-weight:500}
+.prose .kw{color:var(--green);font-family:var(--mono);font-size:.92em} .prose .kw2{color:var(--amber);font-family:var(--mono);font-size:.92em}
+.cmp-table{width:100%;border-collapse:collapse;font-size:13px}
+.cmp-table th{
+  font-family:var(--mono);font-weight:500;color:var(--faint);text-align:left;
+  padding:9px 12px;border-bottom:1px solid var(--line2);font-size:11.5px;letter-spacing:.06em;
+}
+.cmp-table td{
+  padding:10px 12px;border-bottom:1px solid var(--line);color:var(--dim);vertical-align:top;
+}
+.cmp-table td:first-child{color:var(--ink);font-weight:400;white-space:nowrap} .cmp-table .yes{color:var(--green)} .cmp-table .no{color:var(--red)}
+.fact-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:36px}
+.fact{
+  border:1px solid var(--line);border-radius:6px;padding:20px 20px 18px;
+  background:linear-gradient(160deg,var(--panel) 0%,rgba(13,21,16,.4) 100%);
+  transition:border-color .25s,transform .25s;
+}
+.fact:hover{border-color:var(--green-dim);transform:translateY(-3px)}
+.fact .f-no{font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.14em}
+.fact h4{font-family:var(--disp);font-size:16.5px;font-weight:600;margin:8px 0 8px}
+.fact h4 code{font-family:var(--mono);font-size:.85em;color:var(--green)} .fact p{font-size:12.8px;color:var(--dim);line-height:1.7}
+
+/* ============ §02 信号 / 拓扑 ============ */
+.topo{
+  border:1px solid var(--line);border-radius:8px;background:var(--panel);
+  padding:24px 24px 16px;margin-bottom:26px;overflow:hidden;
+}
+.topo svg{width:100%;height:auto;display:block}
+.topo .cap{font-family:var(--mono);font-size:11px;color:var(--faint);margin-top:10px;letter-spacing:.05em}
+.sig-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+.sig-card{
+  border:1px solid var(--line);border-radius:8px;overflow:hidden;
+  background:var(--panel);display:flex;flex-direction:column;
+  transition:border-color .25s;
+}
+.sig-card:hover{border-color:var(--line2)} .sig-card .scope{background:#080d0a;border-bottom:1px solid var(--line);position:relative}
+.sig-card .scope::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.18) 3px 4px);
+}
+.sig-card canvas{display:block;width:100%} .sig-card .body{padding:20px 22px 22px}
+.sig-card .names{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.sig-card .names .main{font-family:var(--disp);font-size:21px;font-weight:600}
+.sig-card .names .alias{font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.06em}
+.sig-card .names .pin{
+  margin-left:auto;font-family:var(--mono);font-size:10px;letter-spacing:.1em;
+  padding:2px 8px;border-radius:3px;
+}
+.sig-card p{font-size:13px;color:var(--dim);margin-top:10px;line-height:1.75} .sig-card p b{color:var(--ink);font-weight:500}
+.sig-card .formula{
+  font-family:var(--mono);font-size:12px;color:var(--green);
+  margin-top:12px;padding:8px 12px;background:rgba(52,224,138,.06);
+  border-left:2px solid var(--green-dim);border-radius:0 3px 3px 0;
+}
+.c-clk .main,.c-clk .pin{color:var(--green)} .c-clk .pin{background:rgba(52,224,138,.1);border:1px solid var(--green-dim)}
+.c-sync .main,.c-sync .pin{color:var(--cyan)} .c-sync .pin{background:rgba(87,216,242,.08);border:1px solid rgba(87,216,242,.3)}
+.c-de .main,.c-de .pin{color:var(--amber)} .c-de .pin{background:rgba(255,176,46,.08);border:1px solid rgba(255,176,46,.35)}
+.c-dat .main,.c-dat .pin{color:var(--red)} .c-dat .pin{background:rgba(255,100,120,.08);border:1px solid rgba(255,100,120,.3)}
+
+/* ============ §03 帧扫描实验室 ============ */
+.lab{
+  border:1px solid var(--line);border-radius:10px;background:var(--panel);
+  overflow:hidden;
+}
+.lab-bar{
+  display:flex;flex-wrap:wrap;align-items:center;gap:18px;
+  padding:16px 20px;border-bottom:1px solid var(--line);background:rgba(10,16,12,.7);
+}
+.ctrl{display:flex;align-items:center;gap:9px} .ctrl label{font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.1em}
+.seg{display:flex;border:1px solid var(--line2);border-radius:5px;overflow:hidden}
+.seg button{
+  font-family:var(--mono);font-size:12px;padding:7px 13px;border:none;cursor:pointer;
+  background:transparent;color:var(--dim);border-right:1px solid var(--line2);
+  transition:all .18s;letter-spacing:.02em;
+}
+.seg button:last-child{border-right:none} .seg button:hover{color:var(--ink);background:rgba(52,224,138,.06)}
+.seg button.on{background:var(--green);color:#052013;font-weight:600}
+.icon-btn{
+  height:32px;min-width:32px;padding:0 10px;border:1px solid var(--line2);border-radius:5px;background:transparent;
+  color:var(--dim);cursor:pointer;font-family:var(--mono);font-size:12.5px;
+  transition:all .18s;display:flex;align-items:center;justify-content:center;
+}
+.icon-btn:hover{color:var(--green);border-color:var(--green-dim)}
+.icon-btn.play.on{color:var(--green);border-color:var(--green-dim);background:rgba(52,224,138,.08)}
+input[type=range]{
+  -webkit-appearance:none;width:120px;height:2px;background:var(--line2);border-radius:2px;outline:none;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--green);
+  cursor:pointer;box-shadow:0 0 8px rgba(52,224,138,.5);
+}
+.lab-body{display:grid;grid-template-columns:1fr 268px;gap:0} .scope-main{position:relative;background:#080d0a;min-width:0}
+.scope-main::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.14) 3px 4px);
+}
+.scope-main canvas{display:block;width:100%}
+.readout{
+  border-left:1px solid var(--line);background:#0a110d;
+  padding:18px 18px 14px;display:flex;flex-direction:column;gap:0;min-width:0;
+}
+.readout .r-title{
+  font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.22em;
+  margin-bottom:14px;display:flex;align-items:center;gap:8px;
+}
+.readout .r-title::before{content:"";width:6px;height:6px;background:var(--red);border-radius:50%;animation:blink 1.4s infinite}
+.r-row{
+  display:flex;justify-content:space-between;align-items:baseline;
+  font-family:var(--mono);padding:7px 0;border-bottom:1px dashed var(--line);
+}
+.r-row .k{font-size:11px;color:var(--faint);letter-spacing:.08em} .r-row .v{font-size:13px;color:var(--ink);text-align:right}
+.r-row .v.g{color:var(--green)} .r-row .v.a{color:var(--amber)} .r-row .v.c{color:var(--cyan)}
+.r-note{font-size:11px;color:var(--faint);line-height:1.65;margin-top:12px;font-family:var(--mono)} .r-note b{color:var(--dim);font-weight:500}
+.lab-foot{
+  padding:14px 20px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:10px 28px;
+  background:rgba(10,16,12,.6);
+}
+.legend{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;color:var(--dim)}
+.legend i{width:18px;height:2px;border-radius:2px}
+.rule-callout{
+  margin-top:26px;display:grid;grid-template-columns:auto 1fr;gap:22px;align-items:center;
+  border:1px solid rgba(255,176,46,.3);border-radius:8px;padding:20px 26px;
+  background:linear-gradient(120deg,rgba(255,176,46,.06),transparent 60%);
+}
+.rule-callout .mnemonic{
+  font-family:var(--disp);font-weight:700;font-size:clamp(17px,2.4vw,24px);
+  color:var(--amber);letter-spacing:.06em;white-space:nowrap;
+}
+.rule-callout .mnemonic small{display:block;font-size:11px;font-weight:500;color:var(--faint);letter-spacing:.24em;margin-top:6px;font-family:var(--mono)}
+.rule-callout p{font-size:13.5px;color:var(--dim)} .rule-callout p b{color:var(--ink);font-weight:500}
+
+/* ============ §04 porch 实验室 ============ */
+.pl-grid{display:grid;grid-template-columns:340px 1fr;gap:18px;align-items:start}
+.pl-panel{border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:20px 22px}
+.pl-panel h5{font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.22em;margin-bottom:6px}
+.pl-group{font-family:var(--disp);font-size:14px;font-weight:600;margin:14px 0 4px;display:flex;align-items:center;gap:8px}
+.pl-group i{width:8px;height:8px;border-radius:2px} .pl-row{display:grid;grid-template-columns:96px 1fr 52px;gap:10px;align-items:center;margin:9px 0}
+.pl-row label{font-family:var(--mono);font-size:11px;color:var(--dim)} .pl-row input[type=range]{width:100%}
+.pl-row .val{font-family:var(--mono);font-size:12px;color:var(--ink);text-align:right}
+.pl-row .val small{color:var(--faint);font-size:10px} .presets{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.presets button{
+  font-family:var(--mono);font-size:11.5px;padding:6px 11px;border:1px solid var(--line2);
+  border-radius:5px;background:transparent;color:var(--dim);cursor:pointer;transition:all .18s;
+}
+.presets button:hover{color:var(--green);border-color:var(--green-dim)}
+.presets button.on{background:var(--green);color:#052013;font-weight:600;border-color:var(--green)}
+.pl-view{border:1px solid var(--line);border-radius:8px;background:#080d0a;padding:14px} .pl-view svg{width:100%;height:auto;display:block}
+.pl-nums{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;margin-top:12px}
+.pl-nums .cell{
+  background:rgba(10,17,13,.9);border:1px solid var(--line);border-radius:5px;
+  padding:9px 12px;text-align:left;
+}
+.pl-nums .cell small{display:block;font-family:var(--mono);font-size:9.5px;color:var(--faint);letter-spacing:.1em}
+.pl-nums .cell b{font-family:var(--mono);font-size:16px;font-weight:600;color:var(--green)}
+.pl-nums .cell.a b{color:var(--amber)} .pl-nums .cell.c b{color:var(--cyan)}
+.pl-table{width:100%;border-collapse:collapse;font-size:12.3px;margin-top:30px}
+.pl-table th{
+  font-family:var(--mono);font-weight:500;color:var(--faint);text-align:left;
+  padding:9px 12px;border-bottom:1px solid var(--line2);font-size:11px;letter-spacing:.08em;
+}
+.pl-table td{padding:10px 12px;border-bottom:1px solid var(--line);color:var(--dim);vertical-align:top;font-family:var(--mono)}
+.pl-table td:first-child{color:var(--ink)} .pl-table tr[data-p]{cursor:pointer;transition:background .15s}
+.pl-table tr[data-p]:hover{background:rgba(52,224,138,.05)} .pl-table tr.on td{background:rgba(52,224,138,.08);color:var(--ink)}
+.pl-table tr.on td:first-child{color:var(--green)}
+
+/* ============ §05 模式对比 ============ */
+.mode-wrap{border:1px solid var(--line);border-radius:8px;background:var(--panel);overflow:hidden}
+.mode-head{
+  display:flex;flex-wrap:wrap;align-items:center;gap:18px;
+  padding:16px 20px;border-bottom:1px solid var(--line);background:rgba(10,16,12,.7);
+}
+.mode-wrap svg{width:100%;height:auto;display:block;background:#080d0a}
+.mode-note{font-size:12.8px;color:var(--dim);padding:14px 20px 18px;border-top:1px solid var(--line);line-height:1.75}
+.mode-note b{color:var(--ink);font-weight:500} .eq-table{width:100%;border-collapse:collapse;font-size:12.6px;margin-top:30px}
+.eq-table th{
+  font-family:var(--mono);font-weight:500;color:var(--faint);text-align:left;
+  padding:9px 12px;border-bottom:1px solid var(--line2);font-size:11px;letter-spacing:.08em;
+}
+.eq-table td{padding:10px 12px;border-bottom:1px solid var(--line);color:var(--dim);vertical-align:top}
+.eq-table td:first-child{color:var(--ink);white-space:nowrap}
+.eq-table td code{font-family:var(--mono);font-size:11.5px;color:var(--cyan);word-break:break-all}
+.fmt-note{
+  margin-top:26px;padding:18px 22px;border-left:2px solid var(--red);
+  background:rgba(255,100,120,.05);border-radius:0 6px 6px 0;font-size:13.5px;color:var(--dim);
+}
+.fmt-note b{color:var(--red);font-weight:500} .fmt-note code{font-family:var(--mono);font-size:.9em;color:var(--amber)}
+.lnx-note{
+  margin-top:26px;padding:18px 22px;border-left:2px solid var(--cyan);
+  background:rgba(87,216,242,.05);border-radius:0 6px 6px 0;font-size:13.5px;color:var(--dim);
+}
+.lnx-note b{color:var(--cyan);font-weight:500} .lnx-note code{font-family:var(--mono);font-size:.9em;color:var(--amber)}
+
+/* ============ §06 像素格式 ============ */
+.fmt-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.fmt-card{border:1px solid var(--line);border-radius:8px;background:var(--panel);overflow:hidden}
+.fmt-card .fh{
+  display:flex;align-items:baseline;gap:12px;padding:16px 20px 12px;border-bottom:1px solid var(--line);
+}
+.fmt-card .fh .tag{
+  font-family:var(--mono);font-size:10px;letter-spacing:.14em;padding:3px 8px;border-radius:3px;
+}
+.fmt-card .fh h4{font-family:var(--disp);font-size:16.5px;font-weight:600}
+.fmt-card .fh .en{font-family:var(--mono);font-size:10px;color:var(--faint);margin-left:auto}
+.fmt-card svg{display:block;width:100%;height:auto;background:#080d0a}
+.fmt-card .fb{padding:12px 20px 16px;font-size:12.3px;color:var(--dim);line-height:1.7} .fmt-card .fb b{color:var(--ink);font-weight:500}
+.t-888 .tag{color:var(--red);border:1px solid rgba(255,100,120,.35);background:rgba(255,100,120,.06)}
+.t-666 .tag{color:var(--amber);border:1px solid rgba(255,176,46,.35);background:rgba(255,176,46,.06)}
+.t-565 .tag{color:var(--cyan);border:1px solid rgba(87,216,242,.3);background:rgba(87,216,242,.06)}
+.post-bar{display:flex;flex-wrap:wrap;align-items:center;gap:18px;margin:30px 0 10px}
+.post-cv{width:100%;height:110px;border:1px solid var(--line);border-radius:6px;background:#080d0a;display:block}
+.post-cap{font-family:var(--mono);font-size:11px;color:var(--faint);margin-top:8px;letter-spacing:.05em}
+
+/* ============ §07 计算器 ============ */
+.calc{
+  border:1px solid var(--line);border-radius:10px;background:var(--panel);
+  display:grid;grid-template-columns:1fr 1fr;overflow:hidden;
+}
+.calc .inputs{padding:30px 32px;border-right:1px solid var(--line)} .calc .outputs{padding:30px 32px;background:#0a110d}
+.calc h5{font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.22em;margin-bottom:18px} .field{margin-bottom:18px}
+.field label{display:block;font-family:var(--mono);font-size:11.5px;color:var(--dim);margin-bottom:8px;letter-spacing:.06em}
+.field select,.field input[type=number]{
+  width:100%;font-family:var(--mono);font-size:14px;color:var(--ink);
+  background:#080d0a;border:1px solid var(--line2);border-radius:5px;padding:10px 12px;outline:none;
+  cursor:pointer;transition:border-color .2s;
+}
+.field input[type=number]{cursor:text} .field select:focus,.field input[type=number]:focus{border-color:var(--green-dim)}
+.field .two-in{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.out-row{
+  display:flex;justify-content:space-between;align-items:baseline;
+  padding:12px 0;border-bottom:1px dashed var(--line);
+}
+.out-row .ok{font-size:12.5px;color:var(--dim)}
+.out-row .ok small{display:block;font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.08em}
+.out-row .ov{font-family:var(--mono);font-size:18px;font-weight:600;color:var(--green)}
+.out-row .ov small{font-size:11px;color:var(--faint);font-weight:400;margin-left:4px} .out-row.big .ov{font-size:26px;color:var(--amber)}
+.calc-formula{
+  grid-column:1/-1;padding:15px 32px;border-top:1px solid var(--line);
+  font-family:var(--mono);font-size:12.5px;color:var(--dim);background:rgba(10,17,13,.8);
+}
+.calc-formula b{color:var(--green);font-weight:500}
+.calc-verdict{
+  grid-column:1/-1;padding:13px 32px;border-top:1px solid var(--line);
+  font-family:var(--mono);font-size:12.5px;background:rgba(10,17,13,.8);
+}
+
+/* ============ §08 上电时序 ============ */
+.dbg-steps{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.dbg-step{
+  flex:1;min-width:150px;display:flex;align-items:center;gap:10px;
+  padding:11px 14px;border:1px solid var(--line2);border-radius:6px;
+  background:var(--panel);cursor:pointer;transition:all .18s;text-align:left;
+  font-family:inherit;color:var(--dim);font-size:13px;
+}
+.dbg-step .n{
+  font-family:var(--mono);font-size:15px;font-weight:600;color:var(--faint);
+  width:1.2em;transition:color .18s;
+}
+.dbg-step:hover{border-color:var(--green-dim);color:var(--ink)}
+.dbg-step.on{border-color:var(--green);background:rgba(52,224,138,.08);color:var(--ink)} .dbg-step.on .n{color:var(--green)}
+.dbg-verdict{
+  border-left:2px solid var(--amber);background:rgba(255,176,46,.06);
+  padding:13px 18px;border-radius:0 5px 5px 0;font-size:13.2px;color:var(--dim);
+  margin-bottom:16px;line-height:1.75;
+}
+.dbg-verdict b{color:var(--amber);font-weight:500}
+.seq-canvas-wrap{position:relative;background:#080d0a;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seq-canvas-wrap::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.14) 3px 4px);
+}
+.seq-canvas-wrap canvas{display:block;width:100%} .seq-bar{display:flex;flex-wrap:wrap;align-items:center;gap:18px;margin-top:14px}
+
+/* ============ §09 踩坑 ============ */
+.pit-list{display:flex;flex-direction:column;gap:12px;margin-top:8px}
+.pit{
+  display:grid;grid-template-columns:64px 1fr;gap:18px;align-items:start;
+  border:1px solid var(--line);border-radius:6px;padding:17px 20px;background:var(--panel);
+  transition:border-color .2s;
+}
+.pit:hover{border-color:rgba(255,100,120,.4)}
+.pit .symptom{
+  font-family:var(--mono);font-size:10px;letter-spacing:.04em;color:var(--red);
+  border:1px solid rgba(255,100,120,.35);border-radius:4px;padding:5px 6px;text-align:center;
+  line-height:1.5;background:rgba(255,100,120,.05);height:fit-content;
+}
+.pit .fix b{display:block;font-size:14px;font-weight:500;color:var(--ink);margin-bottom:4px}
+.pit .fix b code{font-family:var(--mono);font-size:.88em;color:var(--green)} .pit .fix p{font-size:12.8px;color:var(--dim);line-height:1.7}
+.pit .fix p code{font-family:var(--mono);font-size:.9em;color:var(--amber)}
+
+/* ============ §10 速查 / 下一步 ============ */
+.notation{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin:8px 0 34px} .n-item{text-align:center}
+.n-item .nv{font-family:var(--mono);font-size:20px;color:var(--green);border:1px solid rgba(52,224,138,.4);
+padding:8px 16px;border-radius:8px;background:rgba(52,224,138,.06);min-width:120px;display:block}
+.n-item .nv.a{color:var(--amber);border-color:rgba(255,176,46,.4);background:rgba(255,176,46,.06)}
+.n-item .nv.c{color:var(--cyan);border-color:rgba(87,216,242,.4);background:rgba(87,216,242,.06)}
+.n-item small{display:block;font-size:11.5px;color:var(--dim);margin-top:6px} .sig-table{width:100%;border-collapse:collapse;font-size:12.6px}
+.sig-table th{
+  font-family:var(--mono);font-weight:500;color:var(--faint);text-align:left;
+  padding:9px 12px;border-bottom:1px solid var(--line2);font-size:11px;letter-spacing:.08em;
+}
+.sig-table td{padding:9px 12px;border-bottom:1px solid var(--line);color:var(--dim);vertical-align:top} .sig-table td:first-child{color:var(--faint)}
+.sig-table td code{font-family:var(--mono);font-size:12px;color:var(--cyan)} .sig-table .grp{color:var(--ink)}
+.rules{list-style:none;display:flex;flex-direction:column;gap:10px;margin-top:8px}
+.rules li{display:flex;gap:12px;align-items:flex-start;padding:11px 14px;border:1px solid var(--line);border-radius:8px;background:rgba(16,26,19,.5)}
+.rules .no{font-family:var(--mono);color:#052013;background:var(--green);border-radius:5px;min-width:24px;height:24px;
+display:flex;align-items:center;justify-content:center;font-size:13px;flex:none;margin-top:2px}
+.rules b{color:var(--ink);font-weight:500} .rules li span{color:var(--dim);font-size:13px}
+.next-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:34px}
+a.next-card{
+  border:1px solid var(--line);border-radius:10px;padding:26px 28px 22px;
+  background:linear-gradient(160deg,var(--panel2),rgba(13,21,16,.4));
+  text-decoration:none;color:var(--ink);display:block;
+  transition:border-color .2s,transform .2s,box-shadow .2s;position:relative;overflow:hidden;
+}
+a.next-card:hover{border-color:rgba(52,224,138,.5);transform:translateY(-3px);box-shadow:0 14px 34px rgba(0,0,0,.45)}
+a.next-card .nc-en{font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.24em}
+a.next-card h3{font-family:var(--disp);font-size:26px;font-weight:700;margin:8px 0 10px}
+a.next-card.lv h3{color:var(--cyan)} a.next-card.dsi h3{color:var(--green)} a.next-card p{color:var(--dim);font-size:13px;line-height:1.8}
+a.next-card .nc-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+a.next-card .nc-chips span{font-family:var(--mono);font-size:10.5px;color:var(--dim);border:1px solid var(--line2);padding:3px 9px;border-radius:3px}
+a.next-card .nc-go{position:absolute;right:22px;bottom:18px;font-family:var(--mono);font-size:13px;letter-spacing:.1em}
+a.next-card.lv .nc-go{color:var(--cyan)} a.next-card.dsi .nc-go{color:var(--green)}
+.next-note{font-size:12.5px;color:var(--faint);margin-top:14px;font-family:var(--mono)}
+.next-note a{color:var(--dim);text-decoration:none;border-bottom:1px dotted var(--faint)}
+.next-note a:hover{color:var(--green);border-color:var(--green)}
+
+/* ============ footer ============ */
+footer{
+  border-top:1px solid var(--line);padding:44px 6vw 60px;margin-top:40px;
+  display:flex;flex-wrap:wrap;gap:24px;align-items:baseline;justify-content:space-between;
+}
+footer .f-l{font-family:var(--mono);font-size:11.5px;color:var(--faint);line-height:2.1} footer .f-l b{color:var(--dim);font-weight:500}
+footer a{color:var(--faint);text-decoration:none;border-bottom:1px dotted var(--faint)} footer a:hover{color:var(--green);border-color:var(--green)}
+footer .f-r{font-family:var(--disp);font-weight:700;font-size:22px;color:var(--green)}
+
+/* ============ 响应式 ============ */
+@media (max-width:1100px){
+.nav-x{display:none}
+}
+@media (max-width:1000px){
+.two-col,.pl-grid{grid-template-columns:1fr} .lab-body{grid-template-columns:1fr}
+.readout{border-left:none;border-top:1px solid var(--line)} .calc{grid-template-columns:1fr}
+.calc .inputs{border-right:none;border-bottom:1px solid var(--line)} .fmt-grid{grid-template-columns:1fr}
+.next-grid{grid-template-columns:1fr} .pl-nums{grid-template-columns:repeat(3,1fr)}
+}
+@media (max-width:720px){
+.nav-links{display:none} section{padding:70px 5vw} .sec-head .en{display:none}
+.sig-grid,.fact-grid{grid-template-columns:1fr} .pl-nums{grid-template-columns:repeat(2,1fr)}
+}
+@media (prefers-reduced-motion: reduce){
+.flow,.flow-slow,.nav .live i,.hero .scroll-hint svg{animation:none!important} html{scroll-behavior:auto}
+}
+</style>
+</head>
+<body>
+<nav>
+  <div class="nav-in">
+    <div class="brand">RGB<b>·</b>LAB</div>
+    <div class="nav-links">
+      <a href="#s1">概述</a><a href="#s2">信号</a><a href="#s3">帧扫描</a><a href="#s4">Porch</a><a href="#s5">DE 模式</a><a href="#s7">计算器</a><a href="#s8">上电</a><a href="#s9">踩坑</a><a href="#s10">速查</a>
+    </div>
+    <div class="nav-x"><a href="index.html">« HOME</a><a href="i2c.html">I²C</a><a href="spi.html">SPI</a><a href="uart.html">UART</a><a href="ir.html">IR</a><a href="rs485.html">RS-485</a><a href="onewire.html">1-WIRE</a><a href="can.html">CAN</a><a href="i2s.html">I²S</a><a href="dmic.html">DMIC</a><a href="tdm.html">TDM</a><a href="sdio.html">SDIO</a><a href="emmc.html">eMMC</a><a href="ddr.html">DDR</a><a href="lvds.html">LVDS</a><a href="mipi-dsi.html">DSI</a><a href="csi2.html">CSI-2</a><a href="hdmi.html">HDMI</a><a href="usb.html">USB</a><a href="pcie.html">PCIE</a><a href="jtag.html">JTAG</a></div>
+    <div class="live"><i></i>LCD&nbsp;SCAN&nbsp;60&nbsp;Hz</div>
+  </div>
+</nav>
+
+<main>
+<!-- ================= HERO ================= -->
+<header class="hero">
+  <div class="eyebrow">PARALLEL RGB LCD INTERFACE · 图解硬件协议</div>
+  <h1>RGB<sup>·LCD</sup>
+    <span class="zh">并 行 显 示 接 口 · 从 SoC 到 屏 幕 最 直 白 的 通 道</span>
+  </h1>
+  <p class="lede">
+    没有协议栈，没有枚举，没有包——SoC 把显存里的每个像素按 <b>PCLK</b> 的节拍摊在 28 根线上，直接扫进屏幕。
+    往下滚动：看一帧 <b>640×480</b> 如何被逐行点亮，六个 <b>porch</b> 参数如何决定画面偏移，
+    以及 1080p 的 148.5 MHz 为什么逼出了 LVDS 与 MIPI DSI。
+  </p>
+  <div class="chips">
+    <span><b>28</b> 根信号线 · RGB888</span>
+    <span><b>PCLK</b> 一拍一个像素</span>
+    <span><b>60 fps</b> 逐行扫描</span>
+    <span><b>0</b> 协议栈 · 无枚举</span>
+    <span><b>25.2 MHz</b> 点亮 640×480</span>
+  </div>
+  <div class="hero-cta">
+    <a class="btn primary" href="#s3">▶ 看一帧被逐行点亮</a>
+    <a class="btn ghost" href="#s1">从头读起</a>
+  </div>
+  <div class="hero-schema">
+    <svg id="heroSvg" viewBox="0 0 760 380" xmlns="http://www.w3.org/2000/svg" aria-label="SoC 通过并口 RGB 直驱 TFT 面板示意图">
+      <defs>
+        <linearGradient id="heroBars" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="#e8e8e0"/><stop offset=".14" stop-color="#e8e8e0"/>
+          <stop offset=".14" stop-color="#e6e630"/><stop offset=".28" stop-color="#e6e630"/>
+          <stop offset=".28" stop-color="#40e0e0"/><stop offset=".42" stop-color="#40e0e0"/>
+          <stop offset=".42" stop-color="#3cc84c"/><stop offset=".56" stop-color="#3cc84c"/>
+          <stop offset=".56" stop-color="#e640c8"/><stop offset=".70" stop-color="#e640c8"/>
+          <stop offset=".70" stop-color="#e04040"/><stop offset=".84" stop-color="#e04040"/>
+          <stop offset=".84" stop-color="#4050e0"/><stop offset="1" stop-color="#4050e0"/>
+        </linearGradient>
+      </defs>
+      <!-- 计数徽章 -->
+      <rect x="222" y="14" width="316" height="30" rx="5" fill="rgba(52,224,138,.05)" stroke="rgba(52,224,138,.35)"/>
+      <text x="380" y="33" text-anchor="middle" fill="#34e08a" font-family="IBM Plex Mono,monospace" font-size="12">4 控制 + 24 数据 = 28 根（RGB888）</text>
+      <!-- SoC -->
+      <g>
+        <rect x="30" y="70" width="166" height="210" rx="12" fill="#0d181d" stroke="rgba(87,216,242,.35)" stroke-width="1.5"/>
+        <rect x="42" y="82" width="142" height="186" rx="8" fill="none" stroke="rgba(87,216,242,.18)"/>
+        <circle cx="182" cy="78" r="4" fill="#34e08a" class="nav-live-dot" style="animation:blink 1.6s infinite"/>
+        <text x="113" y="122" text-anchor="middle" fill="#dcebe1" font-family="Chakra Petch,sans-serif" font-weight="700" font-size="20">SoC</text>
+        <text x="113" y="144" text-anchor="middle" fill="#8aa294" font-family="IBM Plex Mono,monospace" font-size="10.5">LCD 控制器</text>
+        <text x="113" y="160" text-anchor="middle" fill="#5c7264" font-family="IBM Plex Mono,monospace" font-size="9.5">LTDC · eLCDIF · LCDC</text>
+        <text x="113" y="236" text-anchor="middle" fill="#5c7264" font-family="IBM Plex Mono,monospace" font-size="9">显存帧缓冲 →</text>
+        <text x="113" y="252" text-anchor="middle" fill="#5c7264" font-family="IBM Plex Mono,monospace" font-size="9">按 PCLK 逐像素取出</text>
+      </g>
+      <!-- 控制线 4 根 -->
+      <g font-family="IBM Plex Mono,monospace" font-size="9.5">
+        <line x1="196" y1="92" x2="556" y2="92" stroke="#34e08a" stroke-width="1.6" class="flow" opacity=".9"/>
+        <text x="203" y="88" fill="#34e08a">PCLK</text>
+        <line x1="196" y1="112" x2="556" y2="112" stroke="#57d8f2" stroke-width="1.6" opacity=".8"/>
+        <text x="203" y="108" fill="#57d8f2">HSYNC · 每行</text>
+        <line x1="196" y1="132" x2="556" y2="132" stroke="#ffb02e" stroke-width="1.6" opacity=".8"/>
+        <text x="203" y="128" fill="#ffb02e">VSYNC · 每帧</text>
+        <line x1="196" y1="152" x2="556" y2="152" stroke="#ff6478" stroke-width="1.6" class="flow" opacity=".9"/>
+        <text x="203" y="148" fill="#ff6478">DE · 数据有效</text>
+      </g>
+      <!-- 三条数据总线 -->
+      <g>
+        <rect x="196" y="172" width="360" height="24" rx="4" fill="rgba(255,100,120,.07)" stroke="rgba(255,100,120,.3)"/>
+        <path id="heroR" d="M196,184 C300,184 460,184 556,184" fill="none" stroke="rgba(255,100,120,.45)" stroke-width="1.4"/>
+        <rect x="196" y="206" width="360" height="24" rx="4" fill="rgba(52,224,138,.07)" stroke="rgba(52,224,138,.3)"/>
+        <path id="heroG" d="M196,218 C300,218 460,218 556,218" fill="none" stroke="rgba(52,224,138,.45)" stroke-width="1.4"/>
+        <rect x="196" y="240" width="360" height="24" rx="4" fill="rgba(87,216,242,.07)" stroke="rgba(87,216,242,.3)"/>
+        <path id="heroB" d="M196,252 C300,252 460,252 556,252" fill="none" stroke="rgba(87,216,242,.45)" stroke-width="1.4"/>
+        <text x="376" y="168" text-anchor="middle" fill="rgba(255,100,120,.85)" font-family="IBM Plex Mono,monospace" font-size="10">R[7:0] ×8</text>
+        <text x="376" y="202" text-anchor="middle" fill="rgba(52,224,138,.85)" font-family="IBM Plex Mono,monospace" font-size="10">G[7:0] ×8</text>
+        <text x="376" y="236" text-anchor="middle" fill="rgba(87,216,242,.85)" font-family="IBM Plex Mono,monospace" font-size="10">B[7:0] ×8</text>
+      </g>
+      <g id="heroPkts"></g>
+      <!-- 初始化旁路 -->
+      <path class="flow-slow" d="M113,280 C240,336 430,336 556,304" fill="none" stroke="rgba(140,162,148,.6)" stroke-width="1.4"/>
+      <text x="336" y="348" text-anchor="middle" fill="#5c7264" font-family="IBM Plex Mono,monospace" font-size="10">SPI / I²C · 上电时发一次初始化命令（§08）</text>
+      <!-- 面板 -->
+      <g>
+        <rect x="556" y="60" width="172" height="256" rx="10" fill="#0d1510" stroke="rgba(52,224,138,.35)" stroke-width="1.5"/>
+        <text x="642" y="88" text-anchor="middle" fill="#dcebe1" font-family="Chakra Petch,sans-serif" font-weight="600" font-size="13">TFT 面板</text>
+        <text x="642" y="102" text-anchor="middle" fill="#5c7264" font-family="IBM Plex Mono,monospace" font-size="8.5">源极驱动 × 栅极驱动</text>
+        <rect x="568" y="112" width="148" height="180" rx="3" fill="#0b120e" stroke="rgba(52,224,138,.25)"/>
+        <rect id="heroDark" x="568" y="112" width="148" height="180" fill="#0b120e"/>
+        <rect id="heroReveal" x="568" y="112" width="148" height="0" fill="url(#heroBars)"/>
+        <line id="heroBeam" x1="568" y1="112" x2="716" y2="112" stroke="#ffffff" stroke-width="1.6" style="filter:drop-shadow(0 0 5px rgba(255,255,255,.9))"/>
+        <text x="642" y="306" text-anchor="middle" fill="#5c7264" font-family="IBM Plex Mono,monospace" font-size="8.5">LED 背光（另走 BL_EN / PWM）</text>
+      </g>
+      <text id="heroStat" x="642" y="344" text-anchor="middle" fill="#8aa294" font-family="IBM Plex Mono,monospace" font-size="10.5">扫描第 1 / 480 行</text>
+    </svg>
+  </div>
+  <p class="hero-caption">▲ RGB888：面板在 PCLK 的选定边沿锁存 DE/RGB；彩色方块是正在总线上流动的像素值，右侧屏幕按行被点亮。</p>
+  <div class="scroll-hint">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+    SCROLL · 一帧扫描动画在 03 节
+  </div>
+</header>
+
+<!-- ================= §01 ================= -->
+<section id="s1">
+  <div class="sec-head reveal"><span class="no">01</span><h2>它是什么，为什么引脚多还流行</h2><span class="en">What &amp; Why</span></div>
+  <p class="sec-sub reveal">一句话：<b>并口 RGB 是 SoC 与屏幕之间最原始的通道</b>——PCLK 打拍子，HSYNC/VSYNC/DE 划界，24 根线并行送出像素，时序对上屏就亮。</p>
+  <div class="two-col">
+    <div class="prose reveal">
+      <p>
+        RGB 接口（parallel RGB，也叫 RGB LCD）是 SoC 的 LCD 控制器与 TFT 面板之间的<b>并行像素总线</b>：
+        一根 <span class="kw">PCLK</span> 每拍送一个像素，<span class="kw">HSYNC</span> 每行发一个脉冲、<span class="kw">VSYNC</span> 每帧发一个脉冲，
+        <span class="kw">DE</span> 标注"当前像素有效"，<span class="kw">R[7:0] G[7:0] B[7:0]</span> 24 根数据线承载颜色。
+        没有命令、没有包、没有校验——控制器从显存逐像素取出数据摊在时间轴上，面板照单全收。
+      </p>
+      <p>
+        这套时序词汇直接继承自 CRT 时代的 VGA：HSA/HBP/HFP、VSA/VBP/VFP 这些 <span class="kw2">porch</span>（消隐）参数
+        与 1987 年的 VGA 显示器一脉相承。今天的 <b>STM32 LTDC</b>、<b>NXP eLCDIF</b>、全志/Rockchip 的 LCDC，
+        造的都是同一种波形；3D 打印机、示波器、HMI 工控屏、收银副屏，以及开发板上最常见的 4.3/5/7 寸
+        800×480、1024×600 屏，八成就是并口 RGB。
+      </p>
+      <p>
+        为什么 28 根引脚还流行？因为每根线都是<b>"哑"信号</b>：无 PHY、无协议栈、无枚举，寄存器配好时序就能跑；
+        延迟确定（一帧内直达屏幕），FPGA/CPLV 也能直推，面板侧源极驱动器天生吃并行数据。
+        代价是 PCB 要挤 20–28 根尽量等长的线、连接器又大又贵——所以 10 寸以上普遍换 <b>LVDS / MIPI DSI</b>（§10）。
+      </p>
+      <p>
+        注意区分：常说的 <b>"MCU 屏"（8080 并口 + GRAM，如 ILI9341）不是 RGB 屏</b>——前者显存做在屏里、用并口写命令；
+        RGB 屏没有 GRAM，<b>必须持续刷新，刷新一停画面就消失</b>。另外 RGB 屏上电时仍需要一根
+        <a href="spi.html" style="color:var(--green)">SPI</a> 或 <a href="i2c.html" style="color:var(--green)">I²C</a>
+        旁路发初始化命令（§08）。
+      </p>
+    </div>
+    <table class="cmp-table reveal">
+      <tr><th></th><th>并口 RGB</th><th>SPI / MCU 屏</th><th>MIPI DSI</th></tr>
+      <tr><td>信号线</td><td>16–28 根并行</td><td>4–5 根</td><td class="yes">2–8 根差分</td></tr>
+      <tr><td>像素带宽</td><td class="yes">25–150 MHz 像素流</td><td class="no">几 MB/s 级</td><td>500 Mbps–4 Gbps/lane</td></tr>
+      <tr><td>协议栈</td><td class="yes">无</td><td>简单命令</td><td class="no">完整（命令/视频模式）</td></tr>
+      <tr><td>面板 GRAM</td><td>无（必须持续刷新）</td><td>有</td><td>可选（命令模式）</td></tr>
+      <tr><td>典型尺寸</td><td>3.5–10.1 寸</td><td>1.3–3.5 寸</td><td>手机–平板–笔记本</td></tr>
+      <tr><td>典型场景</td><td class="yes">HMI · 工控 · 开发板</td><td>小 UI · 参数显示</td><td>消费电子主力</td></tr>
+    </table>
+  </div>
+  <div class="fact-grid reveal">
+    <div class="fact"><div class="f-no">FACT / A</div><h4>生于 VGA 时序 <code>porch</code></h4><p>消隐期概念源自 CRT 电子束"飞回"（retrace）需要的时间。LCD 没有电子束，但整套 HSA/HBP/HFP、VSA/VBP/VFP 参数被原样继承，成为所有显示接口的通用词汇。</p></div>
+    <div class="fact"><div class="f-no">FACT / B</div><h4>一拍一个像素 <code>PCLK</code></h4><p>PCLK 频率 = 总像素数 × 帧率，与数据线宽度无关。640×480@60 只要 25.175 MHz——STM32F429 的 LTDC、i.MX6UL 的 eLCDIF 都轻松跑满。</p></div>
+    <div class="fact"><div class="f-no">FACT / C</div><h4>无协议栈但有旁路 <code>SPI/I²C</code></h4><p>RGB 线上跑的永远是像素，但面板驱动 IC 上电时要先用 SPI/I²C 写初始化命令（gamma、扫描方向、DISPON……），这段流程错了，RGB 再标准也黑屏。</p></div>
+    <div class="fact"><div class="f-no">FACT / D</div><h4>频率天花板 <code>~85 MHz</code></h4><p>并口在 50–85 MHz 后，24 根线的偏斜（skew）、串扰、EMI 全面失控。1080p60 要 148.5 MHz——这就是笔记本屏转投 LVDS、手机屏转投 MIPI DSI 的直接原因。</p></div>
+  </div>
+</section>
+
+<!-- ================= §02 ================= -->
+<section id="s2">
+  <div class="sec-head reveal"><span class="no">02</span><h2>信号图解 · 28 根线的拓扑</h2><span class="en">Signals &amp; Topology</span></div>
+  <p class="sec-sub reveal">RGB888 = <b>4 根控制 + 24 根数据</b>。先看拓扑：谁驱动谁、往哪流；再看每张卡片里<b>正在运行的实时波形</b>。</p>
+  <div class="topo reveal">
+    <svg viewBox="0 0 760 330" xmlns="http://www.w3.org/2000/svg" aria-label="并口 RGB 信号拓扑">
+      <rect x="236" y="12" width="290" height="28" rx="5" fill="rgba(52,224,138,.05)" stroke="rgba(52,224,138,.3)"/>
+      <text x="381" y="30" text-anchor="middle" fill="#34e08a" font-family="IBM Plex Mono,monospace" font-size="11.5">全部单向：SoC → 面板 · 无握手 · 无回读</text>
+      <g>
+        <rect x="30" y="70" width="170" height="216" rx="12" fill="#0d181d" stroke="rgba(87,216,242,.35)" stroke-width="1.5"/>
+        <rect x="42" y="82" width="146" height="192" rx="8" fill="none" stroke="rgba(87,216,242,.18)"/>
+        <text x="115" y="118" text-anchor="middle" fill="#dcebe1" font-family="Chakra Petch,sans-serif" font-weight="700" font-size="18">SoC</text>
+        <text x="115" y="140" text-anchor="middle" fill="#8aa294" font-family="IBM Plex Mono,monospace" font-size="10">LCD 控制器</text>
+        <text x="115" y="262" text-anchor="middle" fill="#5c7264" font-family="IBM Plex Mono,monospace" font-size="9">时序发生器输出：</text>
+        <text x="115" y="276" text-anchor="middle" fill="#5c7264" font-family="IBM Plex Mono,monospace" font-size="9">porch 参数在此生效</text>
+      </g>
+      <g font-family="IBM Plex Mono,monospace" font-size="10">
+        <line x1="200" y1="96" x2="560" y2="96" stroke="#34e08a" stroke-width="1.6" class="flow"/>
+        <text x="208" y="91" fill="#34e08a">PCLK — 面板在选定沿锁存全部信号</text>
+        <line x1="200" y1="116" x2="560" y2="116" stroke="#57d8f2" stroke-width="1.5"/>
+        <text x="208" y="111" fill="#57d8f2">HSYNC — 每行一个脉冲</text>
+        <line x1="200" y1="136" x2="560" y2="136" stroke="#ffb02e" stroke-width="1.5"/>
+        <text x="208" y="131" fill="#ffb02e">VSYNC — 每帧一个脉冲</text>
+        <line x1="200" y1="156" x2="560" y2="156" stroke="#ff6478" stroke-width="1.5" class="flow"/>
+        <text x="208" y="151" fill="#ff6478">DE — 高电平=像素有效</text>
+      </g>
+      <g font-family="IBM Plex Mono,monospace" font-size="10">
+        <rect x="200" y="176" width="360" height="22" rx="4" fill="rgba(255,100,120,.07)" stroke="rgba(255,100,120,.3)"/>
+        <path d="M200,187 C320,187 440,187 560,187" class="flow" fill="none" stroke="rgba(255,100,120,.55)" stroke-width="1.3"/>
+        <text x="380" y="172" text-anchor="middle" fill="rgba(255,100,120,.9)">R[7:0] ×8 — 红分量</text>
+        <rect x="200" y="208" width="360" height="22" rx="4" fill="rgba(52,224,138,.07)" stroke="rgba(52,224,138,.3)"/>
+        <path d="M200,219 C320,219 440,219 560,219" class="flow" fill="none" stroke="rgba(52,224,138,.55)" stroke-width="1.3"/>
+        <text x="380" y="204" text-anchor="middle" fill="rgba(52,224,138,.9)">G[7:0] ×8 — 绿分量</text>
+        <rect x="200" y="240" width="360" height="22" rx="4" fill="rgba(87,216,242,.07)" stroke="rgba(87,216,242,.3)"/>
+        <path d="M200,251 C320,251 440,251 560,251" class="flow" fill="none" stroke="rgba(87,216,242,.55)" stroke-width="1.3"/>
+        <text x="380" y="236" text-anchor="middle" fill="rgba(87,216,242,.9)">B[7:0] ×8 — 蓝分量</text>
+      </g>
+      <path class="flow-slow" d="M115,286 C250,318 430,318 560,296" fill="none" stroke="rgba(140,162,148,.55)" stroke-width="1.3"/>
+      <text x="340" y="326" text-anchor="middle" fill="#5c7264" font-family="IBM Plex Mono,monospace" font-size="9.5">SPI / I²C 初始化旁路（慢速 · 上电一次）</text>
+      <g>
+        <rect x="560" y="70" width="170" height="216" rx="12" fill="#0d1510" stroke="rgba(52,224,138,.35)" stroke-width="1.5"/>
+        <text x="645" y="98" text-anchor="middle" fill="#dcebe1" font-family="Chakra Petch,sans-serif" font-weight="600" font-size="14">TFT 面板</text>
+        <text x="645" y="114" text-anchor="middle" fill="#5c7264" font-family="IBM Plex Mono,monospace" font-size="8.5">源极驱动 + 栅极驱动</text>
+        <rect x="572" y="124" width="146" height="120" rx="3" fill="#0b120e" stroke="rgba(52,224,138,.25)"/>
+        <text x="645" y="176" text-anchor="middle" fill="rgba(140,162,148,.55)" font-family="IBM Plex Mono,monospace" font-size="9">无 GRAM</text>
+        <text x="645" y="192" text-anchor="middle" fill="rgba(140,162,148,.55)" font-family="IBM Plex Mono,monospace" font-size="9">像素到点即显</text>
+        <text x="645" y="268" text-anchor="middle" fill="#5c7264" font-family="IBM Plex Mono,monospace" font-size="9">刷新停止 → 画面消失</text>
+      </g>
+    </svg>
+    <p class="cap">▲ 4 控制线 + 3×8 数据线 = 28 根（RGB888）；RGB666 面板只接 18 根数据线（§06），RGB565 只需 16 根。</p>
+  </div>
+  <div class="sig-grid">
+    <div class="sig-card c-clk reveal">
+      <div class="scope"><canvas id="mClk" height="84"></canvas></div>
+      <div class="body">
+        <div class="names"><span class="main">PCLK</span><span class="alias">像素时钟 / Dot Clock</span><span class="pin">CLOCK</span></div>
+        <p>全局节拍器：<b>一个周期 = 一个像素</b>，面板在选定边沿（可配上升/下降）同时锁存 DE 与 24 根数据线。频率由分辨率与帧率决定，不是想跑多快就多快——面板有上限：</p>
+        <div class="formula">f(PCLK) = Htotal × Vtotal × 帧率（§07 计算器）</div>
+      </div>
+    </div>
+    <div class="sig-card c-sync reveal">
+      <div class="scope"><canvas id="mSync" height="96"></canvas></div>
+      <div class="body">
+        <div class="names"><span class="main">HSYNC / VSYNC</span><span class="alias">行 / 帧同步</span><span class="pin">SYNC</span></div>
+        <p>HSYNC <b>每行</b>一个脉冲宣告"新行开始"，VSYNC <b>每帧</b>一个脉冲宣告"新帧开始"。宽度（HSA/VSA，单位是像素/行）与<b>极性</b>都可配，多数面板低有效；DE 模式下部分面板甚至不接这两根线（§05）：</p>
+        <div class="formula">一帧 = 525 行（480 可见 + 45 消隐）· 一行 = 800 PCLK</div>
+      </div>
+    </div>
+    <div class="sig-card c-de reveal">
+      <div class="scope"><canvas id="mDe" height="84"></canvas></div>
+      <div class="body">
+        <div class="names"><span class="main">DE</span><span class="alias">Data Enable · 数据使能</span><span class="pin">ENABLE</span></div>
+        <p><b>高电平 = "这个 PCLK 上的像素有效"</b>。面板不再自己数时钟找行首，DE=1 就收、=0 就丢——对 PCLK 抖动与丢拍免疫，因此成为现代面板的主流约定（§05 详细对比）：</p>
+        <div class="formula">DE 高电平宽度 = 一行的可见像素数（640）</div>
+      </div>
+    </div>
+    <div class="sig-card c-dat reveal">
+      <div class="scope"><canvas id="mDat" height="84"></canvas></div>
+      <div class="body">
+        <div class="names"><span class="main">R[7:0] G[7:0] B[7:0]</span><span class="alias">24 位并行像素总线</span><span class="pin">DATA</span></div>
+        <p>24 根线并行承载当前像素颜色，<b>每个 PCLK 更新一次</b>。上图色块就是线上的真实值——上半是彩条、下半渐变，正是 03 节那张测试图的缩影。走线要求<b>组内等长</b>，频率高了还要串阻：</p>
+        <div class="formula">24 线并行 × 25.175 MHz ≈ 604 Mbps 原始数据率</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= §03 帧扫描动画 ================= -->
+<section id="s3">
+  <div class="sec-head reveal"><span class="no">03</span><h2>一帧扫描动画 · 逐行点亮 640×480</h2><span class="en">Interactive Frame Scan</span></div>
+  <p class="sec-sub reveal">
+    一台「慢镜头逻辑分析仪 + 显微镜」：上半看屏幕被<b>逐行点亮</b>（白色亮线 = 电子束），下半看五路信号的实时波形。
+    HSYNC 每行跳一次；VSYNC 只在帧头出现 <b style="color:var(--amber)">2 行</b>；DE 只在可见像素期为高；
+    消隐期（porch）用色带区分。<b style="color:var(--red)">红色探针</b>是面板的锁存时刻。
+  </p>
+  <div class="lab reveal">
+    <div class="lab-bar">
+      <div class="ctrl">
+        <button class="icon-btn play on" id="scanPlay" title="暂停/播放" type="button">❚❚</button>
+        <button class="icon-btn" id="scanStep" title="单步：前进一行" type="button">⏭ 1 行</button>
+        <button class="icon-btn" id="scanReset" title="回到帧首" type="button">↺ 帧首</button>
+      </div>
+      <div class="ctrl"><label>速度 <span id="scanSpdV">45</span> 行/s</label><input type="range" id="scanSpd" min="5" max="120" value="45"></div>
+      <div class="ctrl">
+        <button class="icon-btn" id="zoomOut" title="缩小" type="button">−</button>
+        <button class="icon-btn" id="zoomIn" title="放大" type="button">＋</button>
+        <span id="zoomLbl" style="font-family:var(--mono);font-size:11px;color:var(--faint)">窗口 ≈ 1.1 行</span>
+      </div>
+    </div>
+    <div class="lab-body">
+      <div class="scope-main">
+        <canvas id="scanScreen" height="252"></canvas>
+        <canvas id="scanWave" height="236"></canvas>
+      </div>
+      <div class="readout">
+        <div class="r-title">PANEL · 实时状态</div>
+        <div class="r-row"><span class="k">当前行</span><span class="v a" id="rLine">0 / 525</span></div>
+        <div class="r-row"><span class="k">当前列 (PCLK)</span><span class="v" id="rCol">0 / 800</span></div>
+        <div class="r-row"><span class="k">阶段</span><span class="v c" id="rPhase">—</span></div>
+        <div class="r-row"><span class="k">DE</span><span class="v" id="rDE">0 · 消隐</span></div>
+        <div class="r-row"><span class="k">可见像素坐标</span><span class="v g" id="rPix">—</span></div>
+        <div class="r-row"><span class="k">帧进度</span><span class="v" id="rFprog">0%</span></div>
+        <div class="r-row"><span class="k">已完成帧</span><span class="v" id="rFrames">0</span></div>
+        <div class="r-note">
+          <b>读法</b>：探针处的 VSYNC 低电平只出现在帧头两行；HSYNC 每行一个低脉冲；DE 的高电平窗口就是 640 个可见像素。
+          动画已放慢约 <b>500 万倍</b>——真实 640×480@60 每行只有 15.4 µs。
+        </div>
+      </div>
+    </div>
+    <div class="lab-foot">
+      <div class="legend"><i style="background:var(--amber)"></i>VSYNC · 帧同步</div>
+      <div class="legend"><i style="background:var(--cyan)"></i>HSYNC · 行同步</div>
+      <div class="legend"><i style="background:var(--green)"></i>DE · 数据使能</div>
+      <div class="legend"><i style="background:rgba(140,162,148,.8)"></i>PCLK（淡）</div>
+      <div class="legend"><i style="background:#e640c8;height:8px;width:8px;border-radius:2px"></i>RGB 像素值</div>
+      <div class="legend"><i style="background:rgba(255,100,120,.5);height:8px"></i>HSA/VSA</div>
+      <div class="legend"><i style="background:rgba(255,176,46,.5);height:8px"></i>HBP/VBP</div>
+      <div class="legend"><i style="background:rgba(52,224,138,.5);height:8px"></i>可见区</div>
+      <div class="legend"><i style="background:rgba(140,162,148,.4);height:8px"></i>HFP/VFP</div>
+    </div>
+  </div>
+  <div class="rule-callout reveal">
+    <div class="mnemonic">VSYNC 划帧 · HSYNC 划行 · DE 圈出可见像素<small>MNEMONIC</small></div>
+    <p>
+      面板收到的只是一串无休止的像素流，靠三根控制线建立秩序：VSYNC 脉冲 = 新的一帧；HSYNC 脉冲 = 新的一行；
+      DE 高电平 = 现在这些像素请上屏。其余时间（porch）发什么都会被丢掉——这正是 04 节要动手实验的"看不见的行李"。
+    </p>
+  </div>
+</section>
+
+<!-- ================= §04 porch 实验室 ================= -->
+<section id="s4">
+  <div class="sec-head reveal"><span class="no">04</span><h2>Porch 参数实验室</h2><span class="en">Blanking Lab</span></div>
+  <p class="sec-sub reveal">
+    屏幕只显示 640×480，但控制器每行要发 <b>800</b> 个像素、每帧 <b>525</b> 行——多出来的全是"看不见的行李"（消隐）。
+    拖动六个滑块，看右侧总帧里<b>可见区（绿色）的占比</b>如何被挤压；这些参数配错，画面就会偏移甚至环绕（§09）。
+  </p>
+  <div class="pl-grid">
+    <div class="pl-panel reveal">
+      <h5>TIMING · 时序参数</h5>
+      <div class="pl-group"><i style="background:var(--cyan)"></i>水平方向（单位：像素）</div>
+      <div class="pl-row"><label>HSA 同步宽</label><input type="range" id="plHsa" min="1" max="200" value="96"><span class="val"><span id="vHsa">96</span><small> px</small></span></div>
+      <div class="pl-row"><label>HBP 后沿</label><input type="range" id="plHbp" min="0" max="200" value="48"><span class="val"><span id="vHbp">48</span><small> px</small></span></div>
+      <div class="pl-row"><label>HFP 前沿</label><input type="range" id="plHfp" min="0" max="200" value="16"><span class="val"><span id="vHfp">16</span><small> px</small></span></div>
+      <div class="pl-group"><i style="background:var(--amber)"></i>垂直方向（单位：行）</div>
+      <div class="pl-row"><label>VSA 同步宽</label><input type="range" id="plVsa" min="1" max="30" value="2"><span class="val"><span id="vVsa">2</span><small> 行</small></span></div>
+      <div class="pl-row"><label>VBP 后沿</label><input type="range" id="plVbp" min="0" max="100" value="33"><span class="val"><span id="vVbp">33</span><small> 行</small></span></div>
+      <div class="pl-row"><label>VFP 前沿</label><input type="range" id="plVfp" min="0" max="100" value="10"><span class="val"><span id="vVfp">10</span><small> 行</small></span></div>
+      <h5 style="margin-top:20px">PRESETS · 面板预设</h5>
+      <div class="presets" id="presetSeg">
+        <button type="button" data-p="vga" class="on">640×480</button>
+        <button type="button" data-p="wvga">800×480</button>
+        <button type="button" data-p="wsvga">1024×600</button>
+        <button type="button" data-p="hd">1280×720</button>
+        <button type="button" data-p="fhd">1080p</button>
+      </div>
+      <div class="r-note" style="margin-top:14px">
+        <b>提示</b>：消隐越小 PCLK 越低，但小于面板规格会丢行/错位。买屏先要厂商的时序表，别抄别人的参数。
+      </div>
+    </div>
+    <div class="reveal">
+      <div class="pl-view" id="porchSvg"></div>
+      <div class="pl-nums">
+        <div class="cell"><small>可见区 HACT</small><b id="pHact">640 px</b></div>
+        <div class="cell"><small>Htotal（每行总像素）</small><b id="pHtot">800</b></div>
+        <div class="cell a"><small>水平可见占比</small><b id="pRatioH">80.0%</b></div>
+        <div class="cell"><small>可见区 VACT</small><b id="pVact">480 行</b></div>
+        <div class="cell"><small>Vtotal（每帧行数）</small><b id="pVtot">525</b></div>
+        <div class="cell a"><small>垂直可见占比</small><b id="pRatioV">91.4%</b></div>
+        <div class="cell c"><small>PCLK @60 fps</small><b id="pClk">25.2 MHz</b></div>
+        <div class="cell"><small>行周期 @60</small><b id="pLineT">31.7 µs</b></div>
+        <div class="cell"><small>帧周期 @60</small><b id="pFrameT">16.7 ms</b></div>
+      </div>
+    </div>
+  </div>
+  <table class="pl-table reveal" id="panelTable">
+    <tr><th>典型面板</th><th>HSA / HBP / HFP</th><th>VSA / VBP / VFP</th><th>总尺寸</th><th>PCLK @60</th><th>常见应用</th></tr>
+  </table>
+  <p class="r-note reveal" style="margin-top:12px">▲ 点击行加载到滑块。VGA / 720p / 1080p 为 VESA、CEA-861 标准时序；800×480 与 1024×600 为常见配置示例——同分辨率不同批次面板参数可能不同，以数据手册为准。</p>
+</section>
+
+<!-- ================= §05 SYNC vs DE ================= -->
+<section id="s5">
+  <div class="sec-head reveal"><span class="no">05</span><h2>SYNC 模式 vs DE 模式</h2><span class="en">Sync-Only vs DE Mode</span></div>
+  <p class="sec-sub reveal">
+    同一条线，两种约定：<b>SYNC 模式</b>面板在同步沿之后自己数 HSA+HBP 个时钟找第一个有效像素；
+    <b>DE 模式</b>由控制器直接用 DE 标注。切换对比，顺便记住同步极性。
+  </p>
+  <div class="mode-wrap reveal">
+    <div class="mode-head">
+      <div class="ctrl"><label>行同步约定</label>
+        <div class="seg" id="modeSeg">
+          <button type="button" data-m="de" class="on">DE 模式 · 主流</button>
+          <button type="button" data-m="sync">SYNC 模式 · 传统</button>
+        </div>
+      </div>
+      <div class="ctrl"><label>极性</label><span style="font-family:var(--mono);font-size:12px;color:var(--dim)">HSYNC/VSYNC 低有效 · DE 高有效</span></div>
+    </div>
+    <div id="modeSvg"></div>
+    <div class="mode-note" id="modeNote"></div>
+  </div>
+  <table class="eq-table reveal">
+    <tr><th>信号</th><th>常见极性 / 沿</th><th>说明</th></tr>
+    <tr><td>HSYNC 极性</td><td><code>低有效（多数，可配）</code></td><td>STM32 LTDC 在 <code>GCR.HSPOL</code> 配；面板手册会写 L 或 H。</td></tr>
+    <tr><td>VSYNC 极性</td><td><code>低有效（多数，可配）</code></td><td>同上 <code>VSPOL</code>。极性配反通常表现为画面上下/左右翻或不同步。</td></tr>
+    <tr><td>DE 极性</td><td><code>高有效（几乎无例外）</code></td><td>极少数面板 DE 低有效——务必查手册。</td></tr>
+    <tr><td>PCLK 采样沿</td><td><code>上升 / 下降（可配）</code></td><td>决定数据在哪个沿被锁存；配错一行全花（§09）。</td></tr>
+    <tr><td>VGA 彩蛋</td><td><code>极性编码分辨率</code></td><td>CRT 时代靠 HSYNC/VSYNC 极性组合区分模式：640×480=负/负，800×600=正/正，1024×768=负/正……</td></tr>
+  </table>
+  <div class="lnx-note reveal">
+    <b>DE 模式为什么成为主流：</b>
+    ① 面板<b>不数时钟</b>——对 PCLK 抖动、丢拍、频率微调免疫；② porch 只需"面板能接受"，不必逐像素精确；
+    ③ 控制器与面板两侧的时序发生器都更简单。SYNC 模式仍见于老面板与部分工控屏；很多面板两种都支持，但 <code>DE</code> 必接。
+  </div>
+  <div class="fmt-note reveal">
+    <b>致命细节：</b>同一块屏 SYNC / DE 都能亮 ≠ 配置都对。SYNC 模式下 porch 错 1 个时钟，画面就偏移 1 像素甚至整行错位；
+    DE 模式下这 1 个时钟的误差根本不存在。调偏移问题（§09）时，先确认面板到底在哪种模式下工作。
+  </div>
+</section>
+
+<!-- ================= §06 像素格式 ================= -->
+<section id="s6">
+  <div class="sec-head reveal"><span class="no">06</span><h2>像素格式 · 位宽与打包</h2><span class="en">Pixel Formats</span></div>
+  <p class="sec-sub reveal">
+    同一根并口总线，位宽可以砍：<b>RGB888</b> 全血 24 根，<b>RGB666</b> 是面板侧最常见的 18 根，
+    <b>RGB565</b> 省 8 根线且显存减半——代价是颜色数从 1670 万掉到 6.5 万，渐变开始出现<b>色带（banding）</b>。
+  </p>
+  <div class="fmt-grid">
+    <div class="fmt-card t-888 reveal"><div class="fh"><span class="tag">888</span><h4>RGB888 · 全位宽</h4><span class="en">24 WIRES</span></div><div id="svg888"></div>
+      <div class="fb">每通道 8 位、共 <b>24 根数据线</b>（信号总计 28 根）。显存通常按 24/32 bpp 存储再由控制器搬上线，是唯一"所见即所得"的格式。</div></div>
+    <div class="fmt-card t-666 reveal"><div class="fh"><span class="tag">666</span><h4>RGB666 · 面板常客</h4><span class="en">18 WIRES</span></div><div id="svg666"></div>
+      <div class="fb">每通道 6 位、共 <b>18 根线</b>（信号总计 22 根）。SoC 侧输出 888 时<b>接高 6 位、悬空低 2 位</b>（虚线格）——廉价 4.3–7 寸屏的主力位宽。</div></div>
+    <div class="fmt-card t-565 reveal"><div class="fh"><span class="tag">565</span><h4>RGB565 · 显存友好</h4><span class="en">16 WIRES</span></div><div id="svg565"></div>
+      <div class="fb">R5·G6·B5 共 <b>16 根线</b>，帧缓冲正好 <b>2 字节/像素</b>（省 1/3 显存与带宽），低分辨率 UI 常用；注意字节序/字节交换位配错会"红蓝互换"。</div></div>
+  </div>
+  <div class="post-bar reveal">
+    <div class="ctrl"><label>线上位宽</label>
+      <div class="seg" id="bppSeg">
+        <button type="button" data-b="8" class="on">RGB888 · 8b/通道</button>
+        <button type="button" data-b="6">RGB666 · 6b/通道</button>
+        <button type="button" data-b="5">RGB565 · R5G6B5</button>
+      </div>
+    </div>
+    <span style="font-family:var(--mono);font-size:11px;color:var(--faint)">同一渐变 → 色带肉眼可见</span>
+  </div>
+  <canvas class="post-cv reveal" id="bppCanvas" height="110"></canvas>
+  <p class="post-cap reveal">▲ 位宽砍半 = 硬丢低位：渐变从连续变成一条条"色带"。dithering（空间/时间抖动）让邻近像素在两个色阶间取舍，眼睛平均出中间色——面板与 SoC 一般内置，一行配置的事。</p>
+</section>
+
+<!-- ================= §07 计算器 ================= -->
+<section id="s7">
+  <div class="sec-head reveal"><span class="no">07</span><h2>PCLK 计算器 · 选接口前先算账</h2><span class="en">Pixel Clock Math</span></div>
+  <p class="sec-sub reveal">PCLK = <b>总像素 × 帧率</b>，消隐系数由时序标准决定。1080p60 需要 <b>148.5 MHz</b>——这一行数字解释了并口 RGB 的疆界。</p>
+  <div class="calc reveal">
+    <div class="inputs">
+      <h5>INPUT · 输入</h5>
+      <div class="field"><label>分辨率</label>
+        <select id="cRes">
+          <option value="vga" selected>640×480 · VGA</option>
+          <option value="wvga">800×480 · 4.3–7 寸</option>
+          <option value="wsvga">1024×600 · 7–10.1 寸</option>
+          <option value="hd">1280×720 · CEA-861</option>
+          <option value="fhd">1920×1080 · CEA-861</option>
+          <option value="custom">自定义…</option>
+        </select>
+      </div>
+      <div class="field"><label>自定义分辨率（px）</label>
+        <div class="two-in">
+          <input type="number" id="cW" value="640" min="16" max="4096">
+          <input type="number" id="cH" value="480" min="16" max="4096">
+        </div>
+      </div>
+      <div class="field"><label>刷新率</label>
+        <select id="cRefresh">
+          <option>30</option><option>50</option><option selected>60</option>
+          <option>75</option><option>85</option><option>120</option>
+        </select>
+      </div>
+      <div class="field"><label>像素格式（影响显存/线上数据率）</label>
+        <select id="cFmt">
+          <option value="16">RGB565 · 16 bpp</option>
+          <option value="24" selected>RGB666/888 · 24 bpp</option>
+        </select>
+      </div>
+      <div class="field"><label>消隐开销</label>
+        <select id="cBlank">
+          <option value="std" selected>标准时序（按分辨率查表）</option>
+          <option value="1.10">轻度 · ×1.10</option>
+          <option value="1.20">典型 · ×1.20</option>
+          <option value="1.35">宽松 · ×1.35</option>
+        </select>
+      </div>
+    </div>
+    <div class="outputs">
+      <h5>OUTPUT · 输出</h5>
+      <div class="out-row big"><span class="ok">像素时钟 PCLK<small>PIXEL CLOCK</small></span><span class="ov" id="oClk">25.2<small>MHz</small></span></div>
+      <div class="out-row"><span class="ok">总尺寸 Htotal × Vtotal<small>TOTAL FRAME</small></span><span class="ov" id="oTot">800 × 525</span></div>
+      <div class="out-row"><span class="ok">行频<small>HORIZONTAL RATE</small></span><span class="ov" id="oLine">31.5<small>kHz</small></span></div>
+      <div class="out-row"><span class="ok">像素周期<small>PIXEL PERIOD</small></span><span class="ov" id="oPixel">39.7<small>ns</small></span></div>
+      <div class="out-row"><span class="ok">显存带宽（读出）<small>FRAMEBUFFER READ</small></span><span class="ov" id="oMem">18<small>MB/s</small></span></div>
+      <div class="out-row"><span class="ok">线上原始数据率<small>RAW WIRE RATE</small></span><span class="ov" id="oWire">604<small>Mbps</small></span></div>
+    </div>
+    <div class="calc-formula">PCLK = Htotal × Vtotal × f<sub>v</sub> = <b id="fExpr">800 × 525 × 60 = 25.2 MHz</b></div>
+    <div class="calc-verdict" id="oVerdict"></div>
+  </div>
+  <div class="lnx-note reveal" style="margin-top:26px">
+    <b>怎么读结果：</b>≤ 33 MHz 入门 MCU 直推毫无压力；≤ 85 MHz 中高端 MCU / 轻量 SoC 可行（走线要认真）；
+    再往上请直接去 <a href="lvds.html" style="color:var(--cyan)">LVDS</a> 或 <a href="mipi-dsi.html" style="color:var(--cyan)">MIPI DSI</a>。
+    显存带宽是 <b>纯读出</b>：双缓冲翻倍，再加 UI 渲染的写入量。
+  </div>
+</section>
+
+<!-- ================= §08 面板上电时序 ================= -->
+<section id="s8">
+  <div class="sec-head reveal"><span class="no">08</span><h2>面板上电时序 · 复位 → 初始化 → 数据 → 背光</h2><span class="en">Power-On Sequence</span></div>
+  <p class="sec-sub reveal">
+    RGB 屏不是"通电就亮"：面板驱动 IC 要先复位，再用 <a href="spi.html" style="color:var(--green)">SPI</a> / <a href="i2c.html" style="color:var(--green)">I²C</a>
+    收一串初始化命令，然后 SoC 才开 RGB 数据流，<b>最后</b>点亮背光。点击任一步骤，时序条跳到该阶段。
+  </p>
+  <div class="dbg-steps reveal" id="seqChips"></div>
+  <div class="dbg-verdict reveal" id="seqVerdict"></div>
+  <div class="seq-canvas-wrap reveal"><canvas id="seqCanvas" height="252"></canvas></div>
+  <div class="seq-bar reveal">
+    <button class="icon-btn play on" id="seqPlay" title="暂停/播放" type="button">❚❚</button>
+    <button class="icon-btn" id="seqReplay" title="从头重放" type="button">↺ 重放</button>
+    <div class="ctrl"><label>速度 ×<span id="seqSpdV">1.0</span></label><input type="range" id="seqSpd" min="0.3" max="3" step="0.1" value="1"></div>
+    <span style="font-family:var(--mono);font-size:11px;color:var(--faint)">时间轴非等比（µs–ms 级事件被拉开示意）</span>
+  </div>
+  <div class="fmt-note reveal">
+    <b>顺序错了会怎样：</b>背光先亮 → 用户看到一瞬白屏/花屏；复位没做完就发命令 → 初始化丢失、永久黑屏；
+    初始化命令没发 <code>DISPON</code> → 数据流再正常也不显示。上电脚本请从面板厂商的参考代码抄，不要自己发明。
+  </div>
+</section>
+
+<!-- ================= §09 调试 / 踩坑 ================= -->
+<section id="s9">
+  <div class="sec-head reveal"><span class="no">09</span><h2>调试链 与 症状 → 病因表</h2><span class="en">Debug Flow</span></div>
+  <p class="sec-sub reveal">别乱试参数——<b>按证据推进</b>：六步调试链从最便宜的检查开始；点每一步看具体操作。症状对号入座在下面。</p>
+  <div class="dbg-steps reveal" id="chainSteps"></div>
+  <div class="dbg-verdict reveal" id="chainTip"></div>
+  <div class="pit-list reveal">
+    <div class="pit"><div class="symptom">黑屏<br>背光不亮</div><div class="fix"><b>电源 / 背光链路没通</b><p>查 BL_EN 电平、PWM 占空比、升压电路与 LED 电压。背光都不亮就别怪时序——先用 §08 第 5 步的思路把背光单独点亮。</p></div></div>
+    <div class="pit"><div class="symptom">黑屏<br>背光亮</div><div class="fix"><b>PCLK / DE 没到，或初始化没跑</b><p>示波器量 PCLK：应有稳定频率（§07 算的值）。有 PCLK 再量 DE 与 RGB；都正常仍黑屏 → 抓 SPI/I²C 确认初始化命令发出且顺序正确（§08）。</p></div></div>
+    <div class="pit"><div class="symptom">画面<br>偏移/环绕</div><div class="fix"><b>porch 参数配错</b><p>右移/下移 = <code>HBP/VBP</code> 偏大或偏小；整幅环绕 = porch 值越界。对照面板手册逐项填，别抄别的屏的参数——§04 的表就是给你对着填的。</p></div></div>
+    <div class="pit"><div class="symptom">花屏<br>雪花噪点</div><div class="fix"><b>PCLK 相位 / 驱动能力 / 走线</b><p>先把 PCLK 降一半复测：错误消失 → 信号完整性问题（等长、串阻 22–33 Ω、参考地）；仍花 → 查 PCLK 采样沿与 DE 极性配置位。</p></div></div>
+    <div class="pit"><div class="symptom">闪烁<br>撕裂</div><div class="fix"><b>刷新不同步 / 双缓冲没按 VSYNC 翻</b><p>渲染帧率与扫描帧率不同步：撕裂发生在帧缓冲被改到一半时。解法是双缓冲 + 在 VSYNC 时机 page flip；部分面板有 TE 输出可帮忙对齐。</p></div></div>
+    <div class="pit"><div class="symptom">红蓝<br>互换/偏色</div><div class="fix"><b>颜色顺序 / 位宽映射错</b><p>纯红图显示成蓝 → <code>RGB/BGR</code> 顺序位没配或 R、B 总线接反；偏色断层 → 888 源打到 666 面板没丢对低位、或 565 打包字节序错（§06）。</p></div></div>
+  </div>
+</section>
+
+<!-- ================= §10 速查表 / 下一步 ================= -->
+<section id="s10">
+  <div class="sec-head reveal"><span class="no">10</span><h2>速查表 与 下一步</h2><span class="en">Cheat Sheet &amp; Next</span></div>
+  <div class="notation reveal">
+    <div class="n-item"><span class="nv">PCLK</span><small>一拍一个像素</small></div>
+    <div class="n-item"><span class="nv c">HSYNC</span><small>每行一次脉冲</small></div>
+    <div class="n-item"><span class="nv a">VSYNC</span><small>每帧一次脉冲</small></div>
+    <div class="n-item"><span class="nv">DE=1</span><small>当前像素有效</small></div>
+  </div>
+  <div class="two-col">
+    <table class="sig-table reveal">
+      <tr><th>组</th><th>信号</th><th>数量</th><th>一句话职责</th></tr>
+      <tr><td class="grp">时钟</td><td><code>PCLK</code></td><td>1</td><td>全局节拍，面板在选定沿锁存</td></tr>
+      <tr><td class="grp">控制</td><td><code>HSYNC</code></td><td>1</td><td>行头脉冲（宽度 = HSA）</td></tr>
+      <tr><td class="grp">控制</td><td><code>VSYNC</code></td><td>1</td><td>帧头脉冲（宽度 = VSA 行）</td></tr>
+      <tr><td class="grp">控制</td><td><code>DE</code></td><td>1</td><td>高 = 可见像素（DE 模式核心）</td></tr>
+      <tr><td class="grp">数据</td><td><code>R[7:0] G[7:0] B[7:0]</code></td><td>24</td><td>并行像素颜色</td></tr>
+      <tr><td class="grp">合计</td><td>—</td><td><b style="color:var(--green)">28</b></td><td>RGB888；RGB666=22 · RGB565=20（含 4 控制）</td></tr>
+    </table>
+    <ul class="rules reveal">
+      <li><span class="no">1</span><span><b>先算 PCLK 再选接口</b>：总像素 × 帧率（§07），超 85 MHz 别硬上。</span></li>
+      <li><span class="no">2</span><span><b>HSYNC 每行、VSYNC 每帧</b>，宽度与极性以面板手册为准。</span></li>
+      <li><span class="no">3</span><span><b>DE=1 才是可见像素</b>——DE 模式是现代面板主流约定。</span></li>
+      <li><span class="no">4</span><span><b>porch 只挪位置不改内容</b>：画面偏移先查 HBP/VBP。</span></li>
+      <li><span class="no">5</span><span><b>上电顺序不能乱</b>：电源 → 复位 → 初始化 → RGB → 背光（§08）。</span></li>
+      <li><span class="no">6</span><span><b>黑屏查链路，花屏查质量</b>：六步调试链 + 症状表（§09）。</span></li>
+    </ul>
+  </div>
+  <div class="next-grid reveal">
+    <a class="next-card lv" href="lvds.html">
+      <span class="nc-en">NEXT · 显示系列 02</span>
+      <h3>LVDS</h3>
+      <p>把 28 根并线串化成 4 对低压差分线：引脚暴跌、抗干扰强。同样是"视频流"思想，只是换了电气层——笔记本与车载屏的常青方案。</p>
+      <div class="nc-chips"><span>4 对差分 / 链路</span><span>7 bit 串化</span><span>~135 MHz</span></div>
+      <span class="nc-go">进入 LVDS →</span>
+    </a>
+    <a class="next-card dsi" href="mipi-dsi.html">
+      <span class="nc-en">NEXT · 显示系列 03</span>
+      <h3>MIPI DSI</h3>
+      <p>移动显示的正主：D-PHY 差分对 + 完整协议栈，命令模式可关掉持续刷新省电，视频模式无缝承接 RGB 时序思想。</p>
+      <div class="nc-chips"><span>1–4 lane</span><span>命令 / 视频模式</span><span>LP / HS 双模</span></div>
+      <span class="nc-go">进入 DSI →</span>
+    </a>
+  </div>
+  <p class="next-note reveal">显示系列导航：RGB（本页）→ <a href="lvds.html">LVDS</a> → <a href="mipi-dsi.html">MIPI DSI</a> · 消费级大屏输出见 <a href="hdmi.html">HDMI</a> · 摄像头输入见 <a href="csi2.html">CSI-2</a></p>
+</section>
+
+<footer>
+  <div class="f-l">
+    <b>参考</b> · VESA CVT 与 CEA-861 标准时序（VGA / 720p / 1080p 总尺寸出处） · 面板参数来自各厂商数据手册与参考初始化代码（ILI9881C / ST7701 / HX8238 及典型 4.3–10.1 寸 RGB TFT）·<br>
+    STM32 LTDC / NXP eLCDIF / 全志 &amp; Rockchip LCDC 参考手册 · 本页为单文件交互式图解，可离线打开，波形由浏览器实时渲染<br>
+    HW-PROTOCOLS · MAINTAINED WITH ♥ FOR EMBEDDED ENGINEERS
+  </div>
+  <div class="f-r">RGB·LAB</div>
+</footer>
+</main>
+
+<script>
+/* ================================================================
+   RGB·LAB 交互引擎
+   统一时序模型（VGA 640×480@60，用于 §02/§03）：
+   HSA 96 · HBP 48 · HACT 640 · HFP 16 → 一行 800 PCLK
+   VSA  2 · VBP 33 · VACT 480 · VFP 10 → 一帧 525 行
+   t 以 PCLK 周期（tick）为单位；VSYNC/HSYNC 低有效，DE 高有效。
+================================================================ */
+"use strict"; const $=s=>document.querySelector(s); const mod=(a,m)=>((a%m)+m)%m;
+const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches; const MONO='"IBM Plex Mono",monospace';
+const C={green:'#34e08a',amber:'#ffb02e',cyan:'#57d8f2',red:'#ff6478',
+         dim:'#8aa294',faint:'#5c7264',grid:'rgba(52,224,138,.07)',grid2:'rgba(52,224,138,.16)'};
+
+const T={HSA:96,HBP:48,HACT:640,HFP:16,VSA:2,VBP:33,VACT:480,VFP:10};
+const HTOT=T.HSA+T.HBP+T.HACT+T.HFP;          // 800
+const VTOT=T.VSA+T.VBP+T.VACT+T.VFP;          // 525
+const FTOT=HTOT*VTOT;                         // 420000
+const VIS0=T.VSA+T.VBP, VIS1=VIS0+T.VACT;     // 35..515
+
+const lineOf=t=>Math.floor(mod(t,FTOT)/HTOT); const xsOf=t=>mod(t,HTOT);
+const vsyncLv=t=>lineOf(t)<T.VSA?0:1; const hsyncLv=t=>xsOf(t)<T.HSA?0:1;
+const deAt=t=>{const x=xsOf(t),y=lineOf(t);return x>=T.HSA+T.HBP&&x<T.HSA+T.HBP+T.HACT&&y>=VIS0&&y<VIS1?1:0;};
+
+/* 测试图（640×480）：上半彩条 + 中间标题带 + 下半渐变，colorAt 与之严格一致 */
+const BARS=[[232,232,224],[230,230,48],[44,224,224],[52,196,76],[230,64,200],[226,56,56],[64,84,226]];
+function colorAt(x,y){
+  x=mod(Math.round(x),T.HACT); y=mod(Math.round(y),T.VACT);
+  if(y<288){const i=Math.min(6,Math.floor(x/T.HACT*7));return BARS[i];} const p=(y-288)/192;
+  return [Math.round(10+42*p),Math.round(26+198*p),Math.round(18+120*p)];
+}
+const pat=document.createElement('canvas');pat.width=T.HACT;pat.height=T.VACT;
+(function buildPat(){
+  const c=pat.getContext('2d'); const bw=T.HACT/7;
+  for(let i=0;i<7;i++){const[r,g,b]=BARS[i];c.fillStyle=`rgb(${r},${g},${b})`;c.fillRect(i*bw,0,bw+1,288);}
+  c.fillStyle='rgba(7,11,9,.72)';c.fillRect(0,242,T.HACT,46);
+  c.fillStyle='#dcebe1';c.font='700 30px "Chakra Petch","Noto Sans SC",sans-serif';c.textAlign='center';
+  c.fillText('RGB·LAB 640×480',T.HACT/2,274); const g=c.createLinearGradient(0,288,0,T.VACT);
+  g.addColorStop(0,'rgb(10,26,18)');g.addColorStop(1,'rgb(52,224,138)');
+  c.fillStyle=g;c.fillRect(0,288,T.HACT,T.VACT-288); })();
+
+/* ---------------- 画布尺寸工具 ---------------- */
+function fit(cv,h){
+  const r=cv.parentElement.getBoundingClientRect(); const w=Math.max(300,r.width);
+  const dpr=Math.min(2,window.devicePixelRatio||1); cv.width=w*dpr;cv.height=h*dpr;cv.style.height=h+'px';
+  const c=cv.getContext('2d');c.setTransform(dpr,0,0,dpr,0,0); return{c,w};
+}
+const RZ=[]; let rzT;window.addEventListener('resize',()=>{clearTimeout(rzT);rzT=setTimeout(()=>RZ.forEach(f=>f()),150);});
+const VIS={};
+function watch(el,key){
+  new IntersectionObserver(es=>es.forEach(e=>VIS[key]=e.isIntersecting),{rootMargin:'80px'}).observe(el);
+}
+
+/* ================= HERO 动画 ================= */
+const heroS={t:0}; const NS='http://www.w3.org/2000/svg';
+const heroPaths=['heroR','heroG','heroB'].map((id,i)=>{
+  const el=document.getElementById(id);
+  return{el,len:el.getTotalLength(),col:['rgba(255,100,120,.95)','rgba(52,224,138,.95)','rgba(87,216,242,.95)'][i],i};
+}); const pkts=[];
+(function(){
+  const g=document.getElementById('heroPkts');
+  heroPaths.forEach(hp=>{
+    for(let k=0;k<4;k++){
+      const r=document.createElementNS(NS,'rect');
+      r.setAttribute('width',9);r.setAttribute('height',9);r.setAttribute('rx',2);
+      r.setAttribute('fill',hp.col); g.appendChild(r); pkts.push({r,hp,off:k/4+hp.i*.11,spd:.5+hp.i*.07});
+    }
+  }); })(); const heroBeam=$('#heroBeam'),heroReveal=$('#heroReveal'),heroDark=$('#heroDark'),heroStat=$('#heroStat');
+const HSCR={x:568,y:112,h:180};
+function heroDraw(dt){
+  if(!reduced)heroS.t+=dt; const ph=mod(heroS.t/4.4,1); const beamY=HSCR.y+ph*HSCR.h;
+  heroBeam.setAttribute('y1',beamY);heroBeam.setAttribute('y2',beamY); heroBeam.setAttribute('opacity',ph>.995?0:1);
+  heroReveal.setAttribute('height',(ph*HSCR.h).toFixed(1)); heroDark.setAttribute('y',(HSCR.y+ph*HSCR.h).toFixed(1));
+  heroDark.setAttribute('height',(HSCR.h*(1-ph)).toFixed(1));
+  heroStat.textContent='扫描第 '+Math.min(Math.floor(ph*480)+1,480)+' / 480 行';
+  pkts.forEach(p=>{
+    const u=mod(heroS.t*p.spd+p.off,1); const pt=p.hp.el.getPointAtLength(u*p.hp.len);
+    p.r.setAttribute('x',pt.x-4.5);p.r.setAttribute('y',pt.y-4.5); p.r.setAttribute('opacity',(u>.06&&u<.94)?1:0); });
+}
+
+/* ================= §02 迷你示波器 ================= */
+const minis=[];
+class Mini{
+  constructor(cv,cfg){
+    this.cv=cv;this.o=Object.assign({win:1200,speed:300,height:84,lanes:[]},cfg);
+    this.ph=0;this.ctx=cv.getContext('2d');this.vis=true;
+    this.refit=()=>{const f=fit(cv,this.o.height);this.ctx=f.c;this.w=f.w;};
+    RZ.push(this.refit);this.refit();minis.push(this);
+  }
+  draw(){
+    const c=this.ctx,w=this.w,h=this.o.height,px=w/this.o.win; const t0=this.ph-w*.12/px; c.clearRect(0,0,w,h);
+    /* 行起点网格线 */
+    for(let base=Math.floor(t0/HTOT)*HTOT;base<t0+this.o.win+HTOT;base+=HTOT){
+      const x=(base-t0)*px; c.strokeStyle=COL0.grid2;c.lineWidth=1;
+      c.beginPath();c.moveTo(x+.5,6);c.lineTo(x+.5,h-6);c.stroke();
+    }
+    const n=this.o.lanes.length,top=8,bot=8,rowH=(h-top-bot)/n,amp=rowH*.3;
+    this.o.lanes.forEach((ln,i)=>{
+      const y0=top+rowH*i+rowH/2,yH=y0-amp,yL=y0+amp;
+      if(ln.bus){ /* 像素总线：色块 */
+        const step=Math.max(1,px);
+        for(let x=0;x<w;x+=step){
+          const t=t0+x/px;
+          if(deAt(t)){
+            const[r,g,b]=colorAt(xsOf(t)-T.HSA-T.HBP,lineOf(t)-VIS0); c.fillStyle=`rgb(${r},${g},${b})`;
+            c.fillRect(x,y0-amp*.75,step+.6,amp*1.5);
+          }
+        }
+      }else{ /* 数字台阶 */
+        c.strokeStyle=ln.c;c.lineWidth=ln.faint?1.2:2; c.globalAlpha=ln.faint?.35:1; c.beginPath(); let py=null;
+        for(let k=Math.floor(t0)-1;k<=Math.ceil(t0+this.o.win)+1;k++){
+          const y=ln.lv(k)?yH:yL; if(py===null)c.moveTo((k-t0)*px,y);
+          else{if(py!==y)c.lineTo((k-t0)*px,py);c.lineTo((k-t0)*px,y);} c.lineTo((k+1-t0)*px,y);py=y;
+        }
+        c.stroke();c.globalAlpha=1;
+      }
+      c.fillStyle='rgba(7,11,9,.88)';c.fillRect(0,y0-8,w>560?86:44,16);
+      c.font='600 10.5px '+MONO;c.textAlign='left';c.fillStyle=ln.bus?C.dim:ln.c; c.fillText(ln.n,8,y0+3.5);
+      if(w>560){c.fillStyle='rgba(140,162,148,.75)';c.font='8.5px '+MONO;c.fillText(ln.sub||'',44,y0+3.5);}
+    });
+  }
+}
+const COL0={grid2:'rgba(52,224,138,.14)'};
+new Mini($('#mClk'),{win:14,speed:8,height:84,lanes:[{n:'PCLK',sub:'时钟',c:C.green,lv:t=>Math.floor(mod(t,2))}]});
+new Mini($('#mSync'),{win:5200,speed:2100,height:96,lanes:[
+  {n:'HSYNC',sub:'每行一次',c:C.cyan,lv:hsyncLv},
+  {n:'VSYNC',sub:'每帧一次',c:C.amber,lv:vsyncLv}]});
+new Mini($('#mDe'),{win:1800,speed:750,height:84,lanes:[
+  {n:'DE',sub:'数据使能',c:C.amber,lv:deAt},
+  {n:'PCLK',sub:'时钟',c:'rgba(140,162,148,.8)',faint:true,lv:t=>Math.floor(mod(t,2))}]});
+new Mini($('#mDat'),{win:2000,speed:850,height:84,lanes:[
+  {n:'DE',sub:'有效窗口',c:'rgba(140,162,148,.8)',faint:true,lv:deAt},
+  {n:'RGB',sub:'像素数据',bus:true}]});
+
+/* ================= §03 帧扫描实验室 ================= */
+const scan={t:0,playing:!reduced,speed:45,zoom:900,frames:0}; let scrC,scrW,wavC,wavW;
+function scanRefit(){
+  const a=fit($('#scanScreen'),252);scrC=a.c;scrW=a.w; const b=fit($('#scanWave'),236);wavC=b.c;wavW=b.w;
+}
+RZ.push(scanRefit);scanRefit();
+
+function scanRowsAt(t){
+  const ln=lineOf(t),xs=xsOf(t); if(ln<VIS0)return 0; if(ln>=VIS1)return T.VACT;
+  return(ln-VIS0)+Math.min(Math.max((xs-T.HSA-T.HBP)/T.HACT,0),1);
+}
+function drawScreen(){
+  const c=scrC,w=scrW,h=252; c.clearRect(0,0,w,h); const left=12,top=26,rw=52,bot=18;
+  const sw=w-left-rw,sh=h-top-bot; const rows=scanRowsAt(scan.t);
+  /* 底：上一帧残影（暗） */
+  c.globalAlpha=.22;c.drawImage(pat,left,top,sw,sh);c.globalAlpha=1;
+  /* 已扫描：全亮 */
+  if(rows>0)c.drawImage(pat,0,0,T.HACT,Math.max(rows,.5),left,top,sw,sh*rows/T.VACT);
+  /* 网格 */
+  c.strokeStyle='rgba(52,224,138,.08)';c.lineWidth=1;
+  for(let y=0;y<=T.VACT;y+=60){const yy=top+sh*y/T.VACT+.5;c.beginPath();c.moveTo(left,yy);c.lineTo(left+sw,yy);c.stroke();}
+  c.strokeStyle='rgba(52,224,138,.35)';c.strokeRect(left+.5,top+.5,sw-1,sh-1);
+  /* 电子束 */
+  const ln=lineOf(scan.t);
+  if(ln>=VIS0&&ln<VIS1){
+    const by=top+sh*rows/T.VACT; c.save();c.shadowColor='rgba(255,255,255,.9)';c.shadowBlur=10;
+    c.strokeStyle='#fff';c.lineWidth=2; c.beginPath();c.moveTo(left,by);c.lineTo(left+sw,by);c.stroke();c.restore();
+    const bx=left+sw*((xsOf(scan.t)-T.HSA-T.HBP)/T.HACT);
+    if(bx>=left&&bx<=left+sw){c.fillStyle='#fff';c.beginPath();c.arc(bx,by,3.4,0,7);c.fill();}
+  }else{
+    c.fillStyle='rgba(255,176,46,.85)';c.font='600 10px '+MONO;c.textAlign='left';
+    c.fillText('VBLANK · 消隐期（电子束回扫，不写屏）',left+8,top+14);
+  }
+  /* 右侧行标尺（525 行分区） */
+  const rx=left+sw+10;
+  const segs=[[T.VSA,'rgba(255,100,120,.35)','VSA'],[T.VBP,'rgba(255,176,46,.3)','VBP'],[T.VACT,'rgba(52,224,138,.4)','480'],[T.VFP,'rgba(140,162,148,.28)','VFP']];
+  let sy=top;
+  segs.forEach(([n,col,lab])=>{
+    const hh=sh*n/VTOT; c.fillStyle=col;c.fillRect(rx,sy,10,hh);
+    c.strokeStyle='rgba(7,11,9,.9)';c.strokeRect(rx+.5,sy+.5,10,hh);
+    c.fillStyle='rgba(140,162,148,.85)';c.font='8px '+MONO;c.textAlign='left';
+    if(hh>13)c.fillText(lab,rx+14,sy+hh/2+3); sy+=hh; }); const my=top+sh*ln/VTOT;
+  c.fillStyle='#fff';c.beginPath();c.moveTo(rx+22,my);c.lineTo(rx+29,my-4);c.lineTo(rx+29,my+4);c.closePath();c.fill();
+  c.fillStyle='rgba(140,162,148,.8)';c.font='8.5px '+MONO;c.textAlign='left';
+  c.fillText('行 '+ln,rx+13,Math.min(my+4,top+sh)-6);
+  c.fillStyle='rgba(140,162,148,.6)';c.font='10px '+MONO; c.fillText('SCREEN · 640×480',left,top-10);
+}
+const LANE_NAMES={vs:['VSYNC','帧同步'],hs:['HSYNC','行同步'],de:['DE','数据使能'],clk:['PCLK','时钟'],rgb:['RGB','像素数据']};
+function drawWave(){
+  const c=wavC,w=wavW,h=236; c.clearRect(0,0,w,h); const px=w/scan.zoom,xc=w*.62; const t0=scan.t-xc/px,t1=scan.t+(w-xc)/px;
+  /* 行内区带（HSA/HBP/ACTIVE/HFP） */
+  const BAND=[[0,T.HSA,'rgba(255,100,120,.07)','rgba(255,100,120,.6)','HSA'],
+              [T.HSA,T.HSA+T.HBP,'rgba(255,176,46,.06)','rgba(255,176,46,.65)','HBP'],
+              [T.HSA+T.HBP,T.HSA+T.HBP+T.HACT,'rgba(52,224,138,.06)','rgba(52,224,138,.7)','ACTIVE · 可见像素'],
+              [T.HSA+T.HBP+T.HACT,HTOT,'rgba(140,162,148,.06)','rgba(140,162,148,.55)','HFP']]; const drawX=t=>(t-t0)*px;
+  for(let base=Math.floor(t0/HTOT)*HTOT;base<t1;base+=HTOT){
+    BAND.forEach(([a,b,f,st,lab])=>{
+      const x1=Math.max(0,drawX(base+a)),x2=Math.min(w,drawX(base+b)); if(x2<=0||x1>=w||x2<=x1)return;
+      c.fillStyle=f;c.fillRect(x1,16,x2-x1,h-16-8);
+      if(x2-x1>52){
+        c.font='600 9.5px '+MONO;c.textAlign='center';c.fillStyle=st; c.fillText(lab,(x1+x2)/2,13);
+      }
+    }); const gx=drawX(base);
+    if(gx>=0&&gx<=w){c.strokeStyle=COL0.grid2;c.lineWidth=1;c.beginPath();c.moveTo(gx+.5,16);c.lineTo(gx+.5,h-8);c.stroke();}
+  }
+  /* 信号车道 */
+  const lanes=[
+    {k:'vs',c:C.amber,lv:vsyncLv},
+    {k:'hs',c:C.cyan,lv:hsyncLv},
+    {k:'de',c:C.green,lv:deAt},
+    {k:'clk',c:'rgba(140,162,148,.85)',lv:t=>Math.floor(mod(t,2)),faint:true},
+    {k:'rgb',bus:true}]; const n=lanes.length,top=24,bot=12,rowH=(h-top-bot)/n,amp=rowH*.3;
+  lanes.forEach((ln,i)=>{
+    const y0=top+rowH*i+rowH/2,yH=y0-amp,yL=y0+amp;
+    if(ln.bus){
+      const step=Math.max(1,px);
+      for(let x=0;x<w;x+=step){
+        const t=t0+x/px;
+        if(deAt(t)){
+          const[r,g,b]=colorAt(xsOf(t)-T.HSA-T.HBP,lineOf(t)-VIS0); c.fillStyle=`rgb(${r},${g},${b})`;
+          c.fillRect(x,y0-amp*.8,step+.6,amp*1.6);
+        }
+      }
+    }else{
+      c.strokeStyle=ln.c;c.lineWidth=ln.faint?1.1:2; c.globalAlpha=ln.faint?.4:1; c.beginPath();let py=null;
+      for(let k=Math.floor(t0)-1;k<=Math.ceil(t1)+1;k++){
+        const y=ln.lv(k)?yH:yL; if(py===null)c.moveTo((k-t0)*px,y);
+        else{if(py!==y)c.lineTo((k-t0)*px,py);c.lineTo((k-t0)*px,y);} c.lineTo((k+1-t0)*px,y);py=y;
+      }
+      c.stroke();c.globalAlpha=1;
+    }
+    const nm=LANE_NAMES[ln.k]; c.fillStyle='rgba(7,11,9,.88)';c.fillRect(0,y0-9,74,18);
+    c.font='600 11px '+MONO;c.textAlign='left'; c.fillStyle=ln.bus?C.dim:ln.c;c.fillText(nm[0],8,y0+4);
+    c.fillStyle='rgba(140,162,148,.7)';c.font='9px '+MONO;c.fillText(nm[1],42,y0+4); });
+  /* 红色探针 */
+  c.strokeStyle=C.red;c.lineWidth=1;c.setLineDash([5,4]);
+  c.beginPath();c.moveTo(xc+.5,16);c.lineTo(xc+.5,h-6);c.stroke();c.setLineDash([]);
+  c.fillStyle=C.red;c.font='600 9px '+MONO;c.textAlign='left';c.fillText('PROBE',xc+6,26);
+  lanes.forEach(ln=>{
+    if(ln.bus){
+      if(deAt(scan.t)){
+        const[r,g,b]=colorAt(xsOf(scan.t)-T.HSA-T.HBP,lineOf(scan.t)-VIS0);
+        c.fillStyle=`rgb(${r},${g},${b})`; const y0=top+rowH*4+rowH/2;
+        c.beginPath();c.arc(xc,y0,3.6,0,7);c.fill(); c.strokeStyle='rgba(255,255,255,.6)';c.stroke();
+      }
+    }else{
+      const y0=top+rowH*(ln.k==='vs'?0:ln.k==='hs'?1:ln.k==='de'?2:3)+rowH/2;
+      c.fillStyle=C.red;c.beginPath();c.arc(xc,y0+(ln.lv(scan.t)?-rowH*.3:rowH*.3),3.2,0,7);c.fill();
+    }
+  });
+}
+function updateReadout(){
+  const t=scan.t,ln=lineOf(t),xs=xsOf(t),de=deAt(t); $('#rLine').textContent=ln+' / '+VTOT;
+  $('#rCol').textContent=xs+' / '+HTOT; let ph; if(ln<T.VSA)ph='VSYNC 脉冲 · 帧头';
+  else if(ln<VIS0)ph='VBP · 帧行消隐 '+(ln-T.VSA)+'/'+T.VBP;
+  else if(ln<VIS1){
+    if(xs<T.HSA)ph='HSYNC 脉冲 · 行头'; else if(xs<T.HSA+T.HBP)ph='HBP · 行后沿';
+    else if(xs<T.HSA+T.HBP+T.HACT)ph='可见像素 '+(xs-T.HSA-T.HBP+1)+'/'+T.HACT; else ph='HFP · 行前沿';
+  }else ph='VFP · 帧尾消隐 '+(ln-VIS1)+'/'+T.VFP;
+  $('#rPhase').textContent=ph; $('#rDE').textContent=de?'1 · 有效':'0 · 消隐'; $('#rDE').className='v '+(de?'g':'');
+  $('#rPix').textContent=de?('('+ (xs-T.HSA-T.HBP)+', '+(ln-VIS0)+')'):'—';
+  $('#rFprog').textContent=(t/FTOT*100).toFixed(1)+'%'; $('#rFrames').textContent=scan.frames;
+}
+function scanTick(dt){
+  if(!scan.playing)return; scan.t+=scan.speed*HTOT*dt; if(scan.t>=FTOT){scan.t-=FTOT;scan.frames++;}
+}
+const scanPlayBtn=$('#scanPlay');
+function setScanPlay(p){
+  scan.playing=p; scanPlayBtn.textContent=p?'❚❚':'▶'; scanPlayBtn.classList.toggle('on',p);
+}
+scanPlayBtn.addEventListener('click',()=>setScanPlay(!scan.playing));
+$('#scanStep').addEventListener('click',()=>{
+  setScanPlay(false); scan.t=(Math.floor(scan.t/HTOT)+1)*HTOT; if(scan.t>=FTOT){scan.t=0;scan.frames++;}
+}); $('#scanReset').addEventListener('click',()=>{scan.t=0;});
+$('#scanSpd').addEventListener('input',e=>{scan.speed=+e.target.value;$('#scanSpdV').textContent=e.target.value;});
+function setZoom(z){
+  scan.zoom=Math.min(3200,Math.max(300,z)); $('#zoomLbl').textContent='窗口 ≈ '+(scan.zoom/HTOT).toFixed(1)+' 行';
+}
+$('#zoomIn').addEventListener('click',()=>setZoom(scan.zoom-200));
+$('#zoomOut').addEventListener('click',()=>setZoom(scan.zoom+200)); setZoom(900);
+document.addEventListener('keydown',e=>{
+  if(e.code==='Space'&&!/INPUT|SELECT|BUTTON/.test(document.activeElement.tagName)){
+    e.preventDefault();setScanPlay(!scan.playing);
+  }
+});
+
+/* ================= §04 Porch 实验室 ================= */
+const PRESETS={
+  vga:{n:'640×480 · VGA',HACT:640,VACT:480,HSA:96,HBP:48,HFP:16,VSA:2,VBP:33,VFP:10,app:'经典 monitor · 4.3 寸屏'},
+  wvga:{n:'800×480 · 4.3–7 寸',HACT:800,VACT:480,HSA:128,HBP:88,HFP:40,VSA:2,VBP:33,VFP:10,app:'HMI · 开发板标配'},
+  wsvga:{n:'1024×600 · 7–10.1 寸',HACT:1024,VACT:600,HSA:136,HBP:160,HFP:160,VSA:10,VBP:23,VFP:12,app:'车载 · 工控平板'},
+  hd:{n:'1280×720 · CEA-861',HACT:1280,VACT:720,HSA:40,HBP:220,HFP:440,VSA:5,VBP:20,VFP:5,app:'720p 标准 · 逼近并口上限'},
+  fhd:{n:'1920×1080 · CEA-861',HACT:1920,VACT:1080,HSA:44,HBP:148,HFP:88,VSA:5,VBP:36,VFP:4,app:'1080p · 并口 RGB 做不到'}
+}; const P=Object.assign({},PRESETS.vga);
+function drawPorch(){
+  const HT=P.HACT+P.HSA+P.HBP+P.HFP, VT=P.VACT+P.VSA+P.VBP+P.VFP;
+  const W=540,H1=330,x0=30,y0=40,fw=428,fh=200; const sx=fw/HT,sy=fh/VT; const lx=P.HSA+P.HBP, ty=P.VSA+P.VBP;
+  let s=`<svg viewBox="0 0 ${W} ${H1}" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono,monospace">`;
+  s+=`<text x="${x0}" y="24" fill="rgba(140,162,148,.8)" font-size="11">总帧 ${HT} × ${VT}（外框）· 可见区 ${P.HACT} × ${P.VACT}（绿框）</text>`;
+  /* 外框 */
+  s+=`<rect x="${x0}" y="${y0}" width="${fw}" height="${fh}" fill="rgba(140,162,148,.03)" stroke="rgba(140,162,148,.5)"/>`;
+  /* 左：HSA / HBP */
+  s+=`<rect x="${x0}" y="${y0}" width="${(P.HSA*sx).toFixed(1)}" height="${fh}" fill="rgba(255,100,120,.10)"/>`;
+  s+=`<rect x="${(x0+P.HSA*sx).toFixed(1)}" y="${y0}" width="${(P.HBP*sx).toFixed(1)}" height="${fh}" fill="rgba(255,176,46,.10)"/>`;
+  /* 右：HFP */
+  s+=`<rect x="${(x0+fw-P.HFP*sx).toFixed(1)}" y="${y0}" width="${(P.HFP*sx).toFixed(1)}" height="${fh}" fill="rgba(140,162,148,.10)"/>`;
+  /* 上：VSA / VBP（从左边界之后起） */
+  s+=`<rect x="${(x0+lx*sx).toFixed(1)}" y="${y0}" width="${(fw-lx*sx-P.HFP*sx).toFixed(1)}" height="${(P.VSA*sy).toFixed(1)}" fill="rgba(255,100,120,.10)"/>`;
+  s+=`<rect x="${(x0+lx*sx).toFixed(1)}" y="${(y0+P.VSA*sy).toFixed(1)}" width="${(fw-lx*sx-P.HFP*sx).toFixed(1)}" height="${(P.VBP*sy).toFixed(1)}" fill="rgba(255,176,46,.10)"/>`;
+  /* 下：VFP */
+  s+=`<rect x="${(x0+lx*sx).toFixed(1)}" y="${(y0+fh-P.VFP*sy).toFixed(1)}" width="${(fw-lx*sx-P.HFP*sx).toFixed(1)}" height="${(P.VFP*sy).toFixed(1)}" fill="rgba(140,162,148,.10)"/>`;
+  /* 可见区 */
+  s+=`<rect x="${(x0+lx*sx).toFixed(1)}" y="${(y0+ty*sy).toFixed(1)}" width="${(P.HACT*sx).toFixed(1)}" height="${(P.VACT*sy).toFixed(1)}" fill="rgba(52,224,138,.07)" stroke="#34e08a" stroke-width="1.6"/>`;
+  s+=`<text x="${(x0+lx*sx+P.HACT*sx/2).toFixed(1)}" y="${(y0+ty*sy+P.VACT*sy/2+4).toFixed(1)}" text-anchor="middle" fill="#34e08a" font-size="11" font-weight="600">可见区</text>`;
+  /* 图例 */
+  const leg=[[`HSA ${P.HSA}`,'rgba(255,100,120,.55)'],[`HBP ${P.HBP}`,'rgba(255,176,46,.6)'],
+             [`HFP ${P.HFP}`,'rgba(140,162,148,.6)'],[`VSA ${P.VSA}`,'rgba(255,100,120,.55)'],
+             [`VBP ${P.VBP}`,'rgba(255,176,46,.6)'],[`VFP ${P.VFP}`,'rgba(140,162,148,.6)']];
+  leg.forEach((l,i)=>{
+    s+=`<rect x="${x0+i*72}" y="${y0+fh+12}" width="9" height="9" fill="${l[1]}" stroke="${l[1]}"/>`;
+    s+=`<text x="${x0+i*72+13}" y="${y0+fh+20}" fill="rgba(140,162,148,.9)" font-size="10">${l[0]}</text>`; });
+  /* 水平时序条 */
+  const by=y0+fh+44,bh=26,bx=x0;
+  const segs=[[P.HSA,'HSA','rgba(255,100,120,.35)',P.HSA],[P.HBP,'HBP','rgba(255,176,46,.32)',P.HBP],[P.HACT,'ACTIVE','rgba(52,224,138,.4)',P.HACT],[P.HFP,'HFP','rgba(140,162,148,.3)',P.HFP]];
+  let cx=bx;
+  segs.forEach(([len,lab,col,val])=>{
+    const ww=len/HT*fw; s+=`<rect x="${cx.toFixed(1)}" y="${by}" width="${ww.toFixed(1)}" height="${bh}" fill="${col}"/>`;
+    s+=`<rect x="${cx.toFixed(1)}" y="${by}" width="${ww.toFixed(1)}" height="${bh}" fill="none" stroke="rgba(7,11,9,.9)"/>`;
+    if(ww>30)s+=`<text x="${(cx+ww/2).toFixed(1)}" y="${by+17}" text-anchor="middle" fill="#dcebe1" font-size="10">${lab} ${val}</text>`;
+    cx+=ww; });
+  s+=`<text x="${bx}" y="${by-6}" fill="rgba(140,162,148,.7)" font-size="10">一行的时间轴（PCLK 数）：${P.HSA}+${P.HBP}+${P.HACT}+${P.HFP} = ${HT}</text>`;
+  s+='</svg>'; $('#porchSvg').innerHTML=s;
+  /* 数字面板 */
+  const clk=HT*VT*60/1e6; $('#pHact').textContent=P.HACT+' px'; $('#pHtot').textContent=HT;
+  $('#pRatioH').textContent=(P.HACT/HT*100).toFixed(1)+'%'; $('#pVact').textContent=P.VACT+' 行';
+  $('#pVtot').textContent=VT; $('#pRatioV').textContent=(P.VACT/VT*100).toFixed(1)+'%';
+  $('#pClk').textContent=clk.toFixed(1)+' MHz'; $('#pLineT').textContent=(1e6/(clk*1e6)*HT).toFixed(1)+' µs';
+  $('#pFrameT').textContent=(1000/60).toFixed(1)+' ms';
+}
+const PLIDS=[['plHsa','vHsa','HSA'],['plHbp','vHbp','HBP'],['plHfp','vHfp','HFP'],
+             ['plVsa','vVsa','VSA'],['plVbp','vVbp','VBP'],['plVfp','vVfp','VFP']];
+PLIDS.forEach(([id,vid,key])=>{
+  $('#'+id).addEventListener('input',e=>{
+    P[key]=+e.target.value;$('#'+vid).textContent=e.target.value;
+    document.querySelectorAll('#presetSeg button').forEach(b=>b.classList.remove('on'));
+    document.querySelectorAll('#panelTable tr').forEach(r=>r.classList.remove('on')); drawPorch(); }); });
+function loadPreset(key){
+  Object.assign(P,PRESETS[key]); PLIDS.forEach(([id,vid,key2])=>{$('#'+id).value=P[key2];$('#'+vid).textContent=P[key2];});
+  document.querySelectorAll('#presetSeg button').forEach(b=>b.classList.toggle('on',b.dataset.p===key));
+  document.querySelectorAll('#panelTable tr').forEach(r=>r.classList.toggle('on',r.dataset.p===key)); drawPorch();
+}
+$('#presetSeg').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(b)loadPreset(b.dataset.p); });
+(function buildPanelTable(){
+  const tb=$('#panelTable');
+  Object.keys(PRESETS).forEach(k=>{
+    const p=PRESETS[k],HT=p.HACT+p.HSA+p.HBP+p.HFP,VT=p.VACT+p.VSA+p.VBP+p.VFP;
+    const tr=document.createElement('tr'); tr.dataset.p=k;
+    tr.innerHTML=`<td>${p.n}</td><td>${p.HSA} / ${p.HBP} / ${p.HFP}</td><td>${p.VSA} / ${p.VBP} / ${p.VFP}</td>`+
+      `<td>${HT} × ${VT}</td><td style="color:var(--green)">${(HT*VT*60/1e6).toFixed(1)} MHz</td><td style="font-family:var(--sans)">${p.app}</td>`;
+    tr.addEventListener('click',()=>loadPreset(k)); tb.appendChild(tr); });
+  tb.querySelector('tr[data-p="vga"]').classList.add('on'); })(); drawPorch();
+
+/* ================= §05 模式对比 ================= */
+let mode='de';
+function drawMode(){
+  const W=520,H1=262,x0=14,x1=506,sc=(x1-x0)/HTOT; const X=t=>x0+t*sc;
+  let s=`<svg viewBox="0 0 ${W} ${H1}" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono,monospace">`;
+  const seg=[[0,T.HSA,'HSA','rgba(255,100,120,'],[T.HSA,T.HSA+T.HBP,'HBP','rgba(255,176,46,'],
+             [T.HSA+T.HBP,T.HSA+T.HBP+T.HACT,'ACTIVE · 640 可见像素','rgba(52,224,138,'],[T.HSA+T.HBP+T.HACT,HTOT,'HFP','rgba(140,162,148,']];
+  seg.forEach(([a,b,lab,col])=>{
+    s+=`<rect x="${X(a).toFixed(1)}" y="30" width="${((b-a)*sc).toFixed(1)}" height="160" fill="${col}.07)" stroke="${col}.4)"/>`;
+    if((b-a)*sc>36)s+=`<text x="${(X(a)+(b-a)*sc/2).toFixed(1)}" y="48" text-anchor="middle" fill="${col}.85)" font-size="9.5">${lab}</text>`;
+  });
+  const lane=(y,name,sub,color,lv,dimmed)=>{
+    let d=`M ${X(0)} ${lv(0)?y-11:y+11}`; let py=lv(0);
+    for(let t=0;t<=HTOT;t+=2){
+      const l=lv(t); if(l!==py){d+=` L ${X(t)} ${py?y-11:y+11} L ${X(t)} ${l?y-11:y+11}`;py=l;}
+      d+=` L ${X(Math.min(t+2,HTOT))} ${l?y-11:y+11}`;
+    }
+    const dim=dimmed?'opacity=".35"':''; s+=`<path d="${d}" fill="none" stroke="${color}" stroke-width="2" ${dim}/>`;
+    s+=`<text x="${x0}" y="${y-17}" fill="${dimmed?'rgba(140,162,148,.6)':color}" font-size="9.5" font-weight="600">${name}</text>`;
+    if(sub)s+=`<text x="${x0}" y="${y+24}" fill="rgba(140,162,148,.6)" font-size="8.5">${sub}</text>`;
+  }; lane(96,'PCLK','（示意 · 未按比例）','rgba(140,162,148,.8)',t=>Math.floor(t/4)%2,true);
+  lane(140,'HSYNC',mode==='de'?'仍在发送 · DE 模式面板可忽略':'面板从这里开始数时钟',C.cyan,t=>t>=T.HSA?1:0,mode==='de');
+  if(mode==='de'){
+    lane(184,'DE','高 = 这个像素有效，面板直接锁存',C.green,t=>(t>=T.HSA+T.HBP&&t<T.HSA+T.HBP+T.HACT)?1:0);
+  }else{
+    lane(184,'DE','不连接（NC）· 恒为低','rgba(140,162,148,.7)',()=>0,true);
+  }
+  /* RGB 总线色块 */
+  const ry=224;
+  for(let i=0;i<T.HACT;i+=6){
+    const[r,g,b]=colorAt(i,100);
+    s+=`<rect x="${X(T.HSA+T.HBP+i).toFixed(1)}" y="${ry-9}" width="${(6*sc+.8).toFixed(1)}" height="18" fill="rgb(${r},${g},${b})"/>`;
+  }
+  s+=`<text x="${x0}" y="${ry-13}" fill="#8aa294" font-size="9.5" font-weight="600">RGB[23:0] · 像素数据</text>`;
+  if(mode==='de'){
+    s+=`<path d="M ${X(T.HSA+T.HBP)} 216 L ${X(T.HSA+T.HBP)} 206 L ${X(T.HSA+T.HBP+T.HACT)} 206 L ${X(T.HSA+T.HBP+T.HACT)} 216" fill="none" stroke="#34e08a" stroke-width="1.2"/>`;
+    s+=`<text x="${X(T.HSA+T.HBP+T.HACT/2)}" y="202" text-anchor="middle" fill="#34e08a" font-size="9.5">DE 高电平窗口 = 640 个像素，一个不多一个不少</text>`;
+  }else{
+    s+=`<line x1="${X(T.HSA)}" y1="140" x2="${X(T.HSA)}" y2="60" stroke="rgba(87,216,242,.6)" stroke-dasharray="3 3"/>`;
+    s+=`<text x="${X(T.HSA+8)}" y="70" fill="rgba(87,216,242,.9)" font-size="9.5">① HSYNC 沿（本页为上升沿=脉冲结束）</text>`;
+    s+=`<path d="M ${X(T.HSA+T.HBP)} 216 L ${X(T.HSA+T.HBP)} 206 L ${X(T.HSA+T.HBP+T.HACT)} 206 L ${X(T.HSA+T.HBP+T.HACT)} 216" fill="none" stroke="#ffb02e" stroke-width="1.2"/>`;
+    s+=`<text x="${X(T.HSA+T.HBP+T.HACT/2)}" y="70" fill="#ffb02e" font-size="9.5">② 自己数 HSA+HBP = ${T.HSA+T.HBP} 个 PCLK，下一个才是第 1 个像素</text>`;
+    s+=`<line x1="${X(T.HSA+T.HBP)}" y1="76" x2="${X(T.HSA+T.HBP)}" y2="206" stroke="rgba(255,176,46,.5)" stroke-dasharray="3 3"/>`;
+    s+=`<text x="${x0}" y="254" fill="rgba(255,100,120,.85)" font-size="9.5">数错 1 个时钟 ⇒ 整行偏移 1 像素；PCLK 丢拍 ⇒ 画面漂移</text>`;
+  }
+  s+='</svg>'; $('#modeSvg').innerHTML=s;
+  $('#modeNote').innerHTML=mode==='de'
+    ?'<b>DE 模式：</b>控制器直接告诉面板"现在这个像素有效"。面板不数时钟，<b>对 PCLK 抖动 / 丢拍 / 频率微调完全免疫</b>；porch 参数只需面板能接受即可。现代 RGB 面板几乎都以 DE 模式为主。'
+    :'<b>SYNC 模式：</b>面板只在 HSYNC/VSYNC 的沿上对齐，然后<b>自己数 HSA+HBP 个 PCLK</b> 找到第一个有效像素。省掉 DE 一根线，但对时钟计数与 porch 精度极其敏感——这是"画面偏移"类问题的历史源头。';
+}
+$('#modeSeg').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  document.querySelectorAll('#modeSeg button').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');mode=b.dataset.m;drawMode(); }); drawMode();
+
+/* ================= §06 像素格式 ================= */
+function bitSvg888(){
+  const W=520,H1=150;let s=`<svg viewBox="0 0 ${W} ${H1}" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono,monospace">`;
+  const grps=[['R','#ff6478'],['G','#34e08a'],['B','#57d8f2']]; const st=18.5,cw=16.5,gap=14; let x=20;
+  grps.forEach(([n,col])=>{
+    const gx0=x;
+    for(let i=7;i>=0;i--){
+      s+=`<rect x="${x.toFixed(1)}" y="46" width="${cw}" height="26" fill="${col}22" stroke="${col}aa"/>`;
+      s+=`<text x="${(x+cw/2).toFixed(1)}" y="63" text-anchor="middle" fill="${col}" font-size="9.5">${i}</text>`; x+=st;
+    }
+    s+=`<text x="${(gx0+(8*st-st)/2).toFixed(1)}" y="36" text-anchor="middle" fill="${col}" font-size="11" font-weight="600">${n}[7:0]</text>`;
+    x+=gap; });
+  s+=`<text x="20" y="102" fill="rgba(140,162,148,.8)" font-size="10">每通道 8 bit → 24 根线 · 16,777,216 色</text>`;
+  s+=`<text x="20" y="122" fill="rgba(140,162,148,.6)" font-size="9.5">显存 24/32 bpp · SoC ↔ 面板一一对应，无需映射</text>`;
+  return s+'</svg>';
+}
+function bitSvg666(){
+  const W=520,H1=150;let s=`<svg viewBox="0 0 ${W} ${H1}" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono,monospace">`;
+  const grps=[['R','#ff6478'],['G','#34e08a'],['B','#57d8f2']]; const st=18.5,cw=16.5,gap=14; let x=20;
+  grps.forEach(([n,col])=>{
+    const gx0=x;
+    for(let i=7;i>=2;i--){
+      s+=`<rect x="${x.toFixed(1)}" y="46" width="${cw}" height="26" fill="${col}22" stroke="${col}aa"/>`;
+      s+=`<text x="${(x+cw/2).toFixed(1)}" y="63" text-anchor="middle" fill="${col}" font-size="9.5">${i}</text>`; x+=st;
+    }
+    for(let k=0;k<2;k++){
+      s+=`<rect x="${x.toFixed(1)}" y="46" width="${cw}" height="26" fill="none" stroke="rgba(140,162,148,.45)" stroke-dasharray="3 3"/>`;
+      s+=`<text x="${(x+cw/2).toFixed(1)}" y="63" text-anchor="middle" fill="rgba(140,162,148,.55)" font-size="9.5">✕</text>`;
+      x+=st;
+    }
+    s+=`<text x="${(gx0+(8*st-st)/2).toFixed(1)}" y="36" text-anchor="middle" fill="${col}" font-size="11" font-weight="600">${n}[7:2]</text>`;
+    x+=gap; }); s+=`<text x="20" y="102" fill="rgba(140,162,148,.8)" font-size="10">每通道 6 bit → 18 根线 · 262,144 色</text>`;
+  s+=`<text x="20" y="122" fill="rgba(255,176,46,.8)" font-size="9.5">888 SoC 接 666 面板：接高 6 位，低 2 位悬空（虚线格）+ dithering</text>`;
+  return s+'</svg>';
+}
+function bitSvg565(){
+  const W=520,H1=170;let s=`<svg viewBox="0 0 ${W} ${H1}" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono,monospace">`;
+  const grps=[['R','#ff6478',5],['G','#34e08a',6],['B','#57d8f2',5]]; const st=29,cw=27; let x=24;
+  grps.forEach(([n,col,bits])=>{
+    const gx0=x;
+    for(let i=bits-1;i>=0;i--){
+      s+=`<rect x="${x}" y="40" width="${cw}" height="26" fill="${col}22" stroke="${col}aa"/>`;
+      s+=`<text x="${x+cw/2}" y="57" text-anchor="middle" fill="${col}" font-size="10">${i}</text>`; x+=st;
+    }
+    s+=`<text x="${gx0+bits*st/2}" y="30" text-anchor="middle" fill="${col}" font-size="11" font-weight="600">${n}[${bits-1}:0]</text>`;
+  }); s+=`<text x="24" y="92" fill="rgba(140,162,148,.8)" font-size="10">16 根线 · 65,536 色 · 帧缓冲 2 B/px</text>`; const bx=70;
+  s+=`<rect x="${bx}" y="108" width="180" height="26" fill="rgba(255,100,120,.12)" stroke="rgba(255,100,120,.5)"/>`;
+  s+=`<text x="${bx+90}" y="125" text-anchor="middle" fill="#ff6478" font-size="9.5">低字节 R4R3R2R1R0 G5G4G3</text>`;
+  s+=`<rect x="${bx+190}" y="108" width="180" height="26" fill="rgba(87,216,242,.12)" stroke="rgba(87,216,242,.5)"/>`;
+  s+=`<text x="${bx+280}" y="125" text-anchor="middle" fill="#57d8f2" font-size="9.5">高字节 G2G1G0 B4B3B2B1B0</text>`;
+  s+=`<text x="24" y="158" fill="rgba(255,176,46,.8)" font-size="9.5">字节交换位（BSWAP）配错 → 红蓝互换 / 马赛克色块</text>`;
+  return s+'</svg>';
+}
+$('#svg888').innerHTML=bitSvg888(); $('#svg666').innerHTML=bitSvg666(); $('#svg565').innerHTML=bitSvg565();
+
+let bppMode=8; let bppC,bppW; function bppRefit(){const f=fit($('#bppCanvas'),110);bppC=f.c;bppW=f.w;}
+RZ.push(bppRefit);bppRefit();
+function hsl2rgb(h,s,l){
+  const a=s*Math.min(l,1-l); const f=n=>{const k=(n+h/30)%12;return l-a*Math.max(-1,Math.min(Math.min(k-3,9-k),1));};
+  return[f(0),f(8),f(4)].map(v=>Math.round(v*255));
+}
+function drawPoster(){
+  const c=bppC,w=bppW,h=110; c.clearRect(0,0,w,h); const m={8:[8,8,8],6:[6,6,6],5:[5,6,5]}[bppMode];
+  const q=(v,b)=>{const lv=(1<<b)-1;return Math.round(Math.round(v/255*lv)/lv*255);}; const colw=2;
+  for(let x=0;x<w;x+=colw){
+    const[r,g,b]=hsl2rgb(x/w*300,.72,.6); c.fillStyle=`rgb(${q(r,m[0])},${q(g,m[1])},${q(b,m[2])})`; c.fillRect(x,0,colw,h);
+  }
+  c.fillStyle='rgba(7,11,9,.75)';c.fillRect(0,h-20,w,20); c.fillStyle='#dcebe1';c.font='600 10px '+MONO;c.textAlign='left';
+  c.fillText({8:'RGB888 · 24 bit · 16.7M 色',6:'RGB666 · 18 bit · 262k 色（每通道丢 2 位）',5:'RGB565 · 16 bit · 65k 色（R5 G6 B5）'}[bppMode],10,h-7);
+}
+$('#bppSeg').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  document.querySelectorAll('#bppSeg button').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');bppMode=+b.dataset.b;drawPoster(); }); drawPoster();
+
+/* ================= §07 计算器 ================= */
+function calc(){
+  const key=$('#cRes').value; let W,H,HTstd=null;
+  if(key==='custom'){W=+$('#cW').value||640;H=+$('#cH').value||480;}
+  else{
+    const p=PRESETS[key];W=p.HACT;H=p.VACT; HTstd=p.HACT+p.HSA+p.HBP+p.HFP;
+  }
+  const fps=+$('#cRefresh').value; const bpp=+$('#cFmt').value; const bl=$('#cBlank').value; let HT,VT;
+  if(bl==='std'&&HTstd!==null){HT=HTstd;VT=H+PRESETS[key].VSA+PRESETS[key].VBP+PRESETS[key].VFP;}
+  else{const f=bl==='std'?1.2:+bl;HT=Math.round(W*f);VT=Math.round(H*f);} const pclk=HT*VT*fps/1e6;
+  $('#oClk').innerHTML=pclk>=100?pclk.toFixed(1)+'<small>MHz</small>':pclk.toFixed(1)+'<small>MHz</small>';
+  $('#oTot').textContent=HT+' × '+VT; $('#oLine').innerHTML=(VT*fps/1000).toFixed(1)+'<small>kHz</small>';
+  $('#oPixel').innerHTML=(1000/pclk).toFixed(1)+'<small>ns</small>';
+  $('#oMem').innerHTML=(W*H*fps*bpp/8/1e6).toFixed(1)+'<small>MB/s</small>';
+  $('#oWire').innerHTML=Math.round(pclk*bpp)+'<small>Mbps</small>';
+  $('#fExpr').textContent=`${HT} × ${VT} × ${fps} = ${pclk.toFixed(1)} MHz`; let v;
+  if(pclk<=33)v='✓ '+pclk.toFixed(1)+' MHz · 入门 MCU（LTDC/eLCDIF 一档）直推毫无压力。';
+  else if(pclk<=85)v='△ '+pclk.toFixed(1)+' MHz · 中高端 MCU / 轻量 SoC 可行，走线等长与串阻要认真做。';
+  else v='✗ '+pclk.toFixed(1)+' MHz · 超出并口 RGB 舒适区（EMI/偏斜失控）→ 请转 LVDS 或 MIPI DSI。';
+  const el=$('#oVerdict'); el.textContent=v; el.style.color=pclk<=33?'var(--green)':pclk<=85?'var(--amber)':'var(--red)';
+}
+['cRes','cRefresh','cFmt','cBlank','cW','cH'].forEach(id=>$('#'+id).addEventListener('change',calc));
+$('#cW').addEventListener('change',()=>{$('#cRes').value='custom';calc();});
+$('#cH').addEventListener('change',()=>{$('#cRes').value='custom';calc();}); calc();
+
+/* ================= §08 上电时序动画 ================= */
+const SEQ_T=8.4;
+const STAGES=[
+  {t0:0,t1:1.2,n:'上电',d:'<b>判读：</b>面板各路电源（VDD 3.3 V / 1.8 V，部分还有 VGH/VGL 电荷泵）依次上电，等待 ≥10 ms 让内部偏置稳定。很多"偶发不亮"就是这段等不够——上电脚本第一行永远是 delay。'},
+  {t0:1.2,t1:3.2,n:'复位 → 就绪',d:'<b>判读：</b>RESET_n 拉低 ≥10 µs（部分面板要 10 ms）再释放，释放后还要等 5–120 ms。复位没做完就发初始化命令 = 命令丢失，表现为永久黑屏。'},
+  {t0:3.2,t1:6.2,n:'初始化命令',d:'<b>判读：</b>通过 SPI 或 I²C（见对应页）配置驱动 IC：SLPOUT(0x11) → 等 120 ms → gamma / 扫描方向 / porch → DISPON(0x29)。命令清单必须抄面板厂商的参考初始化代码。'},
+  {t0:6.2,t1:7.0,n:'RGB 数据流',d:'<b>判读：</b>LCD 控制器开始输出 PCLK/DE/RGB（时序就是 §03 那套）。先送 1–2 帧再开背光，避免首帧没写完就亮灯造成的"白闪/花一下"。'},
+  {t0:7.0,t1:SEQ_T,n:'背光点亮',d:'<b>判读：</b>BL_EN 拉高、PWM 从 0 渐亮到目标亮度。顺序颠倒（背光先亮）= 用户看见 uninitialized 的白屏一瞬。渐亮还能顺手提升观感。'}
+]; const seq={t:0,playing:!reduced,speed:1,stage:-1}; let seqC,seqW;
+function seqRefit(){const f=fit($('#seqCanvas'),252);seqC=f.c;seqW=f.w;} RZ.push(seqRefit);seqRefit();
+const PKTS=[[3.4,'0x11 SLPOUT'],[3.95,'扫描方向'],[4.45,'Gamma'],[5.0,'porch/驱动'],[5.5,'0x28 ...'],[5.9,'0x29 DISPON']];
+function stageOf(t){for(let i=STAGES.length-1;i>=0;i--)if(t>=STAGES[i].t0)return i;return 0;}
+function drawSeq(){
+  const c=seqC,w=seqW,h=252,ph=seq.t; c.clearRect(0,0,w,h); const x0=118,x1=w-16,sc=(x1-x0)/SEQ_T; const X=t=>x0+t*sc;
+  /* 阶段带 */
+  STAGES.forEach((st,i)=>{
+    const xa=Math.max(x0,X(st.t0)),xb=Math.min(x1,X(st.t1));
+    c.fillStyle=i===stageOf(ph)?'rgba(52,224,138,.08)':'rgba(52,224,138,.025)';
+    c.fillRect(xa,20,xb-xa,h-20-26); c.strokeStyle='rgba(52,224,138,.2)';c.lineWidth=1;
+    c.beginPath();c.moveTo(xa+.5,20);c.lineTo(xa+.5,h-26);c.stroke();
+    c.fillStyle=i===stageOf(ph)?'#34e08a':'rgba(140,162,148,.7)'; c.font='600 10px '+MONO;c.textAlign='center';
+    c.save();c.translate((xa+xb)/2,30);if(xb-xa<64)c.rotate(0);c.fillText(st.n,0,0);c.restore(); });
+  /* 车道 */
+  const lanes=[
+    {y:74,n:'VDD 电源',c:C.green,ev:[[0,0,0],[.35,1.2,1]]},
+    {y:112,n:'RESET_n',c:C.red,ev:[[0,0.35,0],[.35,1.2,1],[1.2,1.75,0],[1.75,SEQ_T,1]]},
+    {y:150,n:'SPI / I²C',c:C.amber,packets:true},
+    {y:188,n:'PCLK+RGB',c:C.cyan,rgb:true},
+    {y:226,n:'BL_EN 背光',c:'#b98cff',ev:[[0,7.0,0],[7.6,SEQ_T,1]],ramp:[7.0,7.6]}
+  ];
+  lanes.forEach(ln=>{
+    const y=ln.y; c.fillStyle='rgba(7,11,9,.9)';c.fillRect(0,y-9,x0-6,18);
+    c.font='600 10px '+MONO;c.textAlign='left';c.fillStyle=ln.c; c.fillText(ln.n,8,y+3.5);
+    c.strokeStyle='rgba(140,162,148,.15)';c.lineWidth=1;
+    c.beginPath();c.moveTo(x0,y+11);c.lineTo(x1,y+11);c.stroke(); const amp=11;
+    if(ln.ev){
+      c.strokeStyle=ln.c;c.lineWidth=2;c.beginPath(); let started=false;
+      ln.ev.forEach(([a,b,lv])=>{
+        const e=Math.min(b,ph);if(e<=a)return; const yv=y+(lv?-amp:amp);
+        if(!started){c.moveTo(X(a),yv);started=true;} c.lineTo(X(e),yv); }); c.stroke();
+      if(ln.ramp&&ph>ln.ramp[0]&&ph<ln.ramp[1]){
+        const p=(ph-ln.ramp[0])/(ln.ramp[1]-ln.ramp[0]); const xa=X(ln.ramp[0]),xb=X(ph);
+        c.strokeStyle=ln.c;c.globalAlpha=.8;
+        c.beginPath();c.moveTo(xa,y+amp);c.lineTo(xb,y+amp-2*amp*p);c.stroke();c.globalAlpha=1;
+      }
+    }else if(ln.packets){
+      c.strokeStyle='rgba(255,176,46,.35)';c.lineWidth=1;
+      c.beginPath();c.moveTo(x0,y);c.lineTo(Math.min(x1,X(ph)),y);c.stroke();
+      PKTS.forEach(([pt,lab])=>{
+        if(ph<pt)return; const done=Math.min(1,(ph-pt)/.2); const xa=X(pt),xb=X(pt+.24*done);
+        for(let k=0;k<4;k++){
+          const px1=xa+k*.06*sc*1; if(px1>xb)break; c.fillStyle=k%2?ln.c:'rgba(255,176,46,.2)';
+          c.fillRect(px1,y-8,.04*sc+.6,16);
+        }
+        c.fillStyle='rgba(255,176,46,.85)';c.font='8.5px '+MONO;c.textAlign='center'; c.fillText(lab,xa+.12*sc,y-15); });
+    }else if(ln.rgb){
+      c.strokeStyle='rgba(87,216,242,.3)';c.lineWidth=1;
+      c.beginPath();c.moveTo(x0,y);c.lineTo(Math.min(x1,X(Math.min(ph,6.2))),y);c.stroke();
+      if(ph>6.2){
+        const step=Math.max(2,sc*.05);
+        for(let px=X(6.2);px<Math.min(x1,X(ph));px+=step){
+          const[r,g,b]=colorAt((px-X(6.2))/sc*2000,40); c.fillStyle=`rgb(${r},${g},${b})`; c.fillRect(px,y-9,step+.7,18);
+        }
+      }
+    }
+  });
+  /* 注释 */
+  c.fillStyle='rgba(140,162,148,.8)';c.font='9px '+MONO;c.textAlign='left';
+  c.fillText('≥10 ms',X(.45),62); c.fillText('≥10 µs 低',X(1.22),100); c.fillText('120 ms',X(4.4),172);
+  /* 播放头 */
+  const px=X(ph); c.strokeStyle=C.amber;c.lineWidth=1.4; c.beginPath();c.moveTo(px+.5,14);c.lineTo(px+.5,h-24);c.stroke();
+  c.fillStyle=C.amber;c.beginPath();c.moveTo(px-4,14);c.lineTo(px+4,14);c.lineTo(px,20);c.closePath();c.fill();
+  c.font='600 10px '+MONO;c.textAlign='left';c.fillStyle=C.amber; c.fillText('t='+ph.toFixed(2),Math.min(px+6,w-46),h-10);
+  c.fillStyle='rgba(140,162,148,.6)';c.textAlign='right'; c.fillText('POWER-ON SEQUENCE · 点击上方步骤跳转',x1,h-10);
+}
+function seqSet(i){
+  seq.stage=i; document.querySelectorAll('#seqChips .dbg-step').forEach((b,k)=>b.classList.toggle('on',k===i));
+  $('#seqVerdict').innerHTML=STAGES[i].d;
+}
+(function initSeq(){
+  const el=$('#seqChips');
+  STAGES.forEach((st,i)=>{
+    const b=document.createElement('button'); b.className='dbg-step';b.type='button';
+    b.innerHTML='<span class="n">'+String(i+1).padStart(2,'0')+'</span><span>'+st.n+'</span>';
+    b.addEventListener('click',()=>{seq.t=st.t0;seqSet(i);}); el.appendChild(b); }); seqSet(0); })();
+function seqTick(dt){
+  if(seq.playing){
+    seq.t+=dt*seq.speed*(SEQ_T/10); if(seq.t>=SEQ_T)seq.t=0;
+  }
+  const st=stageOf(seq.t); if(st!==seq.stage)seqSet(st);
+}
+const seqPlayBtn=$('#seqPlay');
+function setSeqPlay(p){seq.playing=p;seqPlayBtn.textContent=p?'❚❚':'▶';seqPlayBtn.classList.toggle('on',p);}
+seqPlayBtn.addEventListener('click',()=>setSeqPlay(!seq.playing));
+$('#seqReplay').addEventListener('click',()=>{seq.t=0;seqSet(0);setSeqPlay(true);});
+$('#seqSpd').addEventListener('input',e=>{seq.speed=+e.target.value;$('#seqSpdV').textContent=(+e.target.value).toFixed(1);});
+
+/* ================= §09 调试链 ================= */
+const CHAIN=[
+  {n:'背光亮吗',tip:'<b>判读：</b>拿手电斜照面板看有没有图像影子（有影子=时序其实在跑，纯背光问题）；完全无光查 BL_EN 电平、升压/LED 电源、PWM 占空比——别急着怪 RGB。'},
+  {n:'PCLK 到了吗',tip:'<b>判读：</b>示波器/频率计量 PCLK：应有稳定频率（§07 的计算值）。没有波形 → 控制器时钟没使能、引脚复用错、或被省电策略关掉。'},
+  {n:'DE 极性对吗',tip:'<b>判读：</b>量 DE：可见行期间应是宽脉冲（本页默认高有效）。极性位配反 → 全黑或全花；顺手确认 PCLK 采样沿配置。'},
+  {n:'初始化发了吗',tip:'<b>判读：</b>逻辑分析仪抓 SPI/I²C：上电后应有一串写命令（SLPOUT…DISPON，§08）。没有 → 面板驱动 IC 还在睡觉，RGB 再标准也不亮。'},
+  {n:'porch 对了吗',tip:'<b>判读：</b>画面偏移/环绕 = HBP/VBP 与面板期望不符。对照面板手册把 §04 的六个参数逐项填对，不要"抄别的屏"。'},
+  {n:'信号质量行吗',tip:'<b>判读：</b>花屏/雪花：把 PCLK 降一半复测——错误消失就是走线/等长/驱动能力问题；加 22–33 Ω 串阻、查参考地与组内等长。'}
+];
+(function initChain(){
+  const el=$('#chainSteps');
+  CHAIN.forEach((st,i)=>{
+    const b=document.createElement('button'); b.className='dbg-step';b.type='button';
+    b.innerHTML='<span class="n">'+String(i+1).padStart(2,'0')+'</span><span>'+st.n+'</span>';
+    b.addEventListener('click',()=>{
+      document.querySelectorAll('#chainSteps .dbg-step').forEach((x,k)=>x.classList.toggle('on',k===i));
+      $('#chainTip').innerHTML=st.tip; }); el.appendChild(b); });
+  document.querySelector('#chainSteps .dbg-step').classList.add('on'); $('#chainTip').innerHTML=CHAIN[0].tip; })();
+
+/* ================= 可见性 + 主循环 ================= */
+watch($('#heroSvg'),'hero'); watch($('.lab'),'scan'); watch($('#seqCanvas'),'seq');
+minis.forEach(m=>{
+  new IntersectionObserver(es=>es.forEach(e=>m.vis=e.isIntersecting),{rootMargin:'80px'}).observe(m.cv); });
+function loop(now){
+  const dt=Math.min(.05,(now-(loop.last||now))/1000);loop.last=now;
+  try{
+    if(VIS.hero!==false)heroDraw(dt); minis.forEach(m=>{if(m.vis){m.ph+=m.o.speed*dt;m.draw();}});
+    if(VIS.scan!==false){
+      scanTick(dt);drawScreen();drawWave();updateReadout();
+    }
+    if(VIS.seq!==false){seqTick(dt);drawSeq();}
+  }catch(err){
+    if(!window.__rgbLoopErr){window.__rgbLoopErr=String(err&&err.stack||err);console.error(err);}
+  }
+  requestAnimationFrame(loop);
+}
+if(reduced){setScanPlay(false);setSeqPlay(false);} requestAnimationFrame(loop);
+
+/* ---------------- 滚动显现 ---------------- */
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}}),{threshold:.12});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+</body>
+</html>

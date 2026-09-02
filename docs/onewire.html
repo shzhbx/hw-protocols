@@ -1,0 +1,2051 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>1-Wire 单总线协议详解 · 交互式时序图解</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%23070b09'/><path d='M2 18 h6 l3-10 4 16 4-16 4 16 3-10 h4' stroke='%2334e08a' stroke-width='2.5' fill='none'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#070b09; --bg2:#0a100c; --panel:#0d1510; --panel2:#101a13; --line:#1d2c22; --line2:#27392d;
+  --ink:#dcebe1; --dim:#8aa294; --faint:#5c7264; --green:#34e08a; --green-dim:#1d8a55;
+  --amber:#ffb02e; --cyan:#57d8f2; --red:#ff6478; --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --disp:'Chakra Petch','Noto Sans SC',sans-serif; --sans:'Noto Sans SC',-apple-system,sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg); color:var(--ink); font-family:var(--sans); font-weight:300; line-height:1.8;
+  letter-spacing:.01em; overflow-x:hidden;
+}
+body::before{
+  content:"";position:fixed;inset:0;z-index:0;pointer-events:none; background-image:
+    linear-gradient(rgba(52,224,138,.028) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(52,224,138,.028) 1px,transparent 1px),
+    linear-gradient(rgba(52,224,138,.014) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(52,224,138,.014) 1px,transparent 1px);
+  background-size:120px 120px,120px 120px,24px 24px,24px 24px;
+}
+body::after{
+  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(ellipse 120% 90% at 50% 0%,transparent 60%,rgba(0,0,0,.5));
+}
+main{position:relative;z-index:1}
+::selection{background:rgba(52,224,138,.3)}
+section{scroll-margin-top:70px}
+
+/* ============ 导航 ============ */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:100; display:flex;align-items:center;gap:18px;
+  padding:0 22px;height:52px; background:rgba(7,11,9,.85);backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--line);
+}
+nav .logo{font-family:var(--disp);font-weight:700;font-size:16px;color:var(--green);letter-spacing:.04em;white-space:nowrap}
+nav a{color:var(--dim);text-decoration:none;font-size:12px;font-family:var(--mono);letter-spacing:.05em;transition:color .2s}
+nav a:hover{color:var(--green)}
+nav .links{display:flex;gap:14px;white-space:nowrap;overflow-x:auto;scrollbar-width:none}
+nav .links::-webkit-scrollbar{display:none}
+nav .spacer{flex:1}
+nav .live{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11px;color:var(--faint);white-space:nowrap}
+nav .live i{width:7px;height:7px;border-radius:50%;background:var(--green);animation:blink 1.6s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+nav .xnav{display:flex;gap:4px;margin-left:2px;padding-left:12px;border-left:1px solid var(--line);white-space:nowrap;max-width:46vw;overflow-x:auto;scrollbar-width:none}
+nav .xnav::-webkit-scrollbar{display:none}
+nav .xnav a{display:inline-block;font-size:10.5px;letter-spacing:.06em;color:var(--dim);padding:4px 7px;border:1px solid var(--line);border-radius:3px}
+nav .xnav a:hover{color:var(--green);border-color:rgba(52,224,138,.45)}
+@media (max-width:1180px){nav .live{display:none}}
+@media (max-width:860px){nav .links{display:none}}
+
+/* ============ Hero ============ */
+.hero{min-height:92vh;display:flex;flex-direction:column;justify-content:center;padding:100px 6vw 40px;position:relative}
+.hero .eyebrow{
+  font-family:var(--mono);font-size:12px;color:var(--amber);
+  letter-spacing:.32em;margin-bottom:22px;display:flex;align-items:center;gap:14px;
+}
+.hero .eyebrow::before{content:"";width:44px;height:1px;background:var(--amber)}
+.hero h1{font-family:var(--disp);font-weight:700;font-size:clamp(52px,10vw,132px);line-height:.95;letter-spacing:-.01em;color:var(--ink)}
+.hero h1 b{color:var(--green)}
+.hero h1 .zh{display:block;font-family:var(--sans);font-weight:300;font-size:clamp(17px,2.2vw,27px);color:var(--dim);letter-spacing:.42em;margin-top:16px}
+.hero p.lede{max-width:660px;margin-top:30px;font-size:15.5px;color:var(--dim)}
+.hero p.lede b{color:var(--ink);font-weight:500}
+.hero .chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:26px}
+.hero .chips span{font-family:var(--mono);font-size:11.5px;padding:5px 12px;border:1px solid var(--line2);border-radius:3px;color:var(--dim);background:rgba(13,21,16,.6)}
+.hero .chips span b{color:var(--green);font-weight:500}
+.hero .cta{display:flex;gap:12px;margin-top:28px;flex-wrap:wrap}
+.hero .cta a{
+  font-family:var(--mono);font-size:12.5px;font-weight:600;letter-spacing:.1em;
+  padding:12px 20px;border:1px solid var(--line2);border-radius:4px;color:var(--ink);text-decoration:none;
+  transition:all .2s;
+}
+.hero .cta a.pri{background:var(--green);color:#052013;border-color:var(--green)}
+.hero .cta a.pri:hover{box-shadow:0 0 26px rgba(52,224,138,.35)}
+.hero .cta a:not(.pri):hover{border-color:var(--green);color:var(--green)}
+.hero .diag{
+  margin-top:46px;border:1px solid var(--line);border-radius:6px;overflow:hidden;
+  background:rgba(9,14,11,.75);position:relative;
+}
+.hero .diag::after{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.16) 3px 4px)}
+.hero .diag svg{display:block;width:100%;height:auto}
+.hero .scroll-hint{margin-top:34px;font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.2em;display:flex;align-items:center;gap:10px}
+.hero .scroll-hint svg{animation:bounce 1.8s infinite}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(6px)}}
+
+/* ============ 通用 section ============ */
+section{padding:92px 6vw;max-width:1280px;margin:0 auto;position:relative}
+.sec-head{display:flex;align-items:baseline;gap:20px;margin-bottom:16px}
+.sec-head .no{font-family:var(--mono);font-size:13px;color:var(--green);letter-spacing:.1em;border:1px solid var(--green-dim);padding:3px 10px;border-radius:3px;white-space:nowrap}
+.sec-head h2{font-family:var(--disp);font-weight:600;font-size:clamp(26px,3.6vw,40px);letter-spacing:.01em}
+.sec-head .en{font-family:var(--mono);font-size:12px;color:var(--faint);letter-spacing:.24em;text-transform:uppercase;margin-left:auto;white-space:nowrap}
+.sec-sub{color:var(--dim);max-width:780px;margin-bottom:44px;font-size:15px}
+.sec-sub b{color:var(--ink);font-weight:500}
+.reveal{opacity:0;transform:translateY(26px);transition:opacity .7s ease,transform .7s ease}
+.reveal.in{opacity:1;transform:none}
+
+/* ============ §01 ============ */
+.two-col{display:grid;grid-template-columns:1.25fr .9fr;gap:44px;align-items:start}
+.prose p{margin-bottom:18px;color:var(--dim);font-size:15px}
+.prose p b{color:var(--ink);font-weight:500}
+.prose .kw{color:var(--green);font-family:var(--mono);font-size:.92em}
+.prose .kw2{color:var(--amber);font-family:var(--mono);font-size:.92em}
+.prose a{color:var(--cyan);text-decoration:none;border-bottom:1px dotted var(--cyan)}
+.cmp-table{width:100%;border-collapse:collapse;font-size:13px}
+.cmp-table th{font-family:var(--mono);font-weight:500;color:var(--faint);text-align:left;padding:9px 12px;border-bottom:1px solid var(--line2);font-size:11.5px;letter-spacing:.06em}
+.cmp-table td{padding:10px 12px;border-bottom:1px solid var(--line);color:var(--dim);vertical-align:top}
+.cmp-table td:first-child{color:var(--ink);white-space:nowrap}
+.cmp-table .yes{color:var(--green)} .cmp-table .no{color:var(--red)}
+.cmp-table a{color:var(--cyan);text-decoration:none}
+.cmp-table a:hover{border-bottom:1px dotted var(--cyan)}
+.fact-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:36px}
+.fact{border:1px solid var(--line);border-radius:6px;padding:20px 20px 18px;background:linear-gradient(160deg,var(--panel) 0%,rgba(13,21,16,.4) 100%);transition:border-color .25s,transform .25s}
+.fact:hover{border-color:var(--green-dim);transform:translateY(-3px)}
+.fact .f-no{font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.14em}
+.fact h4{font-family:var(--disp);font-size:16.5px;font-weight:600;margin:8px 0 8px}
+.fact h4 code{font-family:var(--mono);font-size:.85em;color:var(--green)}
+.fact p{font-size:12.8px;color:var(--dim);line-height:1.7}
+
+/* ============ 面板与实验台 ============ */
+.panel{border:1px solid var(--line);border-radius:8px;background:var(--panel);overflow:hidden}
+.panel-pad{padding:22px 24px}
+.panel-title{font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.22em;margin-bottom:14px;display:flex;align-items:center;gap:10px}
+.panel-title::after{content:"";flex:1;height:1px;background:var(--line)}
+.cap{font-size:12.8px;color:var(--faint);margin-top:12px;line-height:1.7}
+.cap b{color:var(--dim);font-weight:500}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.lab{border:1px solid var(--line);border-radius:10px;background:var(--panel);overflow:hidden}
+.lab-bar{display:flex;flex-wrap:wrap;align-items:center;gap:16px;padding:14px 20px;border-bottom:1px solid var(--line);background:rgba(10,16,12,.7)}
+.ctrl{display:flex;align-items:center;gap:9px}
+.ctrl label{font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.1em}
+.seg{display:flex;border:1px solid var(--line2);border-radius:5px;overflow:hidden}
+.seg button{font-family:var(--mono);font-size:12px;padding:7px 13px;border:none;cursor:pointer;background:transparent;color:var(--dim);border-right:1px solid var(--line2);transition:all .18s}
+.seg button:last-child{border-right:none}
+.seg button:hover{color:var(--ink);background:rgba(52,224,138,.06)}
+.seg button.on{background:var(--green);color:#052013;font-weight:600}
+.icon-btn{width:32px;height:32px;border:1px solid var(--line2);border-radius:5px;background:transparent;color:var(--dim);cursor:pointer;font-family:var(--mono);font-size:13px;transition:all .18s;display:flex;align-items:center;justify-content:center}
+.icon-btn:hover{color:var(--green);border-color:var(--green-dim)}
+.icon-btn.play.on{color:var(--green);border-color:var(--green-dim);background:rgba(52,224,138,.08)}
+.txt-btn{height:32px;padding:0 14px;border:1px solid var(--line2);border-radius:5px;background:transparent;color:var(--dim);cursor:pointer;font-family:var(--mono);font-size:12px;transition:all .18s}
+.txt-btn:hover{color:var(--green);border-color:var(--green-dim)}
+.txt-btn.acc{color:var(--green);border-color:var(--green-dim)}
+.txt-btn:disabled{opacity:.35;cursor:not-allowed}
+input[type=range]{-webkit-appearance:none;width:120px;height:2px;background:var(--line2);border-radius:2px;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--green);cursor:pointer;box-shadow:0 0 8px rgba(52,224,138,.5)}
+.lab-body{display:grid;grid-template-columns:1fr 300px;gap:0}
+.scope-main{position:relative;background:#080d0a;min-width:0}
+.scope-main::after{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.14) 3px 4px)}
+.scope-main .ows{display:block;width:100%}
+.readout{border-left:1px solid var(--line);background:#0a110d;padding:18px 18px 14px;display:flex;flex-direction:column;min-width:0}
+.ro-kicker{font-family:var(--mono);font-size:10.5px;color:var(--amber);letter-spacing:.22em;text-transform:uppercase}
+.ro-title{font-family:var(--disp);font-weight:600;font-size:17px;margin:8px 0 8px;line-height:1.45}
+.ro-desc{font-size:12.8px;color:var(--dim);line-height:1.8;flex:1}
+.ro-desc b{color:var(--ink);font-weight:500}
+.ro-time{font-family:var(--mono);font-size:11px;color:var(--faint);border-top:1px dashed var(--line);margin-top:12px;padding-top:10px}
+.lab-foot{padding:12px 20px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:10px 26px;background:rgba(10,16,12,.6)}
+.legend{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;color:var(--dim)}
+.legend i{width:16px;height:2px;border-radius:2px}
+.rule-callout{margin-top:26px;display:grid;grid-template-columns:auto 1fr;gap:22px;align-items:center;border:1px solid rgba(255,176,46,.3);border-radius:8px;padding:20px 26px;background:linear-gradient(120deg,rgba(255,176,46,.06),transparent 60%)}
+.rule-callout .mnemonic{font-family:var(--disp);font-weight:700;font-size:clamp(17px,2.3vw,23px);color:var(--amber);letter-spacing:.06em;white-space:nowrap}
+.rule-callout .mnemonic small{display:block;font-size:11px;font-weight:500;color:var(--faint);letter-spacing:.24em;margin-top:6px;font-family:var(--mono)}
+.rule-callout p{font-size:13.5px;color:var(--dim)}
+.rule-callout p b{color:var(--ink);font-weight:500}
+
+/* ============ 示波器 SVG ============ */
+.ows text{font-family:var(--mono);user-select:none}
+.ows .grid{stroke:rgba(52,224,138,.07)}
+.ows .grid-m{stroke:rgba(52,224,138,.16)}
+.ows .axl{fill:#5c7264;font-size:10px}
+.ows .lane-lb{font-size:11px;font-weight:600}
+.ows .lane-sub{fill:#5c7264;font-size:9px}
+.ows .lane-badge{font-size:10px;font-weight:600}
+.ows .band-lb{fill:#8aa294;font-size:9.5px;letter-spacing:.05em;paint-order:stroke;stroke:#080d0a;stroke-width:3px;stroke-linejoin:round}
+.ows .mk-lb{font-size:9.5px;font-weight:600;paint-order:stroke;stroke:#080d0a;stroke-width:3px;stroke-linejoin:round}
+.ows .cur-line{stroke:#eaffee;stroke-width:1.2;opacity:.9}
+.ows .smp-dot{fill:#57d8f2}
+.ows .smp-hit{animation:smpPulse .9s ease-out infinite}
+@keyframes smpPulse{0%,100%{opacity:1}50%{opacity:.35}}
+.band-host{fill:rgba(52,224,138,.06);stroke:rgba(52,224,138,.4);stroke-width:1;stroke-dasharray:3 3}
+.band-slave{fill:rgba(255,176,46,.07);stroke:rgba(255,176,46,.45);stroke-width:1;stroke-dasharray:3 3}
+.band-sample{fill:rgba(87,216,242,.10);stroke:rgba(87,216,242,.55);stroke-width:1}
+.band-warn{fill:rgba(255,100,120,.08);stroke:rgba(255,100,120,.45);stroke-width:1;stroke-dasharray:3 3}
+
+/* ============ 寄生供电 ============ */
+.mos-wrap{display:grid;grid-template-columns:1.35fr 1fr;gap:0}
+.mos-svg-box{background:#080d0a;position:relative;min-width:0}
+.mos-svg-box::after{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.14) 3px 4px)}
+.mos-svg-box svg{display:block;width:100%;height:auto}
+.mos-side{border-left:1px solid var(--line);background:#0a110d;padding:18px;display:flex;flex-direction:column;gap:0}
+.m-meter{margin-top:14px}
+.m-meter .mm-l{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.08em;margin-bottom:6px}
+.m-meter .mm-bar{height:8px;background:#070c09;border:1px solid var(--line2);border-radius:4px;overflow:hidden}
+.m-meter .mm-bar i{display:block;height:100%;width:30%;background:linear-gradient(90deg,var(--green-dim),var(--green));transition:width .12s linear}
+.m-meter.dead .mm-bar i{background:linear-gradient(90deg,#8a2733,var(--red))}
+.m-row{display:flex;justify-content:space-between;align-items:baseline;font-family:var(--mono);padding:7px 0;border-bottom:1px dashed var(--line)}
+.m-row .k{font-size:11px;color:var(--faint);letter-spacing:.08em}
+.m-row .v{font-size:12.5px;color:var(--ink);text-align:right}
+.m-row .v.g{color:var(--green)} .m-row .v.a{color:var(--amber)} .m-row .v.r{color:var(--red)}
+.m-phase-dots{display:flex;gap:6px;margin:12px 0 4px}
+.m-phase-dots i{flex:1;height:4px;border-radius:2px;background:var(--line2);transition:background .3s}
+.m-phase-dots i.done{background:var(--green-dim)}
+.m-phase-dots i.cur{background:var(--green);box-shadow:0 0 8px rgba(52,224,138,.5)}
+#mosSvg .m-lb{font-size:10.5px;fill:#8aa294;font-family:var(--mono)}
+#mosSvg .m-lb.dim{fill:#5c7264}
+#mosSvg .m-w{stroke:#8aa294;stroke-width:1.6;fill:none}
+#mosSvg .m-rail{stroke:#ff8a97;stroke-width:2}
+#mosSvg .m-dq{stroke:var(--green);stroke-width:2.6;transition:stroke .3s}
+#mosSvg .m-dq.low{stroke:var(--red)}
+#mosSvg .m-box{fill:#0e1a13;stroke:var(--line2);stroke-width:1.5}
+#mosSvg .m-chip{fill:#0e1a13;stroke:var(--line2);stroke-width:1.5;transition:opacity .4s}
+#mosSvg .m-off{opacity:.35}
+#mosSvg .m-name{fill:#dcebe1;font-size:12.5px;font-weight:600;font-family:var(--disp)}
+#mosSvg .m-role{fill:#5c7264;font-size:9px;letter-spacing:.14em;font-family:var(--mono)}
+#mosSvg .m-arm{stroke:#8aa294;stroke-width:2.4;transition:transform .3s,stroke .3s;transform-box:view-box}
+#mosSvg .fet-on .m-arm{stroke:var(--green);filter:drop-shadow(0 0 5px rgba(52,224,138,.8))}
+#mosSvg .m-fetbody{fill:#0e1a13;stroke:var(--line2);stroke-width:1.5;transition:stroke .3s}
+#mosSvg .fet-on .m-fetbody{stroke:var(--green)}
+#mosSvg .m-gate{stroke:#57d8f2;stroke-width:1.6;fill:none}
+#mosSvg .m-capf{fill:var(--green);opacity:.85}
+#mosSvg .m-trace{stroke:var(--green);stroke-width:1.6;fill:none}
+#mosSvg .m-tr-bg{fill:#070c09;stroke:var(--line);stroke-width:1}
+#mosSvg .m-idraw{fill:var(--amber);font-size:10px;font-family:var(--mono);opacity:0;transition:opacity .3s}
+#mosSvg .show-idraw .m-idraw{opacity:1}
+#mosSvg .m-warn{fill:var(--red);font-size:11px;font-weight:600;font-family:var(--mono);opacity:0;transition:opacity .3s}
+#mosSvg .show-warn .m-warn{opacity:1}
+
+/* ============ 计算器 ============ */
+.calc{border:1px solid var(--line);border-radius:10px;background:var(--panel);display:grid;grid-template-columns:1fr 1fr;overflow:hidden}
+.calc .inputs{padding:26px 30px;border-right:1px solid var(--line)}
+.calc .outputs{padding:26px 30px;background:#0a110d}
+.calc h5{font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.22em;margin-bottom:16px}
+.field{margin-bottom:18px}
+.field label{display:block;font-family:var(--mono);font-size:11.5px;color:var(--dim);margin-bottom:8px;letter-spacing:.06em}
+.field label b{color:var(--green);font-weight:600}
+.field input[type=text],.field select{width:100%;font-family:var(--mono);font-size:14px;color:var(--ink);background:#080d0a;border:1px solid var(--line2);border-radius:5px;padding:9px 12px;outline:none;transition:border-color .2s}
+.field input:focus,.field select:focus{border-color:var(--green-dim)}
+.field .val{font-family:var(--mono);font-size:12.5px;color:var(--green);margin-top:6px}
+.out-row{display:flex;justify-content:space-between;align-items:baseline;padding:11px 0;border-bottom:1px dashed var(--line)}
+.out-row .ok{font-size:12.5px;color:var(--dim)}
+.out-row .ok small{display:block;font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.08em}
+.out-row .ov{font-family:var(--mono);font-size:18px;font-weight:600;color:var(--green)}
+.out-row .ov small{font-size:11px;color:var(--faint);font-weight:400;margin-left:4px}
+.out-row.big .ov{font-size:25px;color:var(--amber)}
+.calc-formula{grid-column:1/-1;padding:14px 30px;border-top:1px solid var(--line);font-family:var(--mono);font-size:12.5px;color:var(--dim);background:rgba(10,17,13,.8)}
+.calc-formula b{color:var(--green);font-weight:500}
+.egg{
+  grid-column:1/-1;margin:0 30px 18px;padding:13px 16px;border-left:3px solid var(--amber);
+  background:rgba(255,176,46,.07);border-radius:0 5px 5px 0;font-size:13px;color:var(--dim);display:none;
+}
+.egg.show{display:block}
+.egg b{color:var(--amber);font-weight:600}
+
+/* ============ 表格 ============ */
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{font-family:var(--mono);font-weight:500;color:var(--faint);text-align:left;padding:9px 12px;border-bottom:1px solid var(--line2);font-size:11px;letter-spacing:.1em}
+.tbl td{padding:10px 12px;border-bottom:1px solid var(--line);color:var(--dim);vertical-align:top}
+.tbl tr:hover td{background:rgba(52,224,138,.035)}
+.tbl td.m{font-family:var(--mono);color:var(--ink);white-space:nowrap}
+.tbl td .hi{color:var(--green)} .tbl td .amb{color:var(--amber)} .tbl td .cy{color:var(--cyan)}
+.tbl-scroll{overflow-x:auto}
+
+/* ============ Search ROM ============ */
+.sr-grid{display:grid;grid-template-columns:1fr 1.1fr;gap:18px;align-items:start}
+.sr-rows{font-family:var(--mono);font-size:12px;max-height:330px;overflow-y:auto;scrollbar-width:thin}
+.sr-rows .sr-row{display:grid;grid-template-columns:44px 1fr;gap:10px;padding:7px 10px;border-bottom:1px dashed var(--line);color:var(--dim);align-items:baseline}
+.sr-rows .sr-row .no{color:var(--faint)}
+.sr-rows .sr-row.bit0 .no,.sr-rows .sr-row .bits b.z{color:var(--cyan)}
+.sr-rows .sr-row .bits{letter-spacing:.05em}
+.sr-rows .sr-row.fork{background:rgba(255,176,46,.05)}
+.sr-rows .sr-row.fork .no{color:var(--amber)}
+.sr-rows .sr-row.dev{background:rgba(52,224,138,.06);color:var(--ink)}
+.sr-rows .sr-row.dev .no{color:var(--green)}
+.sr-rows .sr-row.back{color:var(--cyan)}
+.sr-rows .sr-row.back .no{color:var(--cyan)}
+.sr-rows .sr-row.done{color:var(--green)}
+.sr-tree-box{background:#080d0a;border-top:1px solid var(--line)}
+.sr-tree-box svg{display:block;width:100%;height:auto}
+#treeSvg .t-edge{stroke:rgba(140,162,148,.28);stroke-width:1.6;fill:none}
+#treeSvg .t-edge.lit{stroke:var(--green);stroke-width:2.2;filter:drop-shadow(0 0 3px rgba(52,224,138,.5))}
+#treeSvg .t-bln{fill:#5c7264;font-size:9px;paint-order:stroke;stroke:#080d0a;stroke-width:2.5px;stroke-linejoin:round}
+#treeSvg .t-node{fill:#0e1a13;stroke:rgba(140,162,148,.4);stroke-width:1.4}
+#treeSvg .t-node.fork{stroke:var(--amber);fill:rgba(255,176,46,.12)}
+#treeSvg .t-node.lit{stroke:var(--green)}
+#treeSvg .t-forklb{fill:var(--amber);font-size:8.5px}
+#treeSvg .t-cur{fill:var(--green);filter:drop-shadow(0 0 6px rgba(52,224,138,.9));animation:smpPulse 1s infinite}
+#treeSvg .t-leaf{fill:#0d1510;stroke-width:1.5}
+#treeSvg .t-leaff{fill:#dcebe1;font-size:10.5px;font-weight:600}
+#treeSvg .t-leafn{fill:#8aa294;font-size:9px}
+#treeSvg .t-rootlb{fill:#8aa294;font-size:9.5px}
+.sr-found{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.sr-card{display:flex;align-items:baseline;gap:12px;border:1px solid var(--line);border-left:3px solid var(--green);border-radius:5px;padding:9px 14px;background:var(--panel2);font-family:var(--mono);font-size:12px}
+.sr-card .nm{color:var(--ink);font-weight:500}
+.sr-card .id{color:var(--green)}
+.sr-card .fam{margin-left:auto;color:var(--faint);font-size:10.5px}
+.sr-note{font-size:12.8px;color:var(--dim);line-height:1.75;border-left:2px solid var(--cyan);padding:10px 14px;background:rgba(87,216,242,.05);border-radius:0 5px 5px 0;margin-top:14px}
+.sr-note b{color:var(--cyan);font-weight:600}
+.choice-btns{display:flex;gap:8px;align-items:center}
+.choice-btns .txt-btn{border-color:var(--amber);color:var(--amber)}
+.choice-btns .txt-btn:hover{background:rgba(255,176,46,.1)}
+.choice-btns .lbl{font-family:var(--mono);font-size:11px;color:var(--amber);letter-spacing:.1em}
+
+/* ============ CRC 字节 ============ */
+.crc-bytes{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 4px}
+.crc-byte{border:1px solid var(--line2);border-radius:5px;background:#080d0a;padding:8px 10px;cursor:pointer;transition:all .15s;min-width:64px;text-align:center}
+.crc-byte:hover{border-color:var(--green-dim)}
+.crc-byte .bx{font-family:var(--mono);font-size:15px;color:var(--ink);font-weight:600}
+.crc-byte .bl{font-family:var(--mono);font-size:9px;color:var(--faint);letter-spacing:.06em;margin-top:3px}
+.crc-byte.crc9{cursor:default;border-style:dashed}
+.crc-byte.crc9 .bx{color:var(--amber)}
+.crc-byte.bad{border-color:var(--red);background:rgba(255,100,120,.06)}
+.crc-state{font-family:var(--mono);font-size:13px;margin-top:10px}
+.crc-state .ok{color:var(--green)} .crc-state .bad{color:var(--red)}
+.crc-live{font-family:var(--mono);font-size:12px;color:var(--dim);margin-top:6px}
+.crc-live b{color:var(--cyan)}
+
+/* ============ 终端 ============ */
+.term{border:1px solid var(--line);border-radius:8px;background:#070c09;overflow:hidden;display:flex;flex-direction:column;min-width:0}
+.term.wide{grid-column:1/-1}
+.term-bar{display:flex;align-items:center;gap:7px;padding:10px 14px;border-bottom:1px solid var(--line);background:rgba(10,16,12,.85)}
+.term-bar i{width:10px;height:10px;border-radius:50%}
+.term-bar .d1{background:rgba(255,100,120,.55)} .term-bar .d2{background:rgba(255,176,46,.5)} .term-bar .d3{background:rgba(52,224,138,.5)}
+.term-bar span{margin-left:8px;font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.12em}
+.term-body{padding:14px 16px;font-family:var(--mono);font-size:12.3px;line-height:1.9;overflow-x:auto;flex:1}
+.term-body.iv{height:340px;overflow-y:auto;cursor:text}
+.term-body div{white-space:pre;min-height:1.35em}
+.t-ps{color:#3f5247;user-select:none}
+.t-cmd{color:var(--green);cursor:pointer;font-family:inherit;border-bottom:1px dotted transparent;transition:border-color .15s}
+.t-cmd:hover{border-bottom-color:var(--green)}
+.t-cmd.copied{color:#052013;background:var(--green);border-radius:2px;padding:0 4px}
+.t-out{color:var(--dim)} .t-hl{color:var(--amber)} .t-cmt{color:#516657} .t-tag{color:var(--cyan)} .t-err{color:var(--red)}
+.term-in{display:flex;align-items:center;gap:10px;padding:10px 16px;border-top:1px solid var(--line);background:#0a1214;cursor:text}
+.term-in .p{font-family:var(--mono);font-size:12.3px;color:var(--green);white-space:nowrap}
+.term-in input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:var(--ink);font-family:var(--mono);font-size:12.3px;caret-color:var(--green)}
+.term-in input::placeholder{color:var(--faint)}
+.cmd-btns{display:flex;flex-direction:column;gap:7px}
+.cmd-btn{display:block;text-align:left;font-family:var(--mono);font-size:12px;color:var(--ink);background:var(--panel2);border:1px solid var(--line);padding:8px 12px;cursor:pointer;transition:.2s;line-height:1.5}
+.cmd-btn:hover{border-color:var(--green);color:var(--green);background:rgba(52,224,138,.05)}
+.cmd-btn small{display:block;font-family:var(--sans);font-size:11.5px;color:var(--faint);margin-top:2px}
+.lnx-note{margin-top:24px;padding:16px 20px;border-left:2px solid var(--cyan);background:rgba(87,216,242,.05);border-radius:0 6px 6px 0;font-size:13.5px;color:var(--dim)}
+.lnx-note b{color:var(--cyan);font-weight:500}
+.lnx-note code{font-family:var(--mono);font-size:.9em;color:var(--amber)}
+
+/* ============ 踩坑 ============ */
+.pit-list{display:flex;flex-direction:column;gap:12px}
+.pit{display:grid;grid-template-columns:52px 1fr;gap:18px;align-items:start;border:1px solid var(--line);border-radius:6px;padding:17px 20px;background:var(--panel);transition:border-color .2s}
+.pit:hover{border-color:rgba(255,100,120,.4)}
+.pit .symptom{font-family:var(--mono);font-size:10px;letter-spacing:.04em;color:var(--red);border:1px solid rgba(255,100,120,.35);border-radius:4px;padding:5px 7px;text-align:center;line-height:1.5;background:rgba(255,100,120,.05);height:fit-content}
+.pit .fix b{display:block;font-size:14px;font-weight:500;color:var(--ink);margin-bottom:4px}
+.pit .fix b code{font-family:var(--mono);font-size:.88em;color:var(--green)}
+.pit .fix p{font-size:12.8px;color:var(--dim);line-height:1.7}
+.pit .fix p code{font-family:var(--mono);font-size:.9em;color:var(--amber)}
+
+/* ============ footer ============ */
+footer{border-top:1px solid var(--line);padding:42px 6vw 58px;margin-top:40px;display:flex;flex-wrap:wrap;gap:24px;align-items:baseline;justify-content:space-between;position:relative;z-index:1}
+footer .f-l{font-family:var(--mono);font-size:11.5px;color:var(--faint);line-height:2.1;max-width:820px}
+footer .f-l b{color:var(--dim);font-weight:500}
+footer .f-r{font-family:var(--disp);font-weight:700;font-size:22px;color:var(--green)}
+footer .f-m{width:100%;text-align:center;font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.14em;margin-top:10px}
+
+/* ============ 响应式 ============ */
+@media (max-width:1000px){
+  .two-col,.grid2,.grid3,.sr-grid,.mos-wrap,.lab-body{grid-template-columns:1fr}
+  .readout,.mos-side{border-left:none;border-top:1px solid var(--line)}
+  .calc{grid-template-columns:1fr}
+  .calc .inputs{border-right:none;border-bottom:1px solid var(--line)}
+}
+@media (max-width:720px){
+  .fact-grid{grid-template-columns:1fr}
+  section{padding:64px 5vw}
+  .sec-head .en{display:none}
+  .rule-callout{grid-template-columns:1fr;gap:12px}
+  .rule-callout .mnemonic{white-space:normal}
+}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  .hero .scroll-hint svg,nav .live i{animation:none}
+}
+</style>
+</head>
+<body>
+<nav>
+  <div class="logo">1-WIRE<b style="color:var(--green)">·</b>LAB</div>
+  <div class="links">
+    <a href="#s1">概述</a><a href="#s2">物理层</a><a href="#s3">复位/存在</a><a href="#s4">时隙实验室</a><a href="#s6">Search ROM</a><a href="#s7">DS18B20</a><a href="#s8">踩坑</a><a href="#s9">Linux</a><a href="#s10">速查表</a>
+  </div>
+  <div class="xnav"><a href="index.html">« HOME</a><a href="i2c.html">I²C</a><a href="spi.html">SPI</a><a href="uart.html">UART</a><a href="ir.html">IR</a><a href="rs485.html">RS-485</a><a href="can.html">CAN</a><a href="i2s.html">I²S</a><a href="dmic.html">DMIC</a><a href="tdm.html">TDM</a><a href="sdio.html">SDIO</a><a href="emmc.html">eMMC</a><a href="ddr.html">DDR</a><a href="rgb.html">RGB</a><a href="lvds.html">LVDS</a><a href="mipi-dsi.html">DSI</a><a href="csi2.html">CSI-2</a><a href="hdmi.html">HDMI</a><a href="usb.html">USB</a><a href="pcie.html">PCIE</a><a href="jtag.html">JTAG</a></div>
+  <div class="spacer"></div>
+  <div class="live"><i></i>ONE-WIRE&nbsp;BUS&nbsp;MONITOR</div>
+</nav>
+
+<main>
+<!-- ================= HERO ================= -->
+<header class="hero">
+  <div class="eyebrow">ONE-WIRE · SINGLE-WIRE BUS · 图解硬件协议</div>
+  <h1>1<b>-</b>Wire
+    <span class="zh">一 根 线 的 极 简 主 义 · 单 总 线 协 议 详 解</span>
+  </h1>
+  <p class="lede">
+    一根数据线，同时当<b>供电线、时钟线和数据线</b>用——1-Wire 把引脚节省到了哲学级别：
+    开漏 + 线与的总线上，每个器件出厂自带激光刻录的 <b>64-bit 全球唯一 ID</b>，
+    主机靠一根线把它们一个个"点名"。<b>往下滚动：复位脉冲、读写时隙、Search ROM 二叉树，
+    全部拆到微秒刻度。</b>
+  </p>
+  <div class="chips">
+    <span><b>1</b> 根数据线 + GND</span>
+    <span><b>16.3 kbit/s</b> 标准 · 142 kbit/s Overdrive</span>
+    <span>开漏 + <b>4.7 kΩ</b> 上拉</span>
+    <span><b>64-bit</b> 唯一 ROM ID</span>
+    <span><b>寄生供电</b>：不接 VDD 也能活</span>
+  </div>
+  <div class="cta">
+    <a class="pri" href="#s3">▶ 复位与存在脉冲动画</a>
+    <a href="#s2">先看物理层：一根线怎么供电？</a>
+  </div>
+  <div class="diag reveal">
+    <svg id="heroSvg" viewBox="0 0 920 262" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono,monospace">
+      <line x1="90" y1="28" x2="830" y2="28" stroke="#ff8a97" stroke-width="2"/>
+      <text x="90" y="18" fill="#ff8a97" font-size="11">VCC +3.3V</text>
+      <line x1="460" y1="28" x2="460" y2="46" stroke="#8aa294" stroke-width="1.6"/>
+      <rect x="450" y="46" width="20" height="30" fill="none" stroke="#8aa294" stroke-width="1.6"/>
+      <line x1="460" y1="76" x2="460" y2="88" stroke="#8aa294" stroke-width="1.6"/>
+      <text x="482" y="60" fill="#8aa294" font-size="10.5">Rp 4.7kΩ 上拉</text>
+      <text x="482" y="74" fill="#5c7264" font-size="9.5">高电平全靠它</text>
+      <line x1="90" y1="88" x2="830" y2="88" stroke="#34e08a" stroke-width="2.6"/>
+      <text x="830" y="78" fill="#34e08a" font-size="12" font-weight="600" text-anchor="end">DQ · 单总线</text>
+      <line x1="170" y1="88" x2="170" y2="128" stroke="#27392d" stroke-width="2"/>
+      <rect x="90" y="128" width="160" height="84" rx="3" fill="#0e1a13" stroke="#27392d" stroke-width="1.5"/>
+      <text x="170" y="162" fill="#dcebe1" font-size="13" font-weight="600" text-anchor="middle">主机 MCU</text>
+      <text x="170" y="182" fill="#5c7264" font-size="9" letter-spacing="2" text-anchor="middle">MASTER</text>
+      <text x="170" y="200" fill="#5c7264" font-size="9" text-anchor="middle">发起一切时序</text>
+      <line x1="620" y1="88" x2="620" y2="128" stroke="#27392d" stroke-width="2"/>
+      <line x1="700" y1="212" x2="700" y2="238" stroke="#27392d" stroke-width="2"/>
+      <rect x="540" y="128" width="180" height="84" rx="3" fill="#0e1a13" stroke="#27392d" stroke-width="1.5"/>
+      <text x="630" y="156" fill="#dcebe1" font-size="13" font-weight="600" text-anchor="middle">DS18B20</text>
+      <text x="630" y="174" fill="#5c7264" font-size="9" letter-spacing="2" text-anchor="middle">SLAVE · 温度</text>
+      <text x="630" y="192" fill="#ffb02e" font-size="9" text-anchor="middle">寄生供电：VDD 接 GND</text>
+      <line x1="800" y1="88" x2="800" y2="150" stroke="#27392d" stroke-width="2"/>
+      <circle cx="800" cy="184" r="34" fill="#0e1a13" stroke="#27392d" stroke-width="1.5"/>
+      <text x="800" y="181" fill="#dcebe1" font-size="11" font-weight="600" text-anchor="middle">iButton</text>
+      <text x="800" y="196" fill="#5c7264" font-size="8.5" text-anchor="middle">DS1990A</text>
+      <line x1="90" y1="238" x2="830" y2="238" stroke="#27392d" stroke-width="1.6"/>
+      <text x="90" y="254" fill="#5c7264" font-size="10.5">GND —— 唯一的另一根线</text>
+      <text id="hEvt" x="830" y="254" fill="#57d8f2" font-size="10.5" text-anchor="end">BUS EVENT · 复位脉冲 480µs</text>
+      <g id="hPulse"></g>
+    </svg>
+  </div>
+  <div class="scroll-hint">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+    SCROLL · 时序动画在 03 / 04 节
+  </div>
+</header>
+
+<!-- ================= §01 ================= -->
+<section id="s1">
+  <div class="sec-head reveal"><span class="no">01</span><h2>它是什么，为什么需要它</h2><span class="en">What &amp; Why</span></div>
+  <p class="sec-sub reveal">一句话：<b>1-Wire 是只用一根数据线（外加地）就能供电 + 寻址 + 通信的主从总线</b>——开漏线与的物理哲学与 <a href="i2c.html" style="color:var(--cyan)">I²C</a> 同宗，但把"省引脚"推到了极限。</p>
+  <div class="two-col">
+    <div class="prose reveal">
+      <p>
+        1-Wire 由 Dallas Semiconductor 在 1990 年代推出（现归 ADI）。总线上只有两种角色：
+        <b>一个主机</b>（通常是 MCU 的一根 GPIO）和 <b>N 个从机器件</b>，全部并挂在一根
+        <span class="kw">DQ</span> 线上。没有时钟线——时间是靠微秒级的<b>拉低时长</b>来编码的，
+        所以 1-Wire 又叫"单总线"。
+      </p>
+      <p>
+        它的两个杀手锏：<b>64-bit 唯一 ROM ID</b>（8-bit 族码 + 48-bit 序列号 + 8-bit CRC8，
+        出厂激光刻录，全球不重复）与<b>寄生供电</b>（parasite power）——器件从 DQ 线上"偷电"
+        存进内部电容，连 VDD 引脚都可以省掉。于是测温探头只需两根线就能拉几十米，
+        iButton 甚至做成一颗纽扣电池的形状。
+      </p>
+      <p>
+        代价同样清晰：标准速度只有 <span class="kw2">≈16.3 kbit/s</span>；时序刻到微秒，
+        软件位锤（bit-bang）期间常常要关中断；多器件枚举要自己实现
+        <span class="kw2">Search ROM</span> 二叉树算法（06 节逐位演示）。它不适合搬数据，
+        只适合"低频、低成本、接线极简"的传感与身份识别场景。
+      </p>
+    </div>
+    <table class="cmp-table reveal">
+      <tr><th></th><th>1-Wire</th><th>I²C</th><th>SPI</th></tr>
+      <tr><td>信号线</td><td class="yes">1 根（DQ+GND）</td><td><a href="i2c.html">2 根</a></td><td>4+ 根</td></tr>
+      <tr><td>时钟</td><td>无（时长编码）</td><td>SCL 独立时钟</td><td>CLK 独立时钟</td></tr>
+      <tr><td>速率</td><td class="no">16.3 kbit/s 标准</td><td>100k–3.4M</td><td class="yes">几十 MHz</td></tr>
+      <tr><td>寻址</td><td class="yes">64-bit 唯一 ID</td><td>7-bit 地址</td><td>片选线</td></tr>
+      <tr><td>供电</td><td class="yes">可寄生供电</td><td>否</td><td>否</td></tr>
+      <tr><td>驱动</td><td>开漏+上拉</td><td>开漏+上拉</td><td>推挽</td></tr>
+      <tr><td>典型器件</td><td>DS18B20 · iButton</td><td>EEPROM · 传感器</td><td>Flash · 屏幕</td></tr>
+    </table>
+  </div>
+  <div class="fact-grid reveal">
+    <div class="fact"><div class="f-no">FACT / A · 温度</div><h4><code>DS18B20</code> 数字温度计</h4><p>全世界用得最多的 1-Wire 器件：-55~+125℃、9–12 位可配分辨率、±0.5℃（-10~85℃）。本页 03–07 节全程用它当实验品。</p></div>
+    <div class="fact"><div class="f-no">FACT / B · 存储</div><h4><code>DS2431</code> 1kbit EEPROM</h4><p>一行 I²C 都不用接的掉电存储：常用于打印机墨盒计数、电池包身份、耗材认证——读 ID 就知道是不是原厂。</p></div>
+    <div class="fact"><div class="f-no">FACT / C · 身份</div><h4><code>iButton</code> DS1990A</h4><p>把 1-Wire 芯片装进不锈钢"纽扣"：碰一下触头就读出唯一 64-bit ID。门禁、巡更打卡、饮水机计费的经典方案。</p></div>
+    <div class="fact"><div class="f-no">FACT / D · 供电</div><h4>寄生供电 <code>Parasite Power</code></h4><p>VDD 接地，器件靠 DQ 高电平期间给内部电容充电活命。大电流操作（温度转换）必须"强上拉"——02 节有整套 MOS 动画。</p></div>
+  </div>
+</section>
+
+<!-- ================= §02 ================= -->
+<section id="s2">
+  <div class="sec-head reveal"><span class="no">02</span><h2>物理层：开漏、上拉与寄生供电</h2><span class="en">Physical Layer</span></div>
+  <p class="sec-sub reveal">
+    1-Wire 的全部电气规则一句话讲完：<b>只准拉低、不准驱高，高电平交给上拉电阻</b>。
+    与 I²C 的开漏线与完全同源（<a href="i2c.html" style="color:var(--cyan)">I²C 页有可点击的线与实验台</a>）——
+    区别是 1-Wire 连时钟线也省了，而且要把这根线<b>当电源用</b>。
+  </p>
+  <div class="grid2">
+    <div class="panel panel-pad reveal">
+      <div class="panel-title">上拉电阻取值权衡 · 拖动滑杆实时算</div>
+      <div class="calc" style="grid-template-columns:1fr;border:none;border-radius:0;background:transparent">
+        <div class="inputs" style="border:none;padding:0">
+          <div class="field"><label>上拉电阻 Rp <b id="rpVal">4.7 kΩ</b></label><input type="range" id="riseR" min="0" max="100" value="34" style="width:100%"></div>
+          <div class="field"><label>线缆长度 <b id="lenVal">3.0 m</b>（双绞线 ≈100 pF/m）</label><input type="range" id="riseL" min="1" max="100" value="6" style="width:100%"></div>
+        </div>
+        <div class="outputs" style="background:transparent;padding:0">
+          <div class="out-row"><span class="ok">总线电容 Cb<small>DEVICE 20pF + 线缆</small></span><span class="ov" id="roC">320<small>pF</small></span></div>
+          <div class="out-row"><span class="ok">时间常数 τ<small>τ = Rp × Cb</small></span><span class="ov" id="roTau">1.50<small>µs</small></span></div>
+          <div class="out-row"><span class="ok">上升到 2.2V 耗时<small>t = −τ·ln(1−2.2/3.3)</small></span><span class="ov" id="roRise">1.65<small>µs</small></span></div>
+          <div class="out-row"><span class="ok">低电平灌电流<small>3.3V ÷ Rp（器件极限 4mA）</small></span><span class="ov" id="roCur">0.70<small>mA</small></span></div>
+          <div class="out-row big"><span class="ok">判读<small>VERDICT</small></span><span class="ov" id="roVerdict" style="font-size:16px">标准速度充裕</span></div>
+        </div>
+        <div class="calc-formula" style="padding:12px 0 0;border-top:1px solid var(--line)" id="riseFormula"></div>
+      </div>
+      <p class="cap"><b>权衡：</b>Rp 小 → 上升快但灌电流大、空闲功耗高；Rp 大 → 省电但写 1/读 1 时线"爬"不回高电平。经验值 <b>4.7 kΩ</b>，长线/多器件降到 2.2 kΩ，Overdrive 必须更狠。</p>
+      <svg id="riseSvg" viewBox="0 0 560 120" style="display:block;width:100%;margin-top:10px" font-family="IBM Plex Mono,monospace">
+        <line x1="40" y1="100" x2="540" y2="100" stroke="#1d2c22"/>
+        <line x1="40" y1="12" x2="40" y2="100" stroke="#1d2c22"/>
+        <line x1="40" y1="20" x2="540" y2="20" stroke="rgba(255,138,151,.35)" stroke-dasharray="4 4"/>
+        <text x="538" y="16" fill="#ff8a97" font-size="9" text-anchor="end">3.3V</text>
+        <line x1="40" y1="41" x2="540" y2="41" stroke="rgba(255,176,46,.4)" stroke-dasharray="4 4"/>
+        <text x="538" y="38" fill="#ffb02e" font-size="9" text-anchor="end">VIH(min) ≈ 2.2V</text>
+        <path id="riseCurve" fill="none" stroke="#34e08a" stroke-width="2"/>
+        <circle id="riseMark" r="3.4" fill="#57d8f2" opacity="0"/>
+        <text id="riseMarkLb" x="60" y="36" fill="#57d8f2" font-size="9.5" opacity="0"></text>
+        <text x="40" y="114" fill="#5c7264" font-size="9">0µs</text>
+        <text id="riseAxR" x="540" y="114" fill="#5c7264" font-size="9" text-anchor="end">20µs</text>
+        <text x="46" y="60" fill="#8aa294" font-size="9.5">释放后 DQ 电压 V(t) = 3.3 × (1 − e^(−t/τ))</text>
+      </svg>
+    </div>
+    <div class="panel panel-pad reveal">
+      <div class="panel-title">为什么必须开漏 · 三条铁律</div>
+      <div class="prose" style="font-size:13.5px">
+        <p><b class="kw" style="color:var(--green)">线与</b>：主机与所有从机的输出都是开漏 NMOS。任何一个拉低，整根线就是低——多器件同挂不会电源对撞，从机"抢答"存在脉冲也只呈现一次低。</p>
+        <p><b class="kw" style="color:var(--green)">谁都能发言，靠时序区分</b>：没有片选、没有地址线。复位脉冲、存在脉冲、读写时隙，全是约定好的拉低时长（03/04 节逐微秒展开）。</p>
+        <p><b class="kw" style="color:var(--amber)">禁止推挽驱高</b>：想加速上升沿？唯一合法手段是"强上拉"——用 MOS 管把上拉电阻旁路，而不是直接推挽输出，否则与拉低的从机形成对地短路。这就是右侧寄生供电动画里的 P-MOS。</p>
+      </div>
+      <p class="cap">总线空闲 = 高（上拉维持）；通信 = 主机发起的拉低舞蹈。一根线同时是电源、时钟与数据。</p>
+    </div>
+  </div>
+
+  <div class="lab reveal" style="margin-top:18px">
+    <div class="lab-bar">
+      <div class="ctrl"><label>供电模式</label>
+        <div class="seg" id="mosSeg">
+          <button data-mos="strong" class="on">带强上拉 MOS</button>
+          <button data-mos="weak">只有 4.7k 弱上拉</button>
+        </div>
+      </div>
+      <div class="ctrl">
+        <button class="icon-btn play on" id="mosPlay" title="暂停/播放">❚❚</button>
+        <button class="icon-btn" id="mosStep" title="单步（下一阶段）">⏭</button>
+        <button class="icon-btn" id="mosReset" title="复位">↺</button>
+      </div>
+    </div>
+    <div class="mos-wrap">
+      <div class="mos-svg-box">
+        <svg id="mosSvg" viewBox="0 0 880 372" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono,monospace">
+          <line x1="70" y1="26" x2="810" y2="26" class="m-rail"/>
+          <text x="70" y="16" fill="#ff8a97" font-size="11">VCC +3.3V</text>
+          <line x1="420" y1="26" x2="420" y2="60" class="m-w"/>
+          <rect x="410" y="60" width="20" height="34" fill="none" stroke="#8aa294" stroke-width="1.6"/>
+          <line x1="420" y1="94" x2="420" y2="118" class="m-w"/>
+          <text x="440" y="72" class="m-lb">Rp 4.7kΩ 弱上拉</text>
+          <text x="440" y="86" class="m-lb dim">最多只能供 ~0.7mA</text>
+          <g id="mFet">
+            <line x1="620" y1="26" x2="620" y2="66" class="m-w"/>
+            <rect x="598" y="66" width="44" height="44" rx="4" class="m-fetbody"/>
+            <line x1="620" y1="66" x2="620" y2="78" class="m-w"/>
+            <line x1="620" y1="96" x2="620" y2="110" class="m-w"/>
+            <circle cx="620" cy="78" r="2.6" fill="#8aa294"/>
+            <circle cx="620" cy="96" r="2.6" fill="#8aa294"/>
+            <line class="m-arm" x1="620" y1="78" x2="634" y2="67"/>
+            <line x1="620" y1="110" x2="620" y2="118" class="m-w"/>
+            <text x="592" y="60" class="m-lb" text-anchor="end">P-MOS 强上拉</text>
+            <text x="592" y="74" class="m-lb dim" text-anchor="end">GPIO=0 → 导通</text>
+          </g>
+          <line x1="70" y1="118" x2="810" y2="118" class="m-dq" id="mDq"/>
+          <text x="810" y="110" fill="#34e08a" font-size="12" font-weight="600" text-anchor="end">DQ</text>
+          <path class="m-gate" d="M170,150 L170,138 L560,138 L560,123 A5,5 0 0 1 560,113 L560,88 L596,88"/>
+          <text x="300" y="132" fill="#57d8f2" font-size="9.5">GPIO · 强上拉控制（跳线跨过 DQ）</text>
+          <line x1="110" y1="118" x2="110" y2="150" class="m-w"/>
+          <rect x="70" y="150" width="160" height="84" rx="3" class="m-box"/>
+          <text x="150" y="184" class="m-name" text-anchor="middle">主机 MCU</text>
+          <text x="150" y="204" class="m-role" text-anchor="middle">MASTER</text>
+          <text x="150" y="220" class="m-role" text-anchor="middle" fill="#57d8f2">DQ + GPIO</text>
+          <line x1="560" y1="118" x2="560" y2="150" class="m-w"/>
+          <line x1="740" y1="234" x2="740" y2="300" class="m-w"/>
+          <g id="mChip">
+            <rect x="480" y="150" width="290" height="84" rx="3" class="m-chip"/>
+            <text x="600" y="176" class="m-name" text-anchor="middle">DS18B20</text>
+            <text x="600" y="192" class="m-role" text-anchor="middle">寄生模式：VDD 接 GND</text>
+            <rect x="540" y="206" width="120" height="9" fill="#070c09" stroke="#27392d"/>
+            <rect id="mCap" x="541" y="207" width="36" height="7" class="m-capf"/>
+            <text x="672" y="214" class="m-role" text-anchor="middle">CPP</text>
+          </g>
+          <text x="560" y="145" class="m-idraw" id="mDraw" text-anchor="middle">↘ 转换电流 1.5mA</text>
+          <text x="625" y="262" class="m-warn" id="mWarn" text-anchor="middle">⚠ CPP 电压不足 —— 芯片掉电，转换中止！</text>
+          <line x1="70" y1="300" x2="810" y2="300" stroke="#27392d" stroke-width="1.6"/>
+          <text x="70" y="316" fill="#5c7264" font-size="10.5">GND</text>
+          <rect x="70" y="330" width="740" height="36" class="m-tr-bg"/>
+          <text x="78" y="326" fill="#5c7264" font-size="9">DQ · 当前阶段波形示意</text>
+          <polyline id="mTrace" class="m-trace" points=""/>
+        </svg>
+      </div>
+      <div class="mos-side">
+        <div class="ro-kicker" id="mosKicker">PHASE 0 / IDLE</div>
+        <div class="ro-title" id="mosTitle">空闲 · 弱上拉维持高电平</div>
+        <div class="ro-desc" id="mosDesc">上拉电阻把 DQ 维持在高电平；DS18B20 靠内部电容 CPP 撑着，静态电流只有约 5µA——这就是寄生供电的"待机"。</div>
+        <div class="m-phase-dots" id="mosDots"></div>
+        <div class="m-meter" id="mosMeter">
+          <div class="mm-l"><span>CPP 电荷储备</span><span id="mosCapPct">35%</span></div>
+          <div class="mm-bar"><i id="mosBar"></i></div>
+        </div>
+        <div class="m-row"><span class="k">CPP 电压</span><span class="v g" id="mosV">1.16 V</span></div>
+        <div class="m-row"><span class="k">强上拉 MOS</span><span class="v" id="mosFetSt">断开</span></div>
+        <div class="m-row"><span class="k">最终读数</span><span class="v a" id="mosResult">—</span></div>
+      </div>
+    </div>
+    <div class="lab-foot">
+      <div class="legend"><i style="background:var(--green)"></i>DQ 高（上拉/强上拉）</div>
+      <div class="legend"><i style="background:var(--red)"></i>DQ 被拉低</div>
+      <div class="legend"><i style="background:var(--cyan)"></i>MOS 门极控制</div>
+      <div class="legend">750ms 转换在动画里压缩为 4s</div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= §03 ================= -->
+<section id="s3">
+  <div class="sec-head reveal"><span class="no">03</span><h2>复位与存在脉冲 · 每次对话的开场白</h2><span class="en">Reset &amp; Presence Pulse</span></div>
+  <p class="sec-sub reveal">
+    1-Wire 的所有事务都从同一段"开场白"开始：<b>主机拉低 ≥480µs</b> 宣告"全体注意" → 释放 →
+    等待 15–60µs → <b>第一个从机拉低 60–240µs</b> 应答（存在脉冲）。时间轴精确到微秒，
+    绿色是主机驱动、琥珀色是从机驱动、青色是 DQ 上的<b>线与结果</b>。
+  </p>
+  <div class="lab reveal">
+    <div class="lab-bar">
+      <div class="ctrl"><label>场景</label>
+        <div class="seg" id="rstSeg">
+          <button data-rst="ok" class="on">总线上有器件</button>
+          <button data-rst="none">无器件（超时）</button>
+        </div>
+      </div>
+      <div class="ctrl"><label>速度</label><input type="range" id="rstSpeed" min="0" max="100" value="52"></div>
+      <div class="ctrl">
+        <button class="icon-btn play on" id="rstPlay" title="暂停/播放">❚❚</button>
+        <button class="icon-btn" id="rstStep" title="单步">⏭</button>
+        <button class="icon-btn" id="rstReset" title="复位">↺</button>
+      </div>
+    </div>
+    <div class="lab-body">
+      <div class="scope-main"><div id="rstScope" class="ows"></div></div>
+      <div class="readout">
+        <div class="ro-kicker" id="rstK">IDLE</div>
+        <div class="ro-title" id="rstT">总线空闲</div>
+        <div class="ro-desc" id="rstD">上拉电阻维持高电平。</div>
+        <div class="ro-time" id="rstTime">t = 0 µs</div>
+      </div>
+    </div>
+    <div class="lab-foot">
+      <div class="legend"><i style="background:var(--green)"></i>主机驱动（拉低）</div>
+      <div class="legend"><i style="background:var(--amber)"></i>从机驱动（拉低）</div>
+      <div class="legend"><i style="background:var(--cyan)"></i>DQ 总线（线与）</div>
+      <div class="legend">刻度 = 50 µs / 格</div>
+    </div>
+  </div>
+  <div class="rule-callout reveal">
+    <div class="mnemonic">复位 ≥480µs · 存在 60–240µs<small>RESET / PRESENCE</small></div>
+    <p>
+      480µs 这个夸张的时长是<b>故意的</b>：它必须远大于任何时隙（60–120µs），从机才能靠"低了这么久"区分出
+      复位脉冲与普通数据位。反过来，主机在<b>释放后约 70µs 处采样</b>存在位：读到低 = 总线上有活的 1-Wire 器件；
+      读到高 = 没人应答（切换上方"无器件"场景看看）。存在脉冲来自"第一个抢答"的从机——多个器件同时应答也只看到一撮低，这就是线与。
+    </p>
+  </div>
+</section>
+
+<!-- ================= §04 ================= -->
+<section id="s4">
+  <div class="sec-head reveal"><span class="no">04</span><h2>读 / 写时隙对比实验室</h2><span class="en">Read / Write Time Slot Lab</span></div>
+  <p class="sec-sub reveal">
+    1-Wire 的灵魂在时隙：四种时隙的<b>发起动作完全一样</b>——主机拉低；区别只在"按多久、谁来接管"。
+    写 0 按住 60–120µs；写 1 与读时隙只点一下（&lt;15µs）就松手。<b>青色高亮 = 采样窗口</b>：
+    写时隙从机在发起沿后 15–60µs 采样；读时隙主机必须在 <b>15µs 内</b>完成采样——晚了线就被拉回去了。
+  </p>
+  <div class="lab reveal">
+    <div class="lab-bar">
+      <div class="ctrl"><label>速度</label><input type="range" id="slotSpeed" min="0" max="100" value="46"></div>
+      <div class="ctrl">
+        <button class="icon-btn play on" id="slotPlay" title="暂停/播放">❚❚</button>
+        <button class="icon-btn" id="slotStep" title="单步">⏭</button>
+        <button class="icon-btn" id="slotReset" title="复位">↺</button>
+      </div>
+      <div class="ctrl"><label>对齐</label><span style="font-family:var(--mono);font-size:11px;color:var(--faint)">四个时隙共享同一时间轴，逐微秒对照</span></div>
+    </div>
+    <div class="lab-body">
+      <div class="scope-main"><div id="slotScope" class="ows"></div></div>
+      <div class="readout">
+        <div class="ro-kicker" id="slotK">IDLE</div>
+        <div class="ro-title" id="slotT">总线空闲</div>
+        <div class="ro-desc" id="slotD">时隙尚未发起，上拉维持高电平。</div>
+        <div class="ro-time" id="slotTime">t = 0 µs</div>
+      </div>
+    </div>
+    <div class="lab-foot">
+      <div class="legend"><i style="background:var(--green)"></i>主机驱动段</div>
+      <div class="legend"><i style="background:var(--amber)"></i>从机驱动段（读 0 时接管）</div>
+      <div class="legend"><i style="background:rgba(87,216,242,.7);height:8px"></i>采样窗口</div>
+      <div class="legend">刻度 = 10 µs / 格</div>
+    </div>
+  </div>
+  <div class="rule-callout reveal">
+    <div class="mnemonic">写 0 按住 · 写 1 点一下 · 读：点一下就采样<small>MNEMONIC</small></div>
+    <p>
+      读时隙最阴险的坑：主机拉低后必须在 <b>15µs 内读完</b>——因为从机发 0 时会立刻接管把线按在地上，
+      发 1 时线已回高，晚采样读到的都是"恢复后的高"，整字节悄悄错位。软件位锤的延时务必用硬件定时器，
+      中断一打岔时隙就废（<a href="#s8" style="color:var(--cyan)">08 节踩坑表</a>）。
+    </p>
+  </div>
+</section>
+
+<!-- ================= §05 ================= -->
+<section id="s5">
+  <div class="sec-head reveal"><span class="no">05</span><h2>ROM 命令层：总线上到底有谁</h2><span class="en">ROM Commands</span></div>
+  <p class="sec-sub reveal">
+    每一次 1-Wire 事务都是三级火箭：<b>复位 → ROM 命令 → 功能命令</b>。ROM 命令解决"跟谁说话"——
+    靠的就是那 64-bit 唯一 ID。
+  </p>
+  <div class="panel panel-pad reveal">
+    <div class="tbl-scroll">
+      <table class="tbl">
+        <tr><th>命令</th><th>代码</th><th>干什么</th><th>什么时候用</th></tr>
+        <tr><td class="m"><span class="hi">Read ROM</span></td><td class="m">33h</td><td>读出器件的 64-bit ID：8bit 族码 + 48bit 序列号 + 8bit CRC8</td><td>总线上<b>只有一个</b>器件时；多器件会线与出乱码</td></tr>
+        <tr><td class="m"><span class="hi">Match ROM</span></td><td class="m">55h</td><td>后跟 64-bit ID："接下来只跟它对话"，其余器件装死</td><td>多器件总线上点名单个器件读数据</td></tr>
+        <tr><td class="m"><span class="hi">Skip ROM</span></td><td class="m">CCh</td><td>"全体听令，不用报 ID"，跳过寻址层</td><td>单器件省流程；或对所有 DS18B20<b>同时</b>发 Convert T</td></tr>
+        <tr><td class="m"><span class="hi">Search ROM</span></td><td class="m">F0h</td><td>逐位二分枚举出总线上所有 64-bit ID</td><td>上电枚举；Linux 内核 w1 核心自动干这事 → <a href="#s6" style="color:var(--cyan)">下一节逐位演示</a></td></tr>
+        <tr><td class="m"><span class="hi">Alarm Search</span></td><td class="m">ECh</td><td>同 Search ROM，但只有置了报警标志的器件应答</td><td>DS18B20 温度越限（TH/TL）后被点名</td></tr>
+      </table>
+    </div>
+    <p class="cap">
+      <b>两个高频提醒：</b>① Skip ROM 之后跟"读"类命令，多器件会同时抢答（线与成乱码）——读数据必须 Match ROM；
+      ② 还有 Overdrive 变体（3Ch Overdrive Skip ROM / 69h Overdrive Match ROM），进入后时隙缩短约 8 倍。
+    </p>
+  </div>
+</section>
+
+<!-- ================= §06 ================= -->
+<section id="s6">
+  <div class="sec-head reveal"><span class="no">06</span><h2>Search ROM · 一根线上的二叉树搜索</h2><span class="en">Binary Tree Enumeration</span></div>
+  <p class="sec-sub reveal">
+    没有 ID 就没法 Match ROM，可 ID 藏在器件里、总线上又可能挂着 N 个——鸡生蛋问题。
+    1-Wire 的解法优雅到极致：每一位，主机<b>连读两拍（原码 + 反码）</b>，靠线与听出这一位上器件的分布，
+    再<b>发一个方向位</b>让不匹配的器件退场。逐位走完 64 层，就摘出一个完整 ID；回到分叉点走另一条分支，再摘下一个。
+  </p>
+  <div class="panel panel-pad reveal" style="margin-bottom:14px">
+    <div class="tbl-scroll">
+      <table class="tbl">
+        <tr><th>原码读数</th><th>反码读数</th><th>判读</th><th>主机怎么办</th></tr>
+        <tr><td class="m">0</td><td class="m">0</td><td><span class="amb">00 = 分叉</span>：这一位上 0/1 分支都有器件</td><td>选一个方向发 0/1，另一分支记下来待回溯</td></tr>
+        <tr><td class="m">0</td><td class="m">1</td><td><span class="hi">01 = 全 0</span>：在场器件这一位全是 0</td><td>无脑跟 0</td></tr>
+        <tr><td class="m">1</td><td class="m">0</td><td><span class="hi">10 = 全 1</span>：在场器件这一位全是 1</td><td>无脑跟 1</td></tr>
+        <tr><td class="m">1</td><td class="m">1</td><td><span style="color:var(--red)">11 = 无器件</span>（原码反码不可能同时为 1）</td><td>死分支/总线故障 —— 回溯或报错</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="lab reveal">
+    <div class="lab-bar">
+      <div class="ctrl">
+        <button class="txt-btn acc" id="srAuto">▶ 自动演示</button>
+        <button class="txt-btn" id="srStep">单步 ▸</button>
+        <button class="txt-btn" id="srReset">↺ 复位</button>
+      </div>
+      <div class="ctrl choice-btns" id="srChoice" style="display:none">
+        <span class="lbl">分叉！选分支 →</span>
+        <button class="txt-btn" id="srGo0">发 0</button>
+        <button class="txt-btn" id="srGo1">发 1</button>
+      </div>
+      <div class="spacer" style="flex:1"></div>
+      <div class="ctrl"><span style="font-family:var(--mono);font-size:12px;color:var(--green)" id="srProg">已枚举 0 / 3</span></div>
+    </div>
+    <div class="sr-grid" style="padding:14px">
+      <div>
+        <div class="panel-title" style="margin-bottom:8px">逐位搜索日志 · bit0–bit7（族码字节）</div>
+        <div class="sr-rows" id="srRows"></div>
+        <div class="sr-note" id="srNote"><b>开始：</b>点「单步」走一位；遇到 00 分叉会停下来等你选分支——选错的分支没有器件，读完剩余位全是 11，只能回溯。本演示总线上挂着 3 个器件：DS18B20（28h）、iButton（01h）、DS2431（2Dh）。剩 56 位同理逐位读出。</div>
+      </div>
+      <div>
+        <div class="panel-title" style="margin-bottom:8px">二叉树 · 亮起的部分 = 已探明</div>
+        <div class="sr-tree-box" id="treeBox"><svg id="treeSvg" viewBox="-72 0 772 236" xmlns="http://www.w3.org/2000/svg"></svg></div>
+        <div class="sr-found" id="srFound"></div>
+      </div>
+    </div>
+  </div>
+  <p class="cap reveal" style="margin-top:16px;max-width:860px">
+    <b>为什么能枚举完？</b>每个分叉点最多藏一个"还没被摘过的器件方向"，算法用 last_discrepancy 指针记住最深分叉处上次走了哪边，
+    下轮自动换边——只要总线安静，最多 N 轮就能把 N 个器件全部点名。这就是 Linux w1 核心上电后干的第一件事（<a href="#s9" style="color:var(--cyan)">09 节</a>）。
+  </p>
+</section>
+
+<!-- ================= §07 ================= -->
+<section id="s7">
+  <div class="sec-head reveal"><span class="no">07</span><h2>DS18B20 实战：从 Convert T 到摄氏度</h2><span class="en">DS18B20 in Action</span></div>
+  <p class="sec-sub reveal">
+    最经典的 1-Wire 事务链：<b>Skip ROM → Convert T（44h）→ 等 750ms → 复位 → Skip ROM → Read Scratchpad（BEh）→
+    9 字节 + CRC8</b>。前两步在下面流程图里，后两步拆成 CRC8 演示与温度换算计算器。
+  </p>
+  <div class="panel panel-pad reveal" id="dsFlow" style="margin-bottom:18px"></div>
+  <div class="grid2">
+    <div class="panel panel-pad reveal">
+      <div class="panel-title">Read Scratchpad 的 9 字节 · CRC8 实时验算（点击字节 +1）</div>
+      <div class="crc-bytes" id="crcCells"></div>
+      <div class="crc-live">主机重算（前 8 字节）= <b id="crcLive">0xC6</b> · 芯片发来的第 9 字节 = <b id="crcStored">0xC6</b></div>
+      <div class="crc-state" id="crcState"><span class="ok">crc ✓ YES —— 数据可信，收下</span></div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="txt-btn" id="crcFlip">翻转随机 1 位</button>
+        <button class="txt-btn" id="crcReset">↺ 恢复初值</button>
+      </div>
+      <p class="cap">
+        暂存器 9 字节：[0][1] 温度 LSB/MSB（线序 <b>LSB first</b>）· [2][3] TH/TL 报警门限 · [4] 分辨率配置 · [5-7] 保留 · [8] CRC8。
+        多项式 <b>x⁸+x⁵+x⁴+1</b>（Dallas CRC8）。任何一个位被干扰，重算值立刻对不上——整包丢弃重读，这就是单线传 9 字节的底气。
+        当前字节对应的温度：<b id="crcTemp" style="color:var(--cyan)">23.125 ℃</b>
+      </p>
+    </div>
+    <div class="panel panel-pad reveal">
+      <div class="panel-title">温度换算计算器 · 16-bit 原始值 → ℃</div>
+      <div class="calc" style="grid-template-columns:1fr;border:none;border-radius:0;background:transparent">
+        <div class="inputs" style="border:none;padding:0">
+          <div class="field"><label>16-bit 原始值（hex，MSB 在前）</label><input type="text" id="tcRaw" value="0172" spellcheck="false"></div>
+          <div class="field"><label>或直接拖温度 <b id="tcSliderV">23.125 ℃</b></label><input type="range" id="tcSlider" min="-55" max="125" step="0.0625" value="23.125" style="width:100%"></div>
+          <div class="field"><label>分辨率</label>
+            <select id="tcRes">
+              <option value="9">9-bit · 0.5℃ · 转换 93.75ms</option>
+              <option value="10">10-bit · 0.25℃ · 转换 187.5ms</option>
+              <option value="11">11-bit · 0.125℃ · 转换 375ms</option>
+              <option value="12" selected>12-bit · 0.0625℃ · 转换 750ms</option>
+            </select>
+          </div>
+        </div>
+        <div class="outputs" style="background:transparent;padding:0">
+          <div class="out-row big"><span class="ok">温度<small>TEMPERATURE</small></span><span class="ov" id="tcOut">23.125<small>℃</small></span></div>
+          <div class="out-row"><span class="ok">二进制（16-bit 补码）<small>RAW BITS</small></span><span class="ov" id="tcBin" style="font-size:13px">0000 0001 0111 0010</span></div>
+          <div class="out-row"><span class="ok">线序字节<small>LSB FIRST</small></span><span class="ov" id="tcBytes" style="font-size:13px">72 01</span></div>
+          <div class="out-row"><span class="ok">w1_slave 里的 t=<small>毫摄氏度</small></span><span class="ov" id="tcSys">t=23125</span></div>
+        </div>
+        <div class="calc-formula" style="padding:12px 0 0;border-top:1px solid var(--line)" id="tcFormula"></div>
+        <div class="egg" id="tcEgg"><b>⚠ 85.0℃ 彩蛋：</b>0x0550 是 DS18B20 <b>上电默认值</b>。读到它 = 转换根本没完成（没等 750ms，或寄生供电掉了电芯片复位）——不是真实温度！先查流程再骂传感器。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= §08 ================= -->
+<section id="s8">
+  <div class="sec-head reveal"><span class="no">08</span><h2>踩坑指南 · 症状 → 病因</h2><span class="en">Troubleshooting</span></div>
+  <p class="sec-sub reveal">调 1-Wire 的时间几乎都花在下面这些地方。按症状对号入座。</p>
+  <div class="pit-list reveal">
+    <div class="pit"><div class="symptom">一直<br>85.0℃</div><div class="fix"><b>读到了上电默认值 · 转换没完成</b><p>三连查：① Convert T 后<b>等够时间</b>（12-bit 750ms）或轮询 DQ 忙标志；② 寄生供电必须<b>强上拉</b>（<a href="#s2" style="color:var(--cyan)">02 节动画</a>的"弱上拉"模式就是这个死法）；③ 别在转换中途复位——复位即重来。验证：连续读两次，第一次 85℃ 第二次正常 = 典型时序病。</p></div></div>
+    <div class="pit"><div class="symptom">上拉<br>太弱</div><div class="fix"><b>写 1 / 读 1 偶发失败 · Rp 或线缆电容问题</b><p>上升沿爬不回高电平：示波器看 DQ 上升沿是不是"圆弧"。用 <a href="#s2" style="color:var(--cyan)">02 节计算器</a>核 τ=Rp·Cb，超过 ~15µs 必翻车。处方：Rp 降到 2.2k、缩短线缆、减少分支器件数。</p></div></div>
+    <div class="pit"><div class="symptom">长线<br>反射</div><div class="fix"><b>线一长错误率飙升 · 信号完整性</b><p>&gt;10m 后振铃与反射叠加在时隙上，采样点正好踩在过冲里。处方：用<b>双绞线</b>（DQ+GND 一对）、坚决避免星型分叉与长 stub、总线走"手拉手"链型；必要时牺牲速度感——标准速度已是最慢档，别用 Overdrive 跑长线。</p></div></div>
+    <div class="pit"><div class="symptom">搜索<br>死循环</div><div class="fix"><b>Search ROM 永不收敛 · 枚举数量翻倍/为 0</b><p>干扰把某个 01/10 读成 00（假分叉），回溯指针被带偏，循环永远走不完。处方：先解决上拉/反射问题；驱动侧核对 last_discrepancy 边界条件（标准 AN937 实现）；上电后延时 ~1s 再搜，等器件电充足。</p></div></div>
+    <div class="pit"><div class="symptom">偶发<br>位翻转</div><div class="fix"><b>时隙被中断拉长 · 软件位锤的大坑</b><p>写 1 拉低应 &lt;15µs，一个中断插进来就变成写 0，而且错得毫无规律（与负载相关）。处方：时隙期间<b>关中断</b>，延时用硬件定时器/DMA 而非忙等循环；或者干脆用带 1-Wire 外设的 MCU / 内核 w1-gpio。</p></div></div>
+    <div class="pit"><div class="symptom">推挽<br>加速</div><div class="fix"><b>想用推挽驱高加速上升沿 · 短路风险</b><p>从机随时可能开漏拉低，主机推挽输出高 = VCC 经低阻对地放电，轻则波形打架重则烧引脚。唯一合法加速手段是 <a href="#s2" style="color:var(--cyan)">02 节</a>的 P-MOS 强上拉——它只是"更强的上拉"，仍然是开漏体系的一部分。</p></div></div>
+    <div class="pit"><div class="symptom">3.3V<br>对 5V</div><div class="fix"><b>电平域混接 · 0/1 判读漂移</b><p>5V 器件的 VIH 可能高于 3.3V 主机能给的高电平。处方：上拉统一接到主机电平域；确需 5V 器件用 MOSFET 电平移位（与 <a href="i2c.html" style="color:var(--cyan)">I²C 同款电路</a>）。</p></div></div>
+  </div>
+</section>
+
+<!-- ================= §09 ================= -->
+<section id="s9">
+  <div class="sec-head reveal"><span class="no">09</span><h2>Linux 实战：w1 子系统虚拟终端</h2><span class="en">Linux w1 Subsystem</span></div>
+  <p class="sec-sub reveal">
+    Linux 把 1-Wire 抽象成 <b>w1 总线</b>：GPIO 位锤驱动 <code style="font-family:var(--mono);color:var(--amber)">w1-gpio</code> 当主机，
+    上电自动跑 <a href="#s6" style="color:var(--cyan)">06 节的 Search ROM</a> 枚举器件，
+    温度芯片由 <b>w1-therm</b> 接管，读温度就是 cat 一个 sysfs 文件。下面是虚拟板卡：
+    <b>先 modprobe w1-therm，再读 w1_slave</b>。
+  </p>
+  <div class="lab-body" style="grid-template-columns:1fr 300px">
+    <div class="term">
+      <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span>pi@sensor:~ — w1 虚拟板卡 · GPIO4</span></div>
+      <div class="term-body iv" id="termBody"></div>
+      <div class="term-in" id="termIn">
+        <span class="p">pi@sensor:~$</span>
+        <input id="termInput" spellcheck="false" autocomplete="off" aria-label="终端命令输入" placeholder="输入命令回车 · help 查看命令 · ↑↓ 翻历史">
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;min-width:0">
+      <div class="panel-title">命令速查 · 点击即运行</div>
+      <div class="cmd-btns" id="termBtns">
+        <button class="cmd-btn" data-cmd="ls /sys/bus/w1/devices">ls /sys/bus/w1/devices<small>看枚举出了哪些器件</small></button>
+        <button class="cmd-btn" data-cmd="cat /sys/bus/w1/devices/28-*/w1_slave">cat .../28-*/w1_slave<small>读 DS18B20 温度（先加载 w1-therm）</small></button>
+        <button class="cmd-btn" data-cmd="sudo modprobe w1-therm">sudo modprobe w1-therm<small>加载温度驱动（没它读不了）</small></button>
+        <button class="cmd-btn" data-cmd="cat /sys/bus/w1/devices/w1_bus_master1/w1_master_slave_count">cat .../w1_master_slave_count<small>Search ROM 找到几个器件</small></button>
+        <button class="cmd-btn" data-cmd="dmesg | grep -i w1">dmesg | grep -i w1<small>枚举日志：Family xx for xx-xxxx</small></button>
+        <button class="cmd-btn" data-cmd="lsmod | grep w1">lsmod | grep w1<small>w1-gpio / w1-therm 是否就位</small></button>
+      </div>
+    </div>
+  </div>
+  <div class="term wide reveal" style="margin-top:18px">
+    <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span>dtoverlay — 树莓派启用 1-Wire（其他平台写 DTS 的 w1-gpio 节点）</span></div>
+    <div class="term-body">
+      <div class="t-cmt"># /boot/config.txt —— 一行起总线（GPIO4 为例）</div>
+      <div><span class="t-ps"># </span><span class="t-tag">dtoverlay=w1-gpio,gpiopin=4</span></div>
+      <div class="t-cmt"># 寄生供电 + 外部强上拉 MOS 时（extpulluppin 接 MOS 门极）：</div>
+      <div><span class="t-ps"># </span><span class="t-tag">dtoverlay=w1-gpio-pullup,gpiopin=4,extpulluppin=17</span></div>
+      <div class="t-cmt"># 内核配置：CONFIG_W1=y · CONFIG_W1_MASTER_GPIO=y · CONFIG_W1_THERM=y</div>
+      <div class="t-cmt"># 设备树等价写法（通用平台）：w1-gpio 节点 + gpios 属性 + pinctrl 把 GPIO 设为开漏</div>
+    </div>
+  </div>
+  <div class="lnx-note reveal">
+    <b>输出怎么读：</b><code>w1_slave</code> 第一行是 9 个 scratchpad 字节 + <code>crc=XX YES</code>——CRC 不一致会显示 <code>NO</code>，内核自动重读；
+    第二行末尾的 <code>t=23125</code> 是<b>毫摄氏度</b>，除以 1000 得 23.125℃（对应 <a href="#s7" style="color:var(--cyan)">07 节计算器</a>的 0x0172）。
+    若一直读到 <code>t=85000</code>，回 <a href="#s8" style="color:var(--cyan)">08 节</a>第一个坑。
+  </div>
+</section>
+
+<!-- ================= §10 ================= -->
+<section id="s10">
+  <div class="sec-head reveal"><span class="no">10</span><h2>速查表 · 贴在示波器旁边</h2><span class="en">Quick Reference</span></div>
+  <div class="grid3">
+    <div class="panel panel-pad reveal">
+      <div class="panel-title">时序参数 · 标准速度（Overdrive ≈ ÷8）</div>
+      <table class="tbl">
+        <tr><th>参数</th><th>标准</th><th>Overdrive</th></tr>
+        <tr><td>复位脉冲低</td><td class="m"><span class="hi">≥ 480 µs</span></td><td class="m">48 µs</td></tr>
+        <tr><td>存在延迟</td><td class="m">15–60 µs</td><td class="m">2–150 µs</td></tr>
+        <tr><td>存在脉冲低</td><td class="m"><span class="hi">60–240 µs</span></td><td class="m">8–24 µs</td></tr>
+        <tr><td>写 0 拉低</td><td class="m"><span class="hi">60–120 µs</span></td><td class="m">7–8 µs</td></tr>
+        <tr><td>写 1 拉低</td><td class="m">&lt; 15 µs</td><td class="m">&lt; 2 µs</td></tr>
+        <tr><td>读时隙拉低</td><td class="m">&gt; 1 µs（&lt;15）</td><td class="m">≈ 7 µs 内</td></tr>
+        <tr><td>读采样时刻</td><td class="m"><span class="amb">≤ 15 µs</span></td><td class="m">≤ 7 µs</td></tr>
+        <tr><td>时隙总长+恢复</td><td class="m">≥ 61 µs</td><td class="m">≥ 8 µs</td></tr>
+      </table>
+    </div>
+    <div class="panel panel-pad reveal">
+      <div class="panel-title">命令速查 · 事务三段式</div>
+      <table class="tbl">
+        <tr><th>层</th><th>命令</th><th>代码</th></tr>
+        <tr><td rowspan="5">ROM<br>命令</td><td class="m">Read ROM</td><td class="m"><span class="cy">33h</span></td></tr>
+        <tr><td class="m">Match ROM +64bit</td><td class="m"><span class="cy">55h</span></td></tr>
+        <tr><td class="m">Skip ROM</td><td class="m"><span class="cy">CCh</span></td></tr>
+        <tr><td class="m">Search ROM</td><td class="m"><span class="cy">F0h</span></td></tr>
+        <tr><td class="m">Alarm Search</td><td class="m"><span class="cy">ECh</span></td></tr>
+        <tr><td rowspan="6">DS18B20<br>功能命令</td><td class="m">Convert T</td><td class="m"><span class="hi">44h</span></td></tr>
+        <tr><td class="m">Write Scratchpad</td><td class="m"><span class="hi">4Eh</span></td></tr>
+        <tr><td class="m">Read Scratchpad</td><td class="m"><span class="hi">BEh</span></td></tr>
+        <tr><td class="m">Copy Scratchpad</td><td class="m"><span class="hi">48h</span></td></tr>
+        <tr><td class="m">Recall E²</td><td class="m"><span class="hi">B8h</span></td></tr>
+        <tr><td class="m">Read Power Supply</td><td class="m"><span class="hi">B4h</span></td></tr>
+      </table>
+    </div>
+    <div class="panel panel-pad reveal">
+      <div class="panel-title">关键数字 · 张口就来</div>
+      <table class="tbl">
+        <tr><th>项</th><th>值</th></tr>
+        <tr><td>标准速率</td><td class="m"><span class="hi">≈16.3 kbit/s</span></td></tr>
+        <tr><td>上拉电阻</td><td class="m">4.7 kΩ（长线 2.2k）</td></tr>
+        <tr><td>ROM ID</td><td class="m">64-bit = 8+48+8(CRC8)</td></tr>
+        <tr><td>CRC8 多项式</td><td class="m">x⁸+x⁵+x⁴+1</td></tr>
+        <tr><td>温度换算</td><td class="m"><span class="hi">T = raw × 0.0625 ℃</span></td></tr>
+        <tr><td>上电默认温度</td><td class="m"><span class="amb">+85.0℃（0x0550）</span></td></tr>
+        <tr><td>12-bit 转换时间</td><td class="m">最长 750 ms</td></tr>
+        <tr><td>寄生强上拉电流</td><td class="m">≥ 1.5 mA（拉高 750ms）</td></tr>
+        <tr><td>Linux 温度路径</td><td class="m" style="font-size:11px">/sys/bus/w1/devices/&lt;id&gt;/w1_slave</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="rule-callout reveal" style="margin-top:18px">
+    <div class="mnemonic">复位 → ROM 命令 → 功能命令<small>ALWAYS THIS ORDER</small></div>
+    <p>
+      1-Wire 的全部事务语法就这一句。不管是位锤 GPIO 还是内核 w1，不管是 0x33 读 ID 还是 0x44 转温度，
+      示波器上抓到的永远是：<b>一撮 480µs 的低（复位）→ 一撮 60µs 的低（应答/命令字节）→ 一串 60–120µs 的时隙（数据）</b>。
+      认出这三段，任何 1-Wire 波形都能开口读。
+    </p>
+  </div>
+</section>
+
+<footer>
+  <div class="f-l">
+    <b>参考</b> · ADI/Maxim《DS18B20 Datasheet》《Book of iButton Standards》 · Application Note AN937《1-Wire Search Algorithm》 ·
+    AN126《1-Wire Communication Through Software》 · Linux 内核 Documentation/ABI/testing/sysfs-bus-w1 与 drivers/w1 ·
+    本页为单文件交互式图解，可离线打开 · 波形由浏览器实时渲染
+  </div>
+  <div class="f-r">1·WIRE</div>
+  <div class="f-m">HW-PROTOCOLS · MAINTAINED WITH ♥ FOR EMBEDDED ENGINEERS</div>
+</footer>
+</main>
+
+<script>
+'use strict';
+/* ================================================================
+   1-WIRE·LAB 交互引擎
+   ================================================================ */
+const REDUCED = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = id => document.getElementById(id);
+const SVGNS = 'http://www.w3.org/2000/svg';
+const escHtml = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+function svgEl(tag, attrs, parent){ const n = document.createElementNS(SVGNS, tag);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(n);
+  return n; }
+
+/* ---------------- Dallas CRC8（x⁸+x⁵+x⁴+1） ---------------- */
+function crc8(bytes){ let c = 0;
+  for (const b of bytes){ c ^= b;
+    for (let i = 0; i < 8; i++) c = (c >>> 1) ^ (0x8C & -(c & 1)); }
+  return c & 0xFF; }
+const h2 = v => (v & 0xFF).toString(16).toUpperCase().padStart(2,'0');
+
+/* ---------------- 共享 RAF：示波器 + 其它动画 ---------------- */
+const rafScopes = new Set();
+const rafTickers = new Set();
+let rafLast = null;
+function rafLoop(ts){ requestAnimationFrame(rafLoop);
+  if (rafLast === null) rafLast = ts;
+  const dt = Math.min((ts - rafLast) / 1000, .08);
+  rafLast = ts;
+  rafTickers.forEach(fn => { try { fn(dt); } catch(e){} });
+  rafScopes.forEach(s => { try { s.tick(dt); } catch(e){} }); }
+requestAnimationFrame(rafLoop);
+
+/* ================================================================
+   OwScope：微秒刻度 SVG 示波器（03/04 节共用）
+   lanes: [{label, sub, color, badge, edges:[[t,v]...], drivers:[[t0,t1,'h'|'s']...]}]
+   bands: [{t0,t1,label,cls,from,to}] markers:[{t,label,color,from,to}]
+   samples:[{t,label,from,to}] phases:[{t0,t1,k,t,d}]
+   ================================================================ */
+class OwScope{ constructor(host, cfg){ this.host = host; this.cfg = cfg;
+    this.t = 0; this.hold = 0;
+    this.playing = !REDUCED;
+    const s = cfg.spd;
+    this.speed = s ? s[0] * Math.pow(s[1]/s[0], (cfg.spdDef||50)/100) : 2000;
+    this.events = this.collectEvents();
+    this.build();
+    this._ph = null;
+    rafScopes.add(this);
+    this._ro = new ResizeObserver(() => this.build());
+    this._ro.observe(host);
+    if (REDUCED){ this.playing = false; this.t = cfg.tEnd; }
+    this.frame(); }
+  destroy(){ rafScopes.delete(this); if (this._ro) this._ro.disconnect(); }
+  collectEvents(){ const s = new Set([0, this.cfg.tEnd]);
+    this.cfg.lanes.forEach(l => l.edges.forEach(e => s.add(e[0])));
+    (this.cfg.bands||[]).forEach(b => { s.add(b.t0); s.add(b.t1); });
+    (this.cfg.markers||[]).forEach(m => s.add(m.t));
+    (this.cfg.samples||[]).forEach(m => s.add(m.t));
+    (this.cfg.phases||[]).forEach(p => { s.add(p.t0); s.add(p.t1); });
+    return [...s].sort((a,b)=>a-b); }
+  x(t){ const g=this.geom; return g.padL + (t/this.cfg.tEnd)*(g.W-g.padL-g.padR); }
+  build(){ const cfg = this.cfg;
+    const W = Math.max(320, this.host.clientWidth || 720), H = cfg.h || 230;
+    const padL = cfg.padL != null ? cfg.padL : 86, padR = cfg.padR != null ? cfg.padR : 88;
+    const top = 36, bot = 24, n = cfg.lanes.length;
+    const laneH = (H - top - bot) / n;
+    this.geom = { W, H, padL, padR, top, bot, laneH };
+    this.lanes = cfg.lanes.map((l,i)=>Object.assign({}, l, {
+      y0: top + laneH*i + laneH/2, amp: laneH*0.28, yTop: top + laneH*i, yBot: top + laneH*(i+1) }));
+    while (this.host.firstChild) this.host.removeChild(this.host.firstChild);
+    const svg = svgEl('svg', {viewBox:`0 0 ${W} ${H}`}, this.host);
+    svg.setAttribute('width', W); svg.setAttribute('height', H);
+    /* 网格与时间轴 */
+    const step = cfg.axisStep, major = cfg.axisMajor || step*2;
+    for (let t = 0; t <= cfg.tEnd + .01; t += step){
+      const x = this.x(t);
+      svgEl('line', {x1:x, y1:top-6, x2:x, y2:H-bot+6,
+        'class': (Math.round(t) % Math.round(major) === 0) ? 'grid-m' : 'grid'}, svg);
+      if (Math.round(t) % Math.round(major) === 0){
+        const lb = svgEl('text', {x:x, y:H-8, 'text-anchor':'middle', 'class':'axl'}, svg);
+        lb.textContent = (t===0 ? '0' : (t>=1000 ? (t/1000)+'ms' : t+'µs'));
+      }
+    }
+    /* 背景带 */
+    (cfg.bands||[]).forEach(b=>{
+      const yA = this.lanes[Math.min(b.from||0, n-1)].yTop + 2;
+      const yB = this.lanes[Math.max(Math.min(b.to==null?n-1:b.to, n-1), 0)].yBot - 2;
+      svgEl('rect', {x:this.x(b.t0), y:yA, width:this.x(b.t1)-this.x(b.t0), height:yB-yA, 'class':b.cls}, svg);
+      const t = svgEl('text', {x:(this.x(b.t0)+this.x(b.t1))/2, y:yA+11, 'text-anchor':'middle', 'class':'band-lb'}, svg);
+      t.textContent = b.label;
+    });
+    /* 波形（裁切渐进显示） */
+    const defs = svgEl('defs', {}, svg);
+    const clip = svgEl('clipPath', {id:'owc'+(OwScope._id=(OwScope._id||0)+1)}, defs);
+    this.clipRect = svgEl('rect', {x:0, y:0, width:0, height:H}, clip);
+    const gg = svgEl('g', {'clip-path':`url(#${clip.id})`}, svg);
+    this.lanes.forEach(l=>{
+      /* 谁在驱动的细条：主机=绿 从机=琥珀 */
+      (l.drivers||[]).forEach(d=>{
+        const col = d[2]==='h' ? 'rgba(52,224,138,.55)' : 'rgba(255,176,46,.6)';
+        svgEl('rect', {x:this.x(d[0]), y:l.y0+l.amp+7, width:Math.max(1,this.x(d[1])-this.x(d[0])), height:2.5, fill:col, opacity:.5}, gg);
+      });
+      let d = '', px = null, pv = null;
+      l.edges.forEach(e=>{
+        const x = this.x(e[0]).toFixed(1), y = (e[1] ? l.y0-l.amp : l.y0+l.amp).toFixed(1);
+        if (px === null){ d = `M${x},${y}`; }
+        else { d += `L${x},${pv}L${x},${y}`; }
+        px = x; pv = y;
+      });
+      d += `L${this.x(cfg.tEnd).toFixed(1)},${pv}`;
+      svgEl('path', {d, fill:'none', stroke:l.color, 'stroke-width':2.2, 'stroke-linejoin':'miter'}, gg);
+    });
+    /* 标记线 */
+    (cfg.markers||[]).forEach(m=>{
+      const yA = this.lanes[Math.min(m.from||0, n-1)].yTop - 2;
+      const yB = this.lanes[Math.max(Math.min(m.to==null?n-1:m.to, n-1), 0)].yBot + 2;
+      svgEl('line', {x1:this.x(m.t), y1:yA, x2:this.x(m.t), y2:yB, stroke:m.color, 'stroke-dasharray':'4 3', 'stroke-width':1.2}, svg);
+      const t = svgEl('text', {x:this.x(m.t)+4, y:m.ly != null ? m.ly : yA+2, 'class':'mk-lb', fill:m.color}, svg);
+      t.textContent = m.label;
+    });
+    /* 采样点（青色圆点 + 命中高亮） */
+    this.smpEls = [];
+    (cfg.samples||[]).forEach(sm=>{
+      const yA = this.lanes[Math.min(sm.from||0, n-1)].yTop - 2;
+      const yB = this.lanes[Math.max(Math.min(sm.to==null?n-1:sm.to, n-1), 0)].yBot + 2;
+      const g = svgEl('g', {opacity:.35}, svg);
+      svgEl('line', {x1:this.x(sm.t), y1:yA, x2:this.x(sm.t), y2:yB, stroke:'#57d8f2', 'stroke-dasharray':'2 3', 'stroke-width':1}, g);
+      const lb = svgEl('text', {x:this.x(sm.t), y:yB+12, 'text-anchor':'middle', fill:'#57d8f2', 'font-size':'9.5px', 'font-weight':'600'}, g);
+      lb.textContent = sm.label;
+      this.smpEls.push({t:sm.t, g});
+    });
+    /* 通道标签与解码徽标 */
+    this.lanes.forEach(l=>{
+      const bg = svgEl('rect', {x:0, y:l.y0-9, width:padL-8, height:18, fill:'rgba(7,11,9,.9)'}, svg);
+      const t1 = svgEl('text', {x:8, y:l.y0+4, 'class':'lane-lb', fill:l.color}, svg);
+      t1.textContent = l.label;
+      if (l.sub){
+        const t2 = svgEl('text', {x:8, y:l.y0+15, 'class':'lane-sub'}, svg);
+        t2.textContent = l.sub;
+      }
+      if (l.badge){
+        const t3 = svgEl('text', {x:W-8, y:l.y0+4, 'text-anchor':'end', 'class':'lane-badge', fill:l.color}, svg);
+        t3.textContent = l.badge;
+      }
+    });
+    /* 游标 */
+    this.curLine = svgEl('line', {y1:top-6, y2:H-bot+6, 'class':'cur-line'}, svg);
+    this.curDots = this.lanes.map(l=>svgEl('circle', {r:3.4, fill:'#eaffee'}, svg));
+    this.frame();
+  }
+  levelAt(l, t){
+    let v = l.edges[0][1];
+    for (const e of l.edges){ if (e[0] <= t) v = e[1]; else break; }
+    return v;
+  }
+  tick(dt){
+    if (this.hold > 0){
+      this.hold -= dt;
+      if (this.hold <= 0){ this.t = 0; this.hold = 0; }
+    } else if (this.playing){
+      this.t += this.speed * dt;
+      if (this.t >= this.cfg.tEnd){
+        this.t = this.cfg.tEnd;
+        if (this.cfg.loop !== false) this.hold = 1.1;
+        else this.playing = false;
+      }
+    }
+    this.frame();
+  }
+  frame(){
+    if (!this.clipRect) return;
+    const t = this.t, x = this.x(t);
+    this.clipRect.setAttribute('width', Math.max(0, x));
+    this.curLine.setAttribute('x1', x); this.curLine.setAttribute('x2', x);
+    this.lanes.forEach((l,i)=>{
+      const y = this.levelAt(l, t) ? l.y0 - l.amp : l.y0 + l.amp;
+      this.curDots[i].setAttribute('cx', x); this.curDots[i].setAttribute('cy', y);
+    });
+    this.smpEls.forEach(s=>s.g.setAttribute('opacity', t >= s.t ? 1 : .35));
+    /* 读数面板 */
+    const ph = (this.cfg.phases||[]).find(p => t >= p.t0 && t < p.t1);
+    if (ph && ph !== this._ph){
+      this._ph = ph;
+      const o = this.cfg.readout;
+      if (o){
+        o.k.textContent = ph.k;
+        o.t.textContent = ph.t;
+        o.d.innerHTML = ph.d;
+      }
+    }
+    if (this.cfg.readout && this.cfg.readout.time)
+      this.cfg.readout.time.textContent = 't = ' + Math.round(t) + ' µs · DQ = ' + (this.levelAt(this.lanes[this.cfg.dqLane != null ? this.cfg.dqLane : this.lanes.length-1], t) ? '高' : '低');
+  }
+  toggle(){
+    if (!this.playing && this.t >= this.cfg.tEnd){ this.t = 0; this.hold = 0; }
+    this.playing = !this.playing;
+    return this.playing;
+  }
+  step(){
+    this.playing = false; this.hold = 0;
+    const nxt = this.events.find(e => e > this.t + .51);
+    this.t = nxt != null ? nxt : 0;
+    this._ph = null;
+    this.frame();
+  }
+  reset(){ this.t = 0; this.hold = 0; this._ph = null; this.frame(); }
+  setSpeedV(v){
+    const s = this.cfg.spd;
+    if (s) this.speed = s[0] * Math.pow(s[1]/s[0], v/100);
+  }
+}
+/* 通用控制条绑定 */
+function bindScopeCtrl(scopeGetter, btnIds, speedInput){
+  const pb = $(btnIds.play);
+  const sync = ()=>{ const s = scopeGetter(); if (!s) return;
+    pb.textContent = s.playing ? '❚❚' : '▶'; pb.classList.toggle('on', s.playing); };
+  pb.addEventListener('click', ()=>{ const s = scopeGetter(); if (s) s.toggle(); sync(); });
+  $(btnIds.step).addEventListener('click', ()=>{ const s = scopeGetter(); if (s) s.step(); sync(); });
+  $(btnIds.reset).addEventListener('click', ()=>{ const s = scopeGetter(); if (s) s.reset(); sync(); });
+  if (speedInput) speedInput.addEventListener('input', function(){ const s = scopeGetter(); if (s) s.setSpeedV(+this.value); });
+  return sync;
+}
+
+/* ================================================================
+   HERO：总线上奔跑的脉冲 + 事件字幕
+   ================================================================ */
+(function(){
+  const g = $('hPulse'), evt = $('hEvt');
+  if (!g) return;
+  const dots = [];
+  for (let i = 0; i < 3; i++){
+    const c = svgEl('circle', {r:3.6, cy:88, fill:i===2?'#ffb02e':'#34e08a', opacity:.9}, g);
+    dots.push({el:c, x:100 + i*250, v:(i===2?-1:1)*(46+i*22)});
+  }
+  const EVTS = ['BUS EVENT · 复位脉冲 480µs','BUS EVENT · 存在脉冲 60–240µs','BUS EVENT · Skip ROM 0xCC ×8 时隙','BUS EVENT · Convert T 0x44','BUS EVENT · 强上拉 750ms 充电','BUS EVENT · Read Scratchpad 9B+CRC'];
+  let ei = 0, acc = 0;
+  rafTickers.add(dt=>{
+    if (REDUCED) return;
+    dots.forEach(d=>{
+      d.x += d.v * dt;
+      if (d.x > 826) d.x = 94;
+      if (d.x < 94) d.x = 826;
+      d.el.setAttribute('cx', d.x);
+    });
+    acc += dt;
+    if (acc > 2.4){ acc = 0; ei = (ei+1) % EVTS.length; evt.textContent = EVTS[ei]; }
+  });
+})();
+
+/* ================================================================
+   §02 上拉电阻计算器
+   ================================================================ */
+(function(){
+  const rEl = $('riseR'), lEl = $('riseL');
+  if (!rEl) return;
+  const VCC = 3.3, VIH = 2.2;
+  function rpOf(v){ return 1000 * Math.pow(22, v/100); } /* 1k – 22k */
+  function lenOf(v){ return 0.5 + v * 0.5; } /* 0.5 – 50.5 m */
+  function fmtR(r){ return r >= 1000 ? (r/1000).toFixed(1)+' kΩ' : Math.round(r)+' Ω'; }
+  function calc(){
+    const rp = rpOf(+rEl.value), len = lenOf(+lEl.value);
+    const C = 20 + len * 100; /* pF */
+    const tau = rp * C / 1e6; /* µs */
+    const t22 = -tau * Math.log(1 - VIH/VCC); /* µs */
+    const cur = VCC / rp * 1000; /* mA */
+    $('rpVal').textContent = fmtR(rp);
+    $('lenVal').textContent = len.toFixed(1) + ' m';
+    $('roC').innerHTML = Math.round(C) + '<small>pF</small>';
+    $('roTau').innerHTML = tau.toFixed(2) + '<small>µs</small>';
+    $('roRise').innerHTML = t22.toFixed(2) + '<small>µs</small>';
+    $('roCur').innerHTML = cur.toFixed(2) + '<small>mA</small>';
+    let v, col;
+    if (t22 <= 3){ v = '标准速度充裕'; col = 'var(--green)'; }
+    else if (t22 <= 8){ v = '可用 · Overdrive 免谈'; col = 'var(--amber)'; }
+    else if (t22 <= 15){ v = '临界 · 写1/读1 有风险'; col = 'var(--amber)'; }
+    else { v = '太弱 · 必须减小 Rp / 短线'; col = 'var(--red)'; }
+    const vd = $('roVerdict'); vd.textContent = v; vd.style.color = col;
+    $('riseFormula').innerHTML = `τ = Rp × Cb = ${fmtR(rp)} × ${Math.round(C)}pF = <b>${tau.toFixed(2)} µs</b> · 升到 2.2V 需 <b>${t22.toFixed(2)} µs</b>（读时隙预算只有 15µs）`;
+    /* 上升曲线 */
+    const W = 560, x0 = 40, x1 = 540, y0 = 100, yTop = 12;
+    const tw = Math.max(20, t22 * 1.6);
+    let d = '';
+    for (let t = 0; t <= tw; t += tw/120){
+      const v2 = VCC * (1 - Math.exp(-t/tau));
+      const x = x0 + t/tw * (x1-x0), y = y0 - (v2/VCC) * (y0-yTop);
+      d += (d ? 'L' : 'M') + x.toFixed(1) + ',' + y.toFixed(1);
+    }
+    $('riseCurve').setAttribute('d', d);
+    $('riseAxR').textContent = tw.toFixed(0) + 'µs';
+    const mk = $('riseMark'), ml = $('riseMarkLb');
+    if (t22 <= tw){
+      const xm = x0 + t22/tw*(x1-x0), ym = y0 - (VIH/VCC)*(y0-yTop);
+      mk.setAttribute('cx', xm); mk.setAttribute('cy', ym); mk.setAttribute('opacity', 1);
+      ml.setAttribute('x', Math.min(xm+8, x1-90)); ml.setAttribute('opacity', 1);
+      ml.textContent = t22.toFixed(1)+'µs 过 VIH';
+    } else { mk.setAttribute('opacity', 0); ml.setAttribute('opacity', 0); }
+  }
+  rEl.addEventListener('input', calc);
+  lEl.addEventListener('input', calc);
+  calc();
+})();
+
+/* ================================================================
+   §02 寄生供电 · 强上拉 MOS 状态机
+   ================================================================ */
+(function(){
+  const svg = $('mosSvg');
+  if (!svg) return;
+  let strong = true, t = 0, playing = !REDUCED, phaseIdx = 0, powered = true;
+  let mosPh = null, mosResKey = null;
+  const TR = {
+    idle: '70,348 810,348',
+    slots: '70,348 100,348 106,336 130,336 136,348 190,348 196,336 220,336 226,348 280,348 286,336 310,336 316,348 380,348 386,336 410,336 416,348 470,348 476,336 500,336 506,348 560,348 566,336 590,336 596,348 660,348 666,336 690,336 696,348 810,348',
+    strong:'70,348 120,348 124,344 810,344'
+  };
+  function phases(){
+    return strong ? [
+      {k:'PHASE 1 / 5 · IDLE', t:'空闲 · 弱上拉维持高电平', d:'上拉 4.7kΩ 把 DQ 维持在高电平；DS18B20 靠内部电容 CPP 撑着，静态电流仅 ~5µA。寄生供电的"待机"。', dur:1.6, cap:[35,38], tr:'idle', fet:false},
+      {k:'PHASE 2 / 5 · COMMAND', t:'发命令：Skip ROM + Convert T 44h', d:'一连串读/写时隙把命令送进器件——时隙期间 DQ 被拉低，寄生供电暂时中断，CPP 缓慢放电。', dur:2.4, cap:[38,27], tr:'slots', fet:false},
+      {k:'PHASE 3 / 5 · STRONG PULLUP', t:'强上拉充电 · MOS 旁路 4.7kΩ', d:'GPIO 拉低 → P-MOS 导通，VCC 直接接到 DQ，充电电流不再受 4.7kΩ 限制。750ms 里把 CPP 充满，够转换用。', dur:2.8, cap:[27,100], tr:'strong', fet:true},
+      {k:'PHASE 4 / 5 · CONVERT', t:'转换中 · 750ms（动画 4s）', d:'主机释放（MOS 断开），芯片以最高 1.5mA 从 CPP 取电完成温度转换。外部供电的器件此时还可以靠轮询 DQ 忙标志判断完成。', dur:4.0, cap:[100,72], tr:'idle', fet:false, draw:true},
+      {k:'PHASE 5 / 5 · READBACK', t:'读回 23.125℃ ✓', d:'复位 + Skip ROM + Read Scratchpad BEh，9 字节带 CRC8 —— 全程合法，数据可信。', dur:2.4, cap:[72,64], tr:'slots', fet:false, ok:true}
+    ] : [
+      {k:'PHASE 1 / 5 · IDLE', t:'空闲 · 弱上拉维持高电平', d:'同左：上拉维持高电平，CPP 只有薄薄的底电。', dur:1.6, cap:[35,38], tr:'idle', fet:false},
+      {k:'PHASE 2 / 5 · COMMAND', t:'发命令：Skip ROM + Convert T 44h', d:'时隙传输进一步消耗 CPP。', dur:2.4, cap:[38,26], tr:'slots', fet:false},
+      {k:'PHASE 3 / 5 · NO STRONG PULLUP', t:'没有强上拉 · 4.7kΩ 杯水车薪', d:'3.3V ÷ 4.7kΩ ≈ 0.7mA，而转换要 1.5mA —— 这 750ms 里电容入不敷出。', dur:1.6, cap:[26,24], tr:'idle', fet:false},
+      {k:'PHASE 4 / 5 · CONVERT', t:'转换中 · CPP 崩盘', d:'放电速度远大于补充速度，CPP 电压跌破器件最低工作电压 → 芯片掉电，转换中止，寄存器回到上电状态。', dur:4.0, cap:[24,0], tr:'idle', fet:false, draw:true},
+      {k:'PHASE 5 / 5 · READBACK', t:'读回 85.0℃（上电默认值）', d:'读到的 0x0550 不是温度，是芯片复位后的默认值 —— 经典的"寄生供电没强上拉"翻车现场。', dur:2.4, cap:[0,0], tr:'slots', fet:false, bad:true}
+    ];
+  }
+  function total(){ return phases().reduce((s,p)=>s+p.dur, 0); }
+  function buildDots(){
+    const box = $('mosDots'); box.innerHTML = '';
+    phases().forEach(()=>box.appendChild(document.createElement('i')));
+  }
+  function apply(p, prog, idx){
+    const cap = p.cap[0] + (p.cap[1]-p.cap[0]) * prog;
+    powered = cap > 12 || p.cap[1] > 12;
+    $('mosBar').style.width = Math.max(0, Math.min(100, cap)) + '%';
+    $('mosCapPct').textContent = Math.round(Math.max(0,cap)) + '%';
+    $('mosV').textContent = (3.3 * Math.max(0,cap)/100).toFixed(2) + ' V';
+    $('mosV').className = 'v ' + (cap > 60 ? 'g' : cap > 30 ? 'a' : 'r');
+    $('mosMeter').classList.toggle('dead', cap <= 12);
+    if (mosPh !== p){
+      mosPh = p;
+      $('mosKicker').textContent = p.k;
+      $('mosTitle').textContent = p.t;
+      $('mosDesc').innerHTML = p.d;
+    }
+    const fetOn = !!p.fet;
+    $('mFet').classList.toggle('fet-on', fetOn);
+    const arm = document.querySelector('#mFet .m-arm');
+    if (arm) arm.setAttribute('transform', fetOn ? 'rotate(128.2 620 78)' : 'rotate(0 620 78)');
+    $('mosFetSt').textContent = fetOn ? '导通（旁路 Rp）' : '断开';
+    $('mosFetSt').className = 'v ' + (fetOn ? 'g' : '');
+    $('mTrace').setAttribute('points', TR[p.tr]);
+    svg.classList.toggle('show-idraw', !!p.draw && powered && cap > 12);
+    svg.classList.toggle('show-warn', !powered && cap <= 12);
+    $('mChip').classList.toggle('m-off', !powered && cap <= 6);
+    if (mosResKey !== p.k){
+      mosResKey = p.k;
+      const r = $('mosResult');
+      if (p.ok){ r.textContent = '23.125 ℃ ✓'; r.className = 'v g'; }
+      else if (p.bad){ r.textContent = '85.0 ℃ 假温度 ⚠'; r.className = 'v r'; }
+      else { r.textContent = '—'; r.className = 'v a'; }
+    }
+    const dots = $('mosDots').children;
+    for (let i = 0; i < dots.length; i++)
+      dots[i].className = i < idx ? 'done' : i === idx ? 'cur' : '';
+  }
+  function reset(){
+    t = 0; phaseIdx = 0; mosPh = null; mosResKey = null;
+    apply(phases()[0], 0, 0);
+  }
+  rafTickers.add(dt=>{
+    if (!playing) return;
+    t += dt;
+    const T = total();
+    if (t >= T){ t = 0; phaseIdx = 0; }
+    let acc = 0, idx = 0;
+    const ps = phases();
+    for (let i = 0; i < ps.length; i++){
+      if (t < acc + ps[i].dur){ idx = i; break; }
+      acc += ps[i].dur; idx = i;
+    }
+    phaseIdx = idx;
+    apply(ps[idx], Math.min(1, (t-acc)/ps[idx].dur), idx);
+  });
+  $('mosPlay').addEventListener('click', function(){
+    playing = !playing;
+    this.textContent = playing ? '❚❚' : '▶';
+    this.classList.toggle('on', playing);
+  });
+  $('mosStep').addEventListener('click', ()=>{
+    playing = false;
+    $('mosPlay').textContent = '▶'; $('mosPlay').classList.remove('on');
+    const ps = phases();
+    let acc = 0, i = 0;
+    for (; i < ps.length; i++){ if (phaseIdx === i) break; acc += ps[i].dur; }
+    const nx = (phaseIdx + 1) % ps.length;
+    acc = 0; for (let j = 0; j < nx; j++) acc += ps[j].dur;
+    t = acc + .001; phaseIdx = nx;
+    apply(ps[nx], 0, nx);
+  });
+  $('mosReset').addEventListener('click', reset);
+  $('mosSeg').addEventListener('click', e=>{
+    const b = e.target.closest('button'); if (!b) return;
+    document.querySelectorAll('#mosSeg button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    strong = b.dataset.mos === 'strong';
+    buildDots(); reset();
+  });
+  buildDots(); reset();
+  if (REDUCED){ playing = false; $('mosPlay').textContent = '▶'; $('mosPlay').classList.remove('on'); }
+})();
+
+/* ================================================================
+   §03 复位与存在脉冲
+   ================================================================ */
+(function(){
+  const host = $('rstScope');
+  if (!host) return;
+  const GREEN = '#34e08a', AMBER = '#ffb02e', CYAN = '#57d8f2';
+  function mkCfg(mode){
+    const hostEdges = [[0,1],[120,0],[620,1]];
+    const slaveEdges = mode === 'ok' ? [[0,1],[650,0],[770,1]] : [[0,1]];
+    const dqEdges = [];
+    const times = [...new Set([...hostEdges.map(e=>e[0]), ...slaveEdges.map(e=>e[0])])].sort((a,b)=>a-b);
+    times.forEach(tt=>{
+      const hv = hostEdges.find(e=>e[0]===tt) ? hostEdges.find(e=>e[0]===tt)[1] : hostEdges.filter(e=>e[0]<tt).pop()[1];
+      const sv = slaveEdges.find(e=>e[0]===tt) ? slaveEdges.find(e=>e[0]===tt)[1] : (slaveEdges.filter(e=>e[0]<tt).pop() || [0,1])[1];
+      dqEdges.push([tt, hv && sv ? 1 : 0]);
+    });
+    const bands = [{t0:120,t1:620,label:'复位脉冲 ≥480µs',cls:'band-host',from:0,to:2}];
+    let markers, phases, samples;
+    if (mode === 'ok'){
+      bands.push({t0:650,t1:770,label:'存在脉冲 60–240µs',cls:'band-slave',from:0,to:2});
+      bands.push({t0:620,t1:650,label:'15–60µs',cls:'band-sample',from:1,to:2});
+      markers = [{t:690,label:'主机采样：低 = 有器件',color:'#ff6478',from:0,to:2,ly:14}];
+      phases = [
+        {t0:0,t1:120,k:'IDLE',t:'总线空闲',d:'上拉电阻维持高电平。主机随时可以发起一次复位。'},
+        {t0:120,t1:620,k:'RESET PULSE',t:'复位脉冲 · 主机拉低 500µs',d:'<b>≥480µs</b> 是硬性最小值。它远长于任何时隙（60–120µs），从机就靠这个时长差异认出"这是复位"。'},
+        {t0:620,t1:650,k:'RELEASE',t:'主机释放 · 从机内部延时',d:'主机松手，上拉把 DQ 拉回高。从机在 <b>15–60µs</b> 内开始应答——这段窗口不能发任何时隙。'},
+        {t0:650,t1:770,k:'PRESENCE PULSE',t:'存在脉冲 · 从机拉低 120µs',d:'在线的从机拉低 <b>60–240µs</b> 应答。多个器件同时抢答时线与成同一撮低。主机在 ~70µs 处采样确认。'},
+        {t0:770,t1:1001,k:'RECOVERY',t:'恢复期 · 准备第一个时隙',d:'双方都松手。工程上留 <b>≥8µs</b>（规范最小 1µs）恢复，然后才能发 ROM 命令的第一个时隙。'}
+      ];
+    } else {
+      bands.push({t0:620,t1:1000,label:'等待窗口 · 无人应答',cls:'band-warn',from:0,to:2});
+      markers = [{t:690,label:'主机采样：高 = 无器件',color:'#ff6478',from:0,to:2,ly:14}];
+      phases = [
+        {t0:0,t1:120,k:'IDLE',t:'总线空闲',d:'上拉维持高。'},
+        {t0:120,t1:620,k:'RESET PULSE',t:'复位脉冲 · 主机拉低 500µs',d:'主机照常拉低 ≥480µs 宣告开场。'},
+        {t0:620,t1:1001,k:'TIMEOUT',t:'无存在脉冲 → 超时',d:'释放后 DQ 一直被上拉维持高：没有器件拉低应答。驱动在此判定 <b>总线上没有 1-Wire 器件</b>——查接线、上拉、以及器件是否上电。'}
+      ];
+    }
+    return {
+      tEnd:1000, axisStep:50, axisMajor:200, h:250, spd:[800, 80000], spdDef:52, loop:true,
+      lanes:[
+        {label:'主机 TX', sub:'MASTER', color:GREEN, edges:hostEdges, drivers:[[120,620,'h']]},
+        {label:'从机 TX', sub:'SLAVE ×N', color:AMBER, edges:slaveEdges, drivers: mode==='ok' ? [[650,770,'s']] : []},
+        {label:'DQ', sub:'线与结果', color:CYAN, edges:dqEdges, badge: mode==='ok' ? '复位+存在 ✓' : '无应答 ✗'}
+      ],
+      bands, markers,
+      phases,
+      readout:{k:$('rstK'), t:$('rstT'), d:$('rstD'), time:$('rstTime')}
+    };
+  }
+  let cur = new OwScope(host, mkCfg('ok'));
+  const sync = bindScopeCtrl(()=>cur, {play:'rstPlay', step:'rstStep', reset:'rstReset'}, $('rstSpeed'));
+  sync();
+  $('rstSeg').addEventListener('click', e=>{
+    const b = e.target.closest('button'); if (!b) return;
+    document.querySelectorAll('#rstSeg button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    cur.destroy();
+    cur = new OwScope(host, mkCfg(b.dataset.rst));
+    cur.setSpeedV(+$('rstSpeed').value);
+    sync();
+  });
+  document.addEventListener('keydown', e=>{
+    if (e.code === 'Space' && !/INPUT|SELECT|BUTTON|TEXTAREA/.test(document.activeElement.tagName)){
+      e.preventDefault(); cur.toggle(); sync();
+    }
+  });
+})();
+
+/* ================================================================
+   §04 读写时隙对比实验室
+   ================================================================ */
+(function(){
+  const host = $('slotScope');
+  if (!host) return;
+  const GREEN = '#34e08a', AMBER = '#ffb02e', CYAN = '#57d8f2', RED = '#ff6478';
+  const cfg = {
+    tEnd:170, axisStep:10, axisMajor:30, h:262, spd:[60, 6000], spdDef:46, loop:true,
+    lanes:[
+      {label:'写 0', sub:'WRITE 0', color:GREEN, badge:'记作 0', edges:[[0,1],[20,0],[90,1]], drivers:[[20,90,'h']]},
+      {label:'写 1', sub:'WRITE 1', color:GREEN, badge:'记作 1', edges:[[0,1],[20,0],[26,1]], drivers:[[20,26,'h']]},
+      {label:'读 → 0', sub:'READ 0', color:AMBER, badge:'读到 0', edges:[[0,1],[20,0],[75,1]], drivers:[[20,26,'h'],[26,75,'s']]},
+      {label:'读 → 1', sub:'READ 1', color:AMBER, badge:'读到 1', edges:[[0,1],[20,0],[26,1]], drivers:[[20,26,'h']]}
+    ],
+    bands:[
+      {t0:35,t1:80,label:'写时隙从机采样窗 15–60µs',cls:'band-sample',from:0,to:1},
+      {t0:20,t1:35,label:'读采样 ≤15µs',cls:'band-sample',from:2,to:3}
+    ],
+    markers:[
+      {t:60,label:'写采样',color:CYAN,from:0,to:1,ly:14},
+      {t:32,label:'读采样',color:CYAN,from:2,to:3,ly:14}
+    ],
+    phases:[
+      {t0:0,t1:20,k:'IDLE',t:'空闲 · 上拉维持高',d:'两条绿线是写时隙（主机全权驱动），两条琥珀线是读时隙（主机发起、从机可能接管）。所有时隙的发起动作一模一样：拉低。'},
+      {t0:20,t1:26,k:'START',t:'发起沿 · 主机拉低',d:'四种时隙唯一的共同起点。<b>写 0</b>：按住不放（60–120µs）。<b>写 1 / 读</b>：只点一下（&gt;1µs 且 &lt;15µs）立刻松手。'},
+      {t0:26,t1:35,k:'READ SAMPLE',t:'读时隙 · 主机 15µs 内采样',d:'写 1 的线已回高；读 0 的线被<b>从机接管</b>按在地上；读 1 的线从机不碰。主机此刻采样（t≈12µs）：读 0 线=0，读 1 线=1。<b>过 15µs 再采样就废了</b>——线会被释放回高。'},
+      {t0:35,t1:80,k:'WRITE SAMPLE',t:'写时隙 · 从机 15–60µs 采样',d:'从机此刻看 DQ：写 0 线仍被主机按住 → <b>记 0</b>；写 1 线早已回高 → <b>记 1</b>。读 0 的从机驱动段（26–75µs，琥珀色）也在这附近结束。'},
+      {t0:80,t1:171,k:'RECOVERY',t:'恢复 · 时隙总长 ≥61µs',d:'全部松手，线回高。时隙 60µs + 恢复 ≥1µs，一位正好 ≈61µs —— 这就是标准速度 ≈16.3 kbit/s 的由来。下一位随时可以开始。'}
+    ],
+    readout:{k:$('slotK'), t:$('slotT'), d:$('slotD'), time:$('slotTime')}
+  };
+  const cur = new OwScope(host, cfg);
+  bindScopeCtrl(()=>cur, {play:'slotPlay', step:'slotStep', reset:'slotReset'}, $('slotSpeed'));
+})();
+
+/* ================================================================
+   §06 Search ROM 二叉树
+   ================================================================ */
+(function(){
+  const svg = $('treeSvg'), rowsEl = $('srRows'), foundEl = $('srFound');
+  if (!svg) return;
+  const DEVS = [
+    {name:'DS18B20 温度', fam:0x28, serial:[0x3c,0x01,0xd0,0x75,0x4a,0x2b], color:'#34e08a', lane:0},
+    {name:'iButton 门禁', fam:0x01, serial:[0x5a,0x00,0x00,0x0f,0x2c,0x11], color:'#57d8f2', lane:1},
+    {name:'DS2431 EEPROM', fam:0x2d, serial:[0x8e,0x0d,0x3a,0x61,0x00,0x00], color:'#ffb02e', lane:2}
+  ];
+  DEVS.forEach(d=>{
+    d.id7 = [d.fam, ...d.serial];
+    d.crc = crc8(d.id7);
+    d.sys = d.fam.toString(16).padStart(2,'0') + '-' + d.serial.map(x=>x.toString(16).padStart(2,'0')).join('');
+  });
+  const bitsOf = d => { const b=[]; for (let i=0;i<8;i++) b.push((d.fam>>i)&1); return b; };
+  DEVS.forEach(d=>d.bits = bitsOf(d));
+  /* ---- 建 trie ---- */
+  const root = {depth:0, path:[], devs:DEVS.slice(), ch:{}};
+  (function build(node){
+    if (node.depth === 8) return;
+    [0,1].forEach(b=>{
+      const set = node.devs.filter(d=>d.bits[node.depth]===b);
+      if (!set.length) return;
+      const child = {depth:node.depth+1, path:node.path.concat([b]), devs:set, ch:{}};
+      node.ch[b] = child;
+      build(child);
+    });
+  })(root);
+  /* ---- 布局 ---- */
+  const laneY = [52, 118, 184], colX = d => 46 + d*66;
+  (function layout(n){
+    if (!Object.keys(n.ch).length){
+      n.y = laneY[n.devs[0].lane];
+      return n.y;
+    }
+    let s = 0, c = 0;
+    [0,1].forEach(b=>{
+      if (n.ch[b]){ s += layout(n.ch[b]); c++; }
+    });
+    n.y = s / c;
+    return n.y;
+  })(root);
+  /* ---- 画树 ---- */
+  const edgeEls = {}, nodeEls = [];
+  (function draw(n){
+    [0,1].forEach(b=>{
+      const c = n.ch[b]; if (!c) return;
+      const x1 = colX(n.depth), y1 = n.y, x2 = colX(c.depth), y2 = c.y;
+      const mx = (x1+x2)/2, my = (y1+y2)/2;
+      const p = svgEl('path', {d:`M${x1},${y1} C${x1+24},${y1} ${x2-24},${y2} ${x2},${y2}`, 'class':'t-edge'}, svg);
+      edgeEls[c.path.join('')] = p;
+      const t = svgEl('text', {x:mx, y:my-5, 'text-anchor':'middle', 'class':'t-bln'}, svg);
+      t.textContent = b;
+      draw(c);
+    });
+    const fork = n.ch[0] && n.ch[1];
+    if (n.depth === 0){
+      const c = svgEl('circle', {cx:colX(0)-26, cy:n.y, r:4, 'class':'t-node'}, svg);
+      nodeEls.push({n, el:c});
+      const t = svgEl('text', {x:colX(0)-34, y:n.y-3, 'text-anchor':'end', 'class':'t-rootlb'}, svg);
+      t.textContent = '复位 + F0h';
+      const t2 = svgEl('text', {x:colX(0)-34, y:n.y+9, 'text-anchor':'end', 'class':'t-rootlb', opacity:.7}, svg);
+      t2.textContent = '开始搜索';
+    } else {
+      const g = fork ? svgEl('rect', {x:colX(n.depth)-5, y:n.y-5, width:10, height:10, 'class':'t-node fork', transform:`rotate(45 ${colX(n.depth)} ${n.y})`}, svg)
+                     : svgEl('circle', {cx:colX(n.depth), cy:n.y, r:4, 'class':'t-node'}, svg);
+      nodeEls.push({n, el:g});
+      if (fork){
+        const t = svgEl('text', {x:colX(n.depth), y:n.y-11, 'text-anchor':'middle', 'class':'t-forklb'}, svg);
+        t.textContent = '00';
+      }
+    }
+    if (n.depth === 8){
+      const d = n.devs[0];
+      const r = svgEl('rect', {x:colX(8)+8, y:n.y-14, width:108, height:28, rx:4, 'class':'t-leaf', stroke:d.color}, svg);
+      const f = svgEl('text', {x:colX(8)+16, y:n.y-1, 'class':'t-leaff', fill:d.color}, svg);
+      f.textContent = 'family ' + h2(d.fam) + 'h';
+      const m = svgEl('text', {x:colX(8)+16, y:n.y+11, 'class':'t-leafn'}, svg);
+      m.textContent = d.name;
+    }
+  })(root);
+  const curDot = svgEl('circle', {cx:colX(0)-26, cy:root.y, r:5.5, 'class':'t-cur'}, svg);
+  /* ---- 状态机 ---- */
+  let S = null;
+  function newState(){
+    return {path:[], depth:0, cands:DEVS.slice(), stack:[], found:[], explored:[], done:false, waiting:false};
+  }
+  S = newState();
+  function addRow(cls, html){
+    const d = document.createElement('div');
+    d.className = 'sr-row ' + cls;
+    d.innerHTML = html;
+    rowsEl.appendChild(d);
+    rowsEl.scrollTop = rowsEl.scrollHeight;
+  }
+  const tagOf = set => set.map(d=>`<span style="color:${d.color}">${h2(d.fam)}h</span>`).join(' ');
+  function doChoose(b, forced, vals){
+    if (!forced){
+      S.stack.push({prefix:S.path.slice(), branch: b ? 0 : 1});
+    }
+    S.path.push(b);
+    S.cands = S.cands.filter(d=>d.bits[S.depth]===b);
+    S.explored.push(S.path.slice());
+    const rd = vals[0], inv = vals[1];
+    const combo = '' + rd + inv;
+    const judge = combo === '00' ? '<span style="color:var(--amber)">00 分叉</span>' : combo === '01' ? '01 全0' : combo === '10' ? '10 全1' : '<span style="color:var(--red)">11 无器件</span>';
+    addRow(forced ? '' : 'fork',
+      `<span class="no">bit${S.depth}</span><span class="bits">读 ${rd}${inv} → ${judge} → 发 <b class="z">${b}</b>${forced ? '（唯一路）' : '（另一分支记入回溯栈）'} · 剩 ${tagOf(S.cands)}</span>`);
+    S.depth++;
+    S.waiting = false;
+  }
+  function findDevice(){
+    const d = S.cands[0];
+    if (!S.found.includes(d)) S.found.push(d);
+    addRow('dev', `<span class="no">✓</span><span>bit8–63 无分叉直读 → 完整 64-bit：<b style="color:${d.color}">${d.sys} + CRC ${h2(d.crc)}</b></span>`);
+    const card = document.createElement('div');
+    card.className = 'sr-card';
+    card.style.borderLeftColor = d.color;
+    card.innerHTML = `<span class="nm">${d.name}</span><span class="id">${d.id7.map(h2).join(' ')} ${h2(d.crc)}</span><span class="fam">${d.sys}</span>`;
+    foundEl.appendChild(card);
+  }
+  function step(auto){
+    if (S.done) return false;
+    if (S.depth >= 8){
+      findDevice();
+      if (S.stack.length){
+        const e = S.stack.pop();
+        S.path = e.prefix.concat([e.branch]);
+        S.depth = e.prefix.length + 1;
+        S.cands = DEVS.filter(d=>{
+          for (let i=0;i<S.path.length;i++) if (d.bits[i] !== S.path[i]) return false;
+          return true;
+        });
+        S.explored.push(S.path.slice());
+        addRow('back', `<span class="no">↩</span><span>回到 bit${e.prefix.length} 分叉，这次走 <b>${e.branch}</b> 分支 · 在场 ${tagOf(S.cands)}</span>`);
+      } else {
+        S.done = true;
+        addRow('done', `<span class="no">✓</span><span>枚举完成 —— 3 个器件全部拿到 64-bit ID，Search ROM 结束（再来一次会得到同样结果）</span>`);
+      }
+      render();
+      return true;
+    }
+    const vals = [...new Set(S.cands.map(d=>d.bits[S.depth]))].sort();
+    const rd = vals.includes(0) ? 0 : 1;
+    const inv = vals.includes(1) ? 0 : 1;
+    /* 空总线/死分支 */
+    if (!vals.length){
+      S.done = true;
+      addRow('done', `<span class="no">✗</span><span>读到 11（原码反码同 1）→ 此分支无器件</span>`);
+      render(); return true;
+    }
+    if (vals.length > 1){
+      if (auto){ doChoose(0, false, [rd, inv]); render(); return true; }
+      if (!S.waiting){
+        S.waiting = true;
+        addRow('fork', `<span class="no">bit${S.depth}</span><span class="bits">读 <b style="color:var(--amber)">00</b> → 分叉！0 分支有 ${tagOf(S.cands.filter(d=>d.bits[S.depth]===0))} · 1 分支有 ${tagOf(S.cands.filter(d=>d.bits[S.depth]===1))} —— <b>等你选分支</b></span>`);
+        render();
+        return true;
+      }
+      return false; /* 等用户 */
+    }
+    doChoose(vals[0], true, [rd, inv]);
+    render();
+    return true;
+  }
+  function render(){
+    $('srChoice').style.display = S.waiting && !S.done ? 'flex' : 'none';
+    $('srProg').textContent = `已枚举 ${S.found.length} / ${DEVS.length}`;
+    Object.entries(edgeEls).forEach(([key, el])=>el.classList.remove('lit'));
+    S.explored.forEach(p=>{
+      const el = edgeEls[p.join('')];
+      if (el) el.classList.add('lit');
+    });
+    let node = root;
+    for (const b of S.path){ if (node.ch[b]) node = node.ch[b]; }
+    curDot.setAttribute('cx', node.depth === 0 ? colX(0)-26 : colX(node.depth));
+    curDot.setAttribute('cy', node.y);
+    nodeEls.forEach(ne=>ne.el.classList.toggle('lit', S.explored.some(p=>{
+      let n = root;
+      for (const b of p){ if (!n.ch[b]) return false; n = n.ch[b]; }
+      return n === ne.n;
+    })));
+    if (S.waiting){
+      $('srNote').innerHTML = `<b>分叉点 bit${S.depth}：</b>原码=0、反码=0（线与后同读 0）→ 0/1 分支都有器件。点「发 0」或「发 1」继续；另一条分支已记入回溯栈，摘完这个器件会自动回来走它。`;
+    } else if (S.done){
+      $('srNote').innerHTML = `<b>完成：</b>根到每个叶子都探明了一遍。真实内核 w1 每轮 Search ROM 就是这条路：F0h → 64 位逐位三连（读原码/读反码/发方向）→ 记 last_discrepancy → 复位再来，直到再无新器件。`;
+    } else {
+      $('srNote').innerHTML = `<b>进行中：</b>当前前缀 ${S.path.length ? S.path.join('') : '（空）'} · 在场器件 ${tagOf(S.cands)}。点「单步」读下一位；「自动演示」遇到分叉会先走 0。`;
+    }
+  }
+  $('srStep').addEventListener('click', ()=>step(false));
+  $('srGo0').addEventListener('click', ()=>{
+    if (!S.waiting) return;
+    const vals = [...new Set(S.cands.map(d=>d.bits[S.depth]))].sort();
+    doChoose(0, false, [0, 0]);
+    render();
+  });
+  $('srGo1').addEventListener('click', ()=>{
+    if (!S.waiting) return;
+    const vals = [...new Set(S.cands.map(d=>d.bits[S.depth]))].sort();
+    doChoose(1, false, [0, 0]);
+    render();
+  });
+  $('srReset').addEventListener('click', ()=>{
+    if (autoTimer){ clearInterval(autoTimer); autoTimer = null; $('srAuto').textContent = '▶ 自动演示'; }
+    S = newState();
+    rowsEl.innerHTML = ''; foundEl.innerHTML = '';
+    render();
+  });
+  let autoTimer = null;
+  $('srAuto').addEventListener('click', function(){
+    if (autoTimer){
+      clearInterval(autoTimer); autoTimer = null;
+      this.textContent = '▶ 自动演示';
+      return;
+    }
+    if (S.done) $('srReset').click();
+    this.textContent = '⏸ 暂停自动';
+    autoTimer = setInterval(()=>{
+      if (S.done || (!step(true) && !S.waiting)){
+        clearInterval(autoTimer); autoTimer = null;
+        $('srAuto').textContent = '▶ 自动演示';
+      }
+    }, 560);
+  });
+  render();
+})();
+
+/* ================================================================
+   §07 DS18B20 流程图 + CRC8 演示 + 温度计算器
+   ================================================================ */
+(function(){
+  const flow = $('dsFlow');
+  if (!flow) return;
+  flow.innerHTML = `
+  <svg viewBox="0 0 900 190" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono,monospace" style="display:block;width:100%">
+    ${[ ['① 复位 + 存在脉冲','480µs / 60–240µs', 14, 20, 'rgba(52,224,138,.07)','rgba(52,224,138,.5)'],
+      ['② Skip ROM','CCh · 全体听令', 224, 20, 'rgba(52,224,138,.07)','rgba(52,224,138,.5)'],
+      ['③ Convert T','44h · 启动转换', 434, 20, 'rgba(255,176,46,.07)','rgba(255,176,46,.5)'],
+      ['④ 强上拉 ≥750ms','12-bit 最长转换', 644, 20, 'rgba(87,216,242,.07)','rgba(87,216,242,.5)'],
+      ['⑤ 复位 + 存在脉冲','重新开场', 644, 106, 'rgba(52,224,138,.07)','rgba(52,224,138,.5)'],
+      ['⑥ Skip ROM','CCh', 434, 106, 'rgba(52,224,138,.07)','rgba(52,224,138,.5)'],
+      ['⑦ Read Scratchpad','BEh · 读 9 字节', 224, 106, 'rgba(87,216,242,.07)','rgba(87,216,242,.5)'],
+      ['⑧ 温度 + CRC8 ✓','raw × 0.0625 ℃', 14, 106, 'rgba(52,224,138,.1)','rgba(52,224,138,.7)'] ].map(([t,s,x,y,f,st])=>`
+      <rect x="${x}" y="${y}" width="190" height="56" rx="6" fill="${f}" stroke="${st}"/>
+      <text x="${x+95}" y="${y+24}" text-anchor="middle" fill="#dcebe1" font-size="12.5" font-weight="600">${t}</text>
+      <text x="${x+95}" y="${y+42}" text-anchor="middle" fill="#8aa294" font-size="10">${s}</text>`).join('')}
+    <path d="M204,48 L222,48" stroke="rgba(220,235,225,.55)" stroke-width="1.6"/><path d="M218,44 L224,48 L218,52 z" fill="rgba(220,235,225,.55)"/>
+    <path d="M414,48 L432,48" stroke="rgba(220,235,225,.55)" stroke-width="1.6"/><path d="M428,44 L434,48 L428,52 z" fill="rgba(220,235,225,.55)"/>
+    <path d="M624,48 L642,48" stroke="rgba(220,235,225,.55)" stroke-width="1.6"/><path d="M638,44 L644,48 L638,52 z" fill="rgba(220,235,225,.55)"/>
+    <path d="M739,76 L739,104" stroke="rgba(220,235,225,.55)" stroke-width="1.6" fill="none"/><path d="M735,98 L739,106 L743,98 z" fill="rgba(220,235,225,.55)"/>
+    <path d="M644,134 L432,134" stroke="rgba(220,235,225,.55)" stroke-width="1.6" fill="none"/><path d="M438,130 L432,134 L438,138 z" fill="rgba(220,235,225,.55)"/>
+    <path d="M434,134 L224,134" stroke="rgba(220,235,225,.55)" stroke-width="1.6" fill="none"/><path d="M230,130 L224,134 L230,138 z" fill="rgba(220,235,225,.55)"/>
+    <path d="M224,134 L14,134" stroke="rgba(220,235,225,.55)" stroke-width="1.6" fill="none"/><path d="M20,130 L14,134 L20,138 z" fill="rgba(220,235,225,.55)"/>
+    <text x="14" y="178" fill="#5c7264" font-size="10">外部供电（VDD 接电源）时第 ④ 步可换成轮询：Convert 期间读时隙读回 0 = 还在忙，读回 1 = 完成，免等固定 750ms。</text>
+  </svg>`;
+
+  /* ---- CRC 演示 ---- */
+  const INIT = [0x72,0x01,0x4b,0x46,0x7f,0xff,0x0c,0x10];
+  const storedCrc = crc8(INIT);
+  let bytes = INIT.slice();
+  const cellsEl = $('crcCells');
+  function renderCrc(){ cellsEl.innerHTML = '';
+    bytes.forEach((b,i)=>{ const d = document.createElement('div');
+      d.className = 'crc-byte';
+      d.innerHTML = `<div class="bx">${h2(b)}</div><div class="bl">${['温度LSB','温度MSB','TH','TL','配置','保留','保留','保留'][i]}</div>`;
+      d.title = '点击 +1';
+      d.addEventListener('click', ()=>{ bytes[i] = (bytes[i]+1)&0xff; renderCrc(); });
+      cellsEl.appendChild(d);
+    });
+    const c9 = document.createElement('div');
+    c9.className = 'crc-byte crc9';
+    c9.innerHTML = `<div class="bx">${h2(storedCrc)}</div><div class="bl">CRC8(第9字节)</div>`;
+    cellsEl.appendChild(c9);
+    const live = crc8(bytes);
+    $('crcLive').textContent = '0x' + h2(live);
+    $('crcStored').textContent = '0x' + h2(storedCrc);
+    const ok = live === storedCrc;
+    $('crcState').innerHTML = ok
+      ? '<span class="ok">crc ✓ YES —— 数据可信，收下</span>'
+      : '<span class="bad">crc ✗ NO —— 有位被改，整包丢弃重读</span>';
+    const raw = bytes[0] | (bytes[1]<<8);
+    const sv = raw > 32767 ? raw - 65536 : raw;
+    $('crcTemp').textContent = (sv/16).toFixed(4).replace(/\.?0+$/,'') + ' ℃';
+  }
+  $('crcFlip').addEventListener('click', ()=>{
+    const i = Math.floor(Math.random()*8), bit = 1 << Math.floor(Math.random()*8);
+    bytes[i] ^= bit; renderCrc();
+  });
+  $('crcReset').addEventListener('click', ()=>{ bytes = INIT.slice(); renderCrc(); });
+  renderCrc();
+
+  /* ---- 温度计算器 ---- */
+  const rawIn = $('tcRaw'), slider = $('tcSlider'), resSel = $('tcRes');
+  let raw = 0x0172;
+  function rawSigned(r){ return r > 32767 ? r - 65536 : r; }
+  function renderCalc(fromSlider){
+    let r = raw & 0xFFFF;
+    const res = +resSel.value;
+    const mask = [0xFFF8,0xFFFC,0xFFFE,0xFFFF][res-9];
+    const eff = r & mask;
+    const sv = rawSigned(eff);
+    const t = sv / 16;
+    $('tcOut').innerHTML = (t.toFixed(4).replace(/\.?0+$/,'') || '0') + '<small>℃</small>';
+    $('tcBin').textContent = eff.toString(2).padStart(16,'0').replace(/(....)(?=.)/g,'$1 ');
+    $('tcBytes').textContent = h2(eff & 0xFF) + ' ' + h2(eff >> 8);
+    $('tcSys').textContent = 't=' + Math.round(t*1000);
+    $('tcSliderV').textContent = t.toFixed(4).replace(/\.?0+$/,'') + ' ℃';
+    const fmt = (t>=0?'+':'') + t;
+    $('tcFormula').innerHTML = `raw = 0x${eff.toString(16).toUpperCase().padStart(4,'0')} = ${sv}（补码）→ T = ${sv} × 0.0625 = <b>${fmt} ℃</b> · ${res}-bit 量化步长 ${(0.5>>(12-res))}℃`;
+    if (!fromSlider){
+      rawIn.value = eff.toString(16).toUpperCase().padStart(4,'0');
+      slider.value = Math.max(-55, Math.min(125, t));
+    }
+    $('tcEgg').classList.toggle('show', eff === 0x0550);
+  }
+  rawIn.addEventListener('input', ()=>{
+    const v = rawIn.value.trim().replace(/^0x/i,'');
+    if (/^[0-9a-f]{1,4}$/i.test(v)){
+      raw = parseInt(v, 16);
+      renderCalc(false);
+    }
+  });
+  slider.addEventListener('input', function(){
+    raw = (Math.round(+this.value * 16) & 0xFFFF);
+    rawIn.value = raw.toString(16).toUpperCase().padStart(4,'0');
+    renderCalc(true);
+  });
+  resSel.addEventListener('change', ()=>renderCalc(false));
+  renderCalc(false);
+})();
+
+/* ================================================================
+   §09 w1 虚拟终端
+   ================================================================ */
+(function(){
+  const body = $('termBody'), input = $('termInput'), btnBox = $('termBtns');
+  if (!body) return;
+  const DEVS = [
+    {sys:'28-3c01d0754a2b', fam:0x28, id7:[0x28,0x3c,0x01,0xd0,0x75,0x4a,0x2b]},
+    {sys:'01-5a00000f2c11', fam:0x01, id7:[0x01,0x5a,0x00,0x00,0x0f,0x2c,0x11]},
+    {sys:'2d-8e0d3a610000', fam:0x2d, id7:[0x2d,0x8e,0x0d,0x3a,0x61,0x00,0x00]}
+  ];
+  DEVS.forEach(d=>d.crc = crc8(d.id7));
+  const SCRATCH = [0x72,0x01,0x4b,0x46,0x7f,0xff,0x0c,0x10];
+  const SCRC = crc8(SCRATCH);
+  const TVAL = 23125;
+  let therm = false;
+  const PROMPT = 'pi@sensor:~$';
+  function line(html, cls){
+    const d = document.createElement('div');
+    d.className = cls || 't-out';
+    d.innerHTML = html;
+    body.appendChild(d);
+    body.scrollTop = body.scrollHeight;
+    return d;
+  }
+  const out = s => line(escHtml(s));
+  const note = s => line('<span class="t-cmt"># ' + escHtml(s) + '</span>');
+  const err = s => line('<span class="t-err">' + escHtml(s) + '</span>');
+  const delay = ms => new Promise(r => setTimeout(r, REDUCED ? 0 : ms));
+  function banner(){
+    note('hw-protocols 虚拟板卡 · GPIO4 上的 w1 总线 · 已枚举 3 个器件（06 节的那三个）');
+    note('先 sudo modprobe w1-therm 再读温度 · help 查看命令');
+  }
+  function echo(cmd, anim){
+    return new Promise(res=>{
+      const d = line('<span class="t-ps">' + PROMPT + ' </span><span class="t-cmd" style="cursor:default;border:none"></span>');
+      const sp = d.querySelector('.t-cmd');
+      if (!anim || REDUCED){ sp.textContent = cmd; res(); return; }
+      let i = 0;
+      (function tick(){
+        if (i >= cmd.length){ res(); return; }
+        sp.textContent += cmd.charAt(i++);
+        body.scrollTop = body.scrollHeight;
+        setTimeout(tick, 14);
+      })();
+    });
+  }
+  function findDev(path){
+    /* 支持精确名、<fam>-* 与 * 通配 */
+    const m = /^\/sys\/bus\/w1\/devices\/([^/]+)\/([^/]+)$/i.exec(path);
+    if (!m) return null;
+    let dev = null;
+    if (m[1] === '*') dev = DEVS.find(d=>d.fam === 0x28);
+    else if (/^[0-9a-f]{2}-\*$/i.test(m[1])) dev = DEVS.find(d=>h2(d.fam).toLowerCase() === m[1].slice(0,2).toLowerCase());
+    else dev = DEVS.find(d=>d.sys === m[1].toLowerCase());
+    return dev ? {dev, attr:m[2]} : {dev:null, attr:m[2]};
+  }
+  const CMDS = {
+    help(){
+      out('ls /sys/bus/w1/devices 列出枚举到的器件');
+      out('sudo modprobe w1-therm 加载 DS18B20 驱动');
+      out('cat /sys/.../28-*/w1_slave 读温度（两行：CRC + t=毫℃）');
+      out('cat /sys/.../w1_master_slave_count Search ROM 找到几个器件');
+      out('dmesg | grep -i w1 枚举日志');
+      out('lsmod | grep w1 驱动是否就位');
+      out('clear 清屏');
+      return delay(0);
+    },
+    clear(){ body.innerHTML = ''; return delay(0); },
+    ls(args){
+      if (args[0] && /w1\/devices/.test(args[0])){
+        out('w1_bus_master1 01-5a00000f2c11 28-3c01d0754a2b 2d-8e0d3a610000');
+        note('目录名 = 族码-序列号（48bit hex），不带 CRC；w1_bus_master1 是 GPIO 主机适配器');
+        return delay(0);
+      }
+      out('ls: 请用 ls /sys/bus/w1/devices');
+      return delay(0);
+    },
+    cat(args){
+      const full = args.join(' ');
+      if (/w1_master_slave_count/.test(full)){ out('3'); note('上电时 w1 核心自动跑了 Search ROM（06 节算法）——找到 3 个'); return delay(0); }
+      if (/w1_master_max_slave_count/.test(full)){ out('10'); return delay(0); }
+      const f = findDev(full);
+      if (!f){ out('cat: ' + full + ': No such file or directory'); return delay(0); }
+      const dev = f.dev, attr = f.attr;
+      if (!dev){ out('cat: ' + full + ': No such file or directory'); note('没有这个器件目录 —— ls 一下看实际枚举出的 ID'); return delay(0); }
+      if (dev.fam !== 0x28){ out('cat: ' + full + ': No such file or directory'); note('w1_slave 是 w1-therm 提供的属性，只有温度器件（28h 族）有'); return delay(0); }
+      if (attr !== 'w1_slave'){ out('cat: ' + full + ': Is a directory'); return delay(0); }
+      if (!therm){
+        out('cat: ' + full + ': No such file or directory');
+        note('w1-therm 没加载 → 内核认识器件但没有驱动认领 → 先 sudo modprobe w1-therm');
+        return delay(0);
+      }
+      const ep = ++epoch;
+      return delay(420).then(()=>{
+        if (ep !== epoch) return;
+        const b = SCRATCH.map(h2).join(' ').toLowerCase();
+        out(b + ' ' + SCRC.toString(16).toLowerCase() + ' : crc=' + SCRC.toString(16).toLowerCase() + ' YES');
+        out(b + ' ' + SCRC.toString(16).toLowerCase() + ' t=' + TVAL);
+        note('第一行 9 字节 + crc 校验（07 节的 CRC8）；第二行 t=23125 毫℃ = 23.125℃ = raw 0x0172');
+        note('真实内核会等一次转换完成（12-bit 最长 750ms）；crc=NO 时自动重读');
+      });
+    },
+    dmesg(){
+      DEVS.forEach((d,i)=>{
+        out(`[ ${9.2+i*0.31}] w1_master_driver w1_bus_master1: Family ${d.fam.toString(16)} for ${d.sys}. crc=${d.crc.toString(16).padStart(2,'0')}`);
+      });
+      out('[ 10.412940] wire: 3 devices detected on w1_bus_master1');
+      note('Family 28 = DS18B20 温度 · 01 = DS1990A iButton · 2D = DS2431 EEPROM');
+      return delay(0);
+    },
+    lsmod(){
+      if (therm){
+        out('w1_therm 16384 0');
+        out('w1_gpio 16384 0');
+        out('wire 45056 2 w1_gpio,w1_therm');
+      } else {
+        out('w1_gpio 16384 0');
+        out('wire 45056 1 w1_gpio');
+        note('w1_therm 还没加载 → 温度器件没有 w1_slave 属性');
+      }
+      return delay(0);
+    },
+    modprobe(args){
+      const m = (args[0]||'').replace(/-/g,'');
+      if (m === 'w1therm'){
+        therm = true;
+        out('');
+        note('modprobe 成功时无输出；w1_therm 已认领 28-3c01d0754a2b，现在可以读 w1_slave 了');
+      } else if (m === 'w1gpio'){
+        note('w1_gpio 已在运行（dtoverlay 已加载）—— 它就是 GPIO 位锤的 1-Wire 主机驱动');
+      } else {
+        out('modprobe: FATAL: Module ' + (args[0]||'') + ' not found in directory /lib/modules/...');
+      }
+      return delay(0);
+    }
+  };
+  let epoch = 0;
+  let q = Promise.resolve();
+  function run(raw2, anim){
+    const str = (raw2||'').trim();
+    if (!str) return;
+    q = q.then(()=>echo(str, anim)).then(()=>{
+      const parts = str.split(/\s+/);
+      let hadSudo = parts[0] === 'sudo';
+      if (hadSudo) parts.shift();
+      let c = (parts[0]||'').toLowerCase();
+      const rest = parts.slice(1);
+      if (c === 'grep' || c === 'pipe'){ c = 'dmesg'; }
+      if (/\|/.test(str) && /dmesg/.test(str)) c = 'dmesg';
+      if (c === 'reset'){ epoch++; therm = false; body.innerHTML = ''; banner(); note('板卡已复位：w1-therm 卸载，器件重新枚举'); return; }
+      const fn = CMDS[c];
+      if (fn) return fn(rest);
+      err(c + ': command not found');
+      note('这个虚拟终端只实现了上面的命令（help 查看）');
+    }).catch(()=>{});
+  }
+  const hist = []; let hi = 0;
+  input.addEventListener('keydown', e=>{
+    if (e.key === 'Enter'){
+      const v = input.value; input.value = '';
+      if (v.trim()){ hist.push(v); hi = hist.length; run(v, false); }
+    } else if (e.key === 'ArrowUp'){
+      if (hi > 0){ hi--; input.value = hist[hi]; e.preventDefault(); }
+    } else if (e.key === 'ArrowDown'){
+      if (hi < hist.length-1){ hi++; input.value = hist[hi]; }
+      else { hi = hist.length; input.value = ''; }
+      e.preventDefault();
+    }
+  });
+  btnBox.addEventListener('click', e=>{
+    const b = e.target.closest('.cmd-btn');
+    if (b){ run(b.getAttribute('data-cmd'), true); input.focus(); }
+  });
+  body.addEventListener('click', ()=>input.focus());
+  banner();
+})();
+
+/* ---------------- 滚动显现 ---------------- */
+(function(){
+  if (!('IntersectionObserver' in window)){
+    document.querySelectorAll('.reveal').forEach(el=>el.classList.add('in'));
+    return;
+  }
+  const io = new IntersectionObserver(es=>es.forEach(e=>{
+    if (e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); }
+  }), {threshold:.12});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+})();
+</script>
+</body>
+</html>

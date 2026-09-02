@@ -74,7 +74,7 @@ section{scroll-margin-top:86px}
 .topnav a.act{color:var(--sda);border-color:var(--line);background:rgba(62,240,140,.06)}
 .plate{font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.18em;border:1px solid var(--line2);padding:4px 9px;white-space:nowrap}
 /* ---------- 跨页导航 ---------- */
-.xnav{display:flex;gap:4px;margin-left:8px;padding-left:14px;border-left:1px solid var(--line2);white-space:nowrap}
+.xnav{display:flex;gap:4px;margin-left:8px;padding-left:14px;border-left:1px solid var(--line2);flex-wrap:wrap}
 .xnav a{
   font-family:var(--mono);font-size:11px;letter-spacing:.12em;
   color:var(--dim);padding:6px 10px;border:1px solid var(--line2);text-decoration:none;
@@ -406,10 +406,26 @@ footer .fm{font-family:var(--mono);letter-spacing:.14em;font-size:11px}
   </nav>
   <div class="xnav">
     <a href="index.html">« HOME</a>
-    <a href="i2s.html">I²S</a>
+    <a href="spi.html">SPI</a>
     <a href="uart.html">UART</a>
     <a href="ir.html">IR</a>
+    <a href="rs485.html">RS-485</a>
+    <a href="onewire.html">1-WIRE</a>
+    <a href="can.html">CAN</a>
+    <a href="i2s.html">I²S</a>
     <a href="dmic.html">DMIC</a>
+    <a href="tdm.html">TDM</a>
+    <a href="sdio.html">SDIO</a>
+    <a href="emmc.html">eMMC</a>
+    <a href="ddr.html">DDR</a>
+    <a href="rgb.html">RGB</a>
+    <a href="lvds.html">LVDS</a>
+    <a href="mipi-dsi.html">DSI</a>
+    <a href="csi2.html">CSI-2</a>
+    <a href="hdmi.html">HDMI</a>
+    <a href="usb.html">USB</a>
+    <a href="pcie.html">PCIE</a>
+    <a href="jtag.html">JTAG</a>
   </div>
   <span class="plate">REF · NXP UM10204 REV 7.0</span>
 </header>
@@ -425,7 +441,7 @@ footer .fm{font-family:var(--mono);letter-spacing:.14em;font-size:11px}
       <span class="chip">多主 · 多从 · 半双工</span>
       <span class="chip">每个字节都有 <b>ACK</b> 回执</span>
     </div>
-    <h1><span class="i2c">I<sup>2</sup>C</sup> 协议详解</h1>
+    <h1><span class="i2c">I<sup>2</sup>C</span> 协议详解</h1>
     <p class="sub">
       两根线、一主多从、每个字节都有回执。I²C（Inter-Integrated Circuit）是芯片之间最常用的对话方式——
       从 <b>EEPROM</b>、传感器到 OLED 屏幕都在用它。本页用<b>可交互的动画波形</b>，

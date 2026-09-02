@@ -61,7 +61,7 @@ nav{position:sticky;top:0;z-index:100;backdrop-filter:blur(14px);-webkit-backdro
 .nav-links a:hover{color:var(--em);background:rgba(255,98,87,.07)}
 .nav-links a.act{color:#170907;background:var(--em);text-shadow:none;box-shadow:0 0 16px rgba(255,98,87,.45)}
 /* ---- 跨页导航 ---- */
-.nav-x{display:flex;gap:6px;margin-left:10px;padding-left:14px;border-left:1px solid var(--line);white-space:nowrap}
+.nav-x{display:flex;gap:6px;margin-left:10px;padding-left:14px;border-left:1px solid var(--line);flex-wrap:wrap}
 .nav-x a{font-family:var(--mono);font-size:11px;color:var(--mut);text-decoration:none;padding:5px 10px;
   border:1px solid var(--line);border-radius:6px;letter-spacing:1px;transition:.25s}
 .nav-x a:hover{color:var(--amber);border-color:rgba(255,180,84,.4)}
@@ -305,7 +305,7 @@ footer{margin-top:90px;border-top:1px solid var(--line);padding:34px 0 44px;text
       <a href="#intro">概述</a><a href="#carrier">载波调制</a><a href="#nec">NEC 帧</a><a href="#lab">波形实验室</a>
       <a href="#proto">协议对比</a><a href="#decode">解码</a><a href="#linux">Linux</a><a href="#pitfall">踩坑</a><a href="#cheat">速查</a>
     </div>
-    <div class="nav-x"><a href="index.html">« HOME</a><a href="i2c.html">I²C</a><a href="i2s.html">I²S</a><a href="uart.html">UART</a><a href="dmic.html">DMIC</a></div>
+    <div class="nav-x"><a href="index.html">« HOME</a><a href="i2c.html">I²C</a><a href="spi.html">SPI</a><a href="uart.html">UART</a><a href="rs485.html">RS-485</a><a href="onewire.html">1-WIRE</a><a href="can.html">CAN</a><a href="i2s.html">I²S</a><a href="dmic.html">DMIC</a><a href="tdm.html">TDM</a><a href="sdio.html">SDIO</a><a href="emmc.html">eMMC</a><a href="ddr.html">DDR</a><a href="rgb.html">RGB</a><a href="lvds.html">LVDS</a><a href="mipi-dsi.html">DSI</a><a href="csi2.html">CSI-2</a><a href="hdmi.html">HDMI</a><a href="usb.html">USB</a><a href="pcie.html">PCIE</a><a href="jtag.html">JTAG</a></div>
   </div>
 </nav>
 

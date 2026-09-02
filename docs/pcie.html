@@ -1,0 +1,2091 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PCIe 总线协议详解 · 交互式图解</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%23070b09'/><path d='M4 16 h6 M22 16 h6 M10 10 v12 M22 10 v12 M10 16 h12' stroke='%2334e08a' stroke-width='2.4' fill='none'/><path d='M13 16 l3 -3 3 3 -3 3 z' fill='%23ffb02e'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#070b09;
+  --bg2:#0a100c;
+  --panel:#0d1510;
+  --panel2:#101a13;
+  --line:#1d2c22;
+  --line2:#27392d;
+  --ink:#dcebe1;
+  --dim:#8aa294;
+  --faint:#5c7264;
+  --green:#34e08a;
+  --green-dim:#1d8a55;
+  --amber:#ffb02e;
+  --cyan:#57d8f2;
+  --red:#ff6478;
+  --violet:#c792ea;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --disp:'Chakra Petch','Noto Sans SC',sans-serif;
+  --sans:'Noto Sans SC',-apple-system,sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--sans);
+  font-weight:300;
+  line-height:1.8;
+  letter-spacing:.01em;
+  overflow-x:hidden;
+}
+/* 全局网格纸背景 */
+body::before{
+  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:
+    linear-gradient(rgba(52,224,138,.028) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(52,224,138,.028) 1px,transparent 1px),
+    linear-gradient(rgba(52,224,138,.014) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(52,224,138,.014) 1px,transparent 1px);
+  background-size:120px 120px,120px 120px,24px 24px,24px 24px;
+}
+body::after{ /* 轻微暗角 */
+  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(ellipse 120% 90% at 50% 0%,transparent 60%,rgba(0,0,0,.5));
+}
+main{position:relative;z-index:1}
+::selection{background:rgba(52,224,138,.3)}
+
+/* ============ 导航 ============ */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  background:rgba(7,11,9,.84);backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--line);
+;flex-wrap:wrap}
+.nav-in{
+  max-width:1500px;margin:0 auto;height:52px;
+  display:flex;align-items:center;gap:18px;padding:0 26px;
+}
+.brand{font-family:var(--disp);font-weight:700;font-size:16px;color:var(--green);letter-spacing:.05em;white-space:nowrap}
+.brand b{color:var(--amber)}
+.nav-links{display:flex;gap:3px;overflow-x:auto;scrollbar-width:none;min-width:0}
+.nav-links::-webkit-scrollbar{display:none}
+.nav-links a{
+  color:var(--dim);text-decoration:none;font-size:12px;
+  font-family:var(--mono);letter-spacing:.04em;
+  padding:5px 9px;border-radius:4px;white-space:nowrap;transition:.2s;
+}
+.nav-links a:hover{color:var(--green);background:rgba(52,224,138,.07)}
+nav .spacer{flex:1}
+nav .live{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11px;color:var(--faint);white-space:nowrap}
+nav .live i{width:7px;height:7px;border-radius:50%;background:var(--green);animation:blink 1.6s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+nav .nav-x{display:flex;gap:5px;margin-left:2px;padding-left:12px;border-left:1px solid var(--line);flex-wrap:wrap}
+nav .nav-x a{
+  display:inline-block;font-size:10.5px;letter-spacing:.06em;
+  color:var(--dim);padding:4px 8px;border:1px solid var(--line);border-radius:3px;
+  text-decoration:none;transition:color .2s,border-color .2s;
+}
+nav .nav-x a:hover{color:var(--green);border-color:rgba(52,224,138,.45)}
+
+/* ============ Hero ============ */
+.hero{
+  min-height:92vh;display:flex;flex-direction:column;justify-content:center;
+  padding:104px 6vw 42px;position:relative;max-width:1320px;margin:0 auto;
+}
+.hero .eyebrow{
+  font-family:var(--mono);font-size:12px;color:var(--amber);
+  letter-spacing:.32em;margin-bottom:20px;
+  display:flex;align-items:center;gap:14px;
+}
+.hero .eyebrow::before{content:"";width:44px;height:1px;background:var(--amber)}
+.hero h1{
+  font-family:var(--disp);font-weight:700;
+  font-size:clamp(42px,7.6vw,96px);
+  line-height:1.02;letter-spacing:.01em;
+  color:var(--ink);
+}
+.hero h1 .en{
+  display:block;font-family:var(--mono);font-weight:500;
+  font-size:clamp(11px,1.4vw,14px);color:var(--green);
+  letter-spacing:.3em;margin-top:14px;
+}
+.hero p.lede{max-width:700px;margin-top:28px;font-size:16px;color:var(--dim)}
+.hero p.lede b{color:var(--ink);font-weight:500}
+.hero .chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:26px}
+.hero .chips span{
+  font-family:var(--mono);font-size:11.5px;padding:5px 12px;
+  border:1px solid var(--line2);border-radius:100px;color:var(--dim);
+  background:rgba(13,21,16,.6);
+}
+.hero .chips span b{color:var(--green);font-weight:500}
+.hero-cta{display:flex;gap:14px;flex-wrap:wrap;margin-top:30px}
+.btn{
+  font-family:var(--disp);font-weight:600;font-size:14px;letter-spacing:.05em;
+  padding:11px 24px;border-radius:8px;text-decoration:none;cursor:pointer;
+  transition:.22s;border:1px solid transparent;
+}
+.btn.primary{color:#052013;background:var(--green);box-shadow:0 0 22px rgba(52,224,138,.3)}
+.btn.primary:hover{transform:translateY(-2px);box-shadow:0 6px 30px rgba(52,224,138,.45)}
+.btn.ghost{color:var(--ink);border-color:var(--line2);background:rgba(255,255,255,.02)}
+.btn.ghost:hover{border-color:rgba(52,224,138,.4);color:var(--green)}
+.hero-schema{
+  margin-top:42px;border:1px solid var(--line);border-radius:8px;
+  overflow:hidden;background:rgba(9,14,11,.75);position:relative;padding:6px;
+}
+.hero-schema::after{ /* 扫描线 */
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.16) 3px 4px);
+}
+.hero-schema svg{width:100%;height:auto;display:block;position:relative}
+.svg-lab{font-family:var(--mono);fill:var(--dim);font-size:11.5px;letter-spacing:1px}
+.svg-lab.big{fill:var(--ink);font-size:15px}
+.svg-lab.ph{fill:var(--green)} .svg-lab.am{fill:var(--amber)} .svg-lab.cy{fill:var(--cyan)}
+.chip-ic{fill:#0d181d;stroke:var(--line2);stroke-width:1.5}
+.wire{stroke:var(--faint);stroke-width:1.6;fill:none}
+.wire.p{stroke:rgba(52,224,138,.6)}
+.wire.ctl{stroke:rgba(255,176,46,.55);stroke-dasharray:7 6;animation:flowdash 1.2s linear infinite}
+@keyframes flowdash{to{stroke-dashoffset:-13}}
+.led{animation:blink 1.6s infinite}
+.led.b{animation-delay:.8s}
+.pkt{opacity:0}
+.hero .scroll-hint{
+  margin-top:34px;font-family:var(--mono);font-size:11px;color:var(--faint);
+  letter-spacing:.2em;display:flex;align-items:center;gap:10px;
+}
+.hero .scroll-hint svg{animation:bounce 1.8s infinite}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(6px)}}
+@media (prefers-reduced-motion: reduce){
+  .pkt,.wire.ctl,.led,.led.b{animation:none!important}
+  .pkt{display:none}
+  html{scroll-behavior:auto}
+}
+
+/* ============ 通用 section ============ */
+section{padding:92px 6vw;max-width:1280px;margin:0 auto;position:relative}
+.sec-head{display:flex;align-items:baseline;gap:20px;margin-bottom:16px}
+.sec-head .no{
+  font-family:var(--mono);font-size:13px;color:var(--green);
+  letter-spacing:.1em;border:1px solid var(--green-dim);
+  padding:3px 10px;border-radius:3px;white-space:nowrap;
+}
+.sec-head h2{font-family:var(--disp);font-weight:600;font-size:clamp(24px,3.4vw,38px);letter-spacing:.01em}
+.sec-head .en{
+  font-family:var(--mono);font-size:12px;color:var(--faint);letter-spacing:.24em;
+  text-transform:uppercase;margin-left:auto;white-space:nowrap;
+}
+.sec-sub{color:var(--dim);max-width:780px;margin-bottom:42px;font-size:15px}
+.sec-sub b{color:var(--ink);font-weight:500}
+.reveal{opacity:0;transform:translateY(26px);transition:opacity .7s ease,transform .7s ease}
+.reveal.in{opacity:1;transform:none}
+
+/* ============ §01 是什么 ============ */
+.two-col{display:grid;grid-template-columns:1.25fr .95fr;gap:44px;align-items:start}
+.prose p{margin-bottom:18px;color:var(--dim);font-size:15px}
+.prose p b{color:var(--ink);font-weight:500}
+.prose .kw{color:var(--green);font-family:var(--mono);font-size:.92em}
+.prose .kw2{color:var(--amber);font-family:var(--mono);font-size:.92em}
+.cmp-table{width:100%;border-collapse:collapse;font-size:13px}
+.cmp-table th{
+  font-family:var(--mono);font-weight:500;color:var(--faint);text-align:left;
+  padding:9px 12px;border-bottom:1px solid var(--line2);font-size:11.5px;letter-spacing:.06em;
+}
+.cmp-table td{padding:10px 12px;border-bottom:1px solid var(--line);color:var(--dim);vertical-align:top}
+.cmp-table td:first-child{color:var(--ink);white-space:nowrap}
+.cmp-table .yes{color:var(--green)}
+.cmp-table .no{color:var(--red)}
+.fact-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:36px}
+.fact{
+  border:1px solid var(--line);border-radius:6px;padding:20px 20px 18px;
+  background:linear-gradient(160deg,var(--panel) 0%,rgba(13,21,16,.4) 100%);
+  transition:border-color .25s,transform .25s;
+}
+.fact:hover{border-color:var(--green-dim);transform:translateY(-3px)}
+.fact .f-no{font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.14em}
+.fact h4{font-family:var(--disp);font-size:16.5px;font-weight:600;margin:8px 0 8px}
+.fact h4 code{font-family:var(--mono);font-size:.85em;color:var(--green)}
+.fact p{font-size:12.8px;color:var(--dim);line-height:1.7}
+.svg-panel{border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:22px;margin-top:30px}
+.svg-panel svg{width:100%;height:auto;display:block}
+.svg-panel .cap{font-family:var(--mono);font-size:11px;color:var(--faint);margin-top:12px;letter-spacing:.06em;line-height:1.7}
+
+/* ============ §02 分层 ============ */
+.layer-grid{display:grid;grid-template-columns:1.15fr 1fr;gap:34px;align-items:start}
+.arch-cards{display:flex;flex-direction:column;gap:14px}
+.arch{border:1px solid var(--line);border-radius:6px;padding:18px 22px;background:var(--panel);transition:border-color .25s}
+.arch:hover{border-color:var(--line2)}
+.arch h5{font-family:var(--disp);font-size:15px;font-weight:600;display:flex;align-items:center;gap:10px}
+.arch h5 .b{font-family:var(--mono);font-size:10px;color:var(--green);border:1px solid var(--green-dim);padding:1px 7px;border-radius:3px}
+.arch h5 .b.a{color:var(--amber);border-color:rgba(255,176,46,.4)}
+.arch h5 .b.c{color:var(--cyan);border-color:rgba(87,216,242,.4)}
+.arch p{font-size:12.8px;color:var(--dim);margin-top:8px;line-height:1.7}
+.arch p b{color:var(--ink);font-weight:500}
+
+/* ============ 通用实验台 ============ */
+.lab{border:1px solid var(--line);border-radius:10px;background:var(--panel);overflow:hidden}
+.lab-bar{
+  display:flex;flex-wrap:wrap;align-items:center;gap:16px;
+  padding:14px 20px;border-bottom:1px solid var(--line);background:rgba(10,16,12,.7);
+}
+.ctrl{display:flex;align-items:center;gap:9px}
+.ctrl label{font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.1em}
+.seg{display:flex;border:1px solid var(--line2);border-radius:5px;overflow:hidden}
+.seg button{
+  font-family:var(--mono);font-size:12px;padding:7px 13px;border:none;cursor:pointer;
+  background:transparent;color:var(--dim);border-right:1px solid var(--line2);
+  transition:all .18s;letter-spacing:.02em;
+}
+.seg button:last-child{border-right:none}
+.seg button:hover{color:var(--ink);background:rgba(52,224,138,.06)}
+.seg button.on{background:var(--green);color:#052013;font-weight:600}
+.icon-btn{
+  height:32px;min-width:32px;padding:0 10px;border:1px solid var(--line2);border-radius:5px;background:transparent;
+  color:var(--dim);cursor:pointer;font-family:var(--mono);font-size:12px;
+  transition:all .18s;display:flex;align-items:center;justify-content:center;
+}
+.icon-btn:hover{color:var(--green);border-color:var(--green-dim)}
+.icon-btn.play.on{color:var(--green);border-color:var(--green-dim);background:rgba(52,224,138,.08)}
+input[type=range]{
+  -webkit-appearance:none;width:110px;height:2px;background:var(--line2);border-radius:2px;outline:none;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--green);
+  cursor:pointer;box-shadow:0 0 8px rgba(52,224,138,.5);
+}
+.lab-body{display:grid;grid-template-columns:1fr 300px;gap:0}
+.lab-foot{
+  padding:12px 20px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:10px 26px;
+  background:rgba(10,16,12,.6);font-family:var(--mono);font-size:11px;color:var(--dim);
+}
+.lab-foot b{color:var(--ink);font-weight:500}
+.readout{
+  border-left:1px solid var(--line);background:#0a110d;
+  padding:18px 18px 14px;display:flex;flex-direction:column;gap:0;min-width:0;
+}
+.readout .r-title{
+  font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.22em;
+  margin-bottom:14px;display:flex;align-items:center;gap:8px;
+}
+.readout .r-title::before{content:"";width:6px;height:6px;background:var(--red);border-radius:50%;animation:blink 1.4s infinite}
+.r-row{
+  display:flex;justify-content:space-between;align-items:baseline;gap:8px;
+  font-family:var(--mono);padding:7px 0;border-bottom:1px dashed var(--line);
+}
+.r-row .k{font-size:11px;color:var(--faint);letter-spacing:.06em;white-space:nowrap}
+.r-row .v{font-size:12.5px;color:var(--ink);text-align:right;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.r-row .v.g{color:var(--green)} .r-row .v.a{color:var(--amber)} .r-row .v.c{color:var(--cyan)} .r-row .v.r{color:var(--red)}
+.r-desc{
+  font-size:12.5px;color:var(--dim);line-height:1.75;margin-top:14px;
+  font-family:var(--sans);
+}
+.r-desc b{color:var(--ink);font-weight:500}
+.rule-callout{
+  margin-top:26px;display:grid;grid-template-columns:auto 1fr;gap:22px;align-items:center;
+  border:1px solid rgba(255,176,46,.3);border-radius:8px;padding:20px 26px;
+  background:linear-gradient(120deg,rgba(255,176,46,.06),transparent 60%);
+}
+.rule-callout .mnemonic{
+  font-family:var(--disp);font-weight:700;font-size:clamp(19px,2.6vw,26px);
+  color:var(--amber);letter-spacing:.08em;white-space:nowrap;
+}
+.rule-callout .mnemonic small{display:block;font-size:11px;font-weight:500;color:var(--faint);letter-spacing:.24em;margin-top:6px;font-family:var(--mono)}
+.rule-callout p{font-size:13.5px;color:var(--dim)}
+.rule-callout p b{color:var(--ink);font-weight:500}
+
+/* ============ §03 TLP 实验室 ============ */
+.tlp-stage{padding:20px;min-width:0;background:#080d0a}
+.tlp-ents{display:grid;grid-template-columns:118px 1fr 118px;gap:0;align-items:stretch;margin-bottom:6px}
+.tlp-node{
+  border:1px solid var(--line2);border-radius:8px;padding:10px 12px;text-align:center;
+  background:var(--panel2);
+}
+.tlp-node .nm{font-family:var(--disp);font-size:14px;font-weight:600}
+.tlp-node .sb{font-family:var(--mono);font-size:9.5px;color:var(--faint);margin-top:3px;letter-spacing:.04em}
+.tlp-node.rc{border-color:var(--green-dim)} .tlp-node.rc .nm{color:var(--green)}
+.tlp-node.ep{border-color:rgba(87,216,242,.4)} .tlp-node.ep .nm{color:var(--cyan)}
+.tlp-track{position:relative;height:52px;margin:0 10px;overflow:hidden}
+.tlp-track .rail{
+  position:absolute;left:0;right:0;top:50%;height:1px;background:var(--line2);
+}
+.tlp-track .rail::after{
+  content:"";position:absolute;right:-1px;top:-4px;border:5px solid transparent;border-left-color:var(--line2);border-right:none;
+}
+.tlp-track .rail.rev::after{
+  right:auto;left:-1px;border-left-color:transparent;border-right-color:var(--line2);
+}
+.chip-fly{
+  position:absolute;top:50%;transform:translateY(-50%);
+  font-family:var(--mono);font-size:10.5px;padding:4px 9px;border-radius:4px;
+  white-space:nowrap;border:1px solid;pointer-events:none;z-index:2;letter-spacing:.03em;
+}
+.chip-fly.g{color:var(--green);border-color:var(--green-dim);background:rgba(7,11,9,.92)}
+.chip-fly.c{color:var(--cyan);border-color:rgba(87,216,242,.45);background:rgba(7,11,9,.92)}
+.chip-fly.a{color:var(--amber);border-color:rgba(255,176,46,.45);background:rgba(7,11,9,.92)}
+.chip-fly.v{color:var(--violet);border-color:rgba(199,146,234,.45);background:rgba(7,11,9,.92)}
+.chip-fly.r{color:var(--red);border-color:rgba(255,100,120,.5);background:rgba(7,11,9,.92)}
+.chip-fly.drop{opacity:.4;text-decoration:line-through}
+.tlp-strips{margin-top:14px;display:flex;flex-direction:column;gap:12px}
+.tlp-strip .s-h{
+  font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.14em;margin-bottom:6px;
+  display:flex;gap:10px;align-items:baseline;
+}
+.tlp-strip .s-h .tag{
+  font-size:9px;padding:1px 6px;border-radius:3px;border:1px solid var(--line2);color:var(--dim);
+}
+.tlp-strip .s-h .tag.posted{color:var(--amber);border-color:rgba(255,176,46,.4)}
+.tlp-strip .s-h .tag.nonposted{color:var(--cyan);border-color:rgba(87,216,242,.4)}
+.tlp-fields{display:flex;gap:4px;overflow-x:auto;padding-bottom:4px}
+.tlp-fields::-webkit-scrollbar{height:5px}
+.tlp-fields::-webkit-scrollbar-thumb{background:var(--line2);border-radius:3px}
+.fld{
+  flex:none;font-family:var(--mono);font-size:10.5px;padding:6px 9px;
+  border:1px solid var(--line2);border-radius:4px;color:var(--faint);
+  background:rgba(16,26,19,.5);transition:all .3s;text-align:center;
+}
+.fld small{display:block;font-size:8.5px;color:var(--faint);margin-top:3px;letter-spacing:.02em}
+.fld.f-tlp.in{color:var(--green);border-color:var(--green-dim);background:rgba(52,224,138,.13)}
+.fld.f-dll.in{color:var(--amber);border-color:rgba(255,176,46,.5);background:rgba(255,176,46,.1)}
+.fld.f-phy.in{color:var(--cyan);border-color:rgba(87,216,242,.5);background:rgba(87,216,242,.1)}
+.fld.f-dat.in{color:var(--violet);border-color:rgba(199,146,234,.5);background:rgba(199,146,234,.1)}
+.fld.f-e2e.in{color:var(--red);border-color:rgba(255,100,120,.5);background:rgba(255,100,120,.1)}
+.fld.cur{outline:1px solid var(--amber);outline-offset:1px}
+
+/* ============ §04 LTSSM 实验室 ============ */
+.lt-left{padding:16px;min-width:0;background:#080d0a}
+.lt-left svg{width:100%;height:auto;display:block}
+.lt-svg .st{cursor:pointer}
+.lt-svg .st rect{fill:rgba(16,26,19,.6);stroke:var(--line2);stroke-width:1.5;transition:.25s}
+.lt-svg .st text{font-family:'IBM Plex Mono',monospace}
+.lt-svg .st .nm{fill:var(--ink);font-size:13px;font-weight:600}
+.lt-svg .st .sub{fill:var(--faint);font-size:8.5px}
+.lt-svg .st:hover rect{stroke:var(--green-dim)}
+.lt-svg .st.on rect{stroke:var(--green);fill:rgba(52,224,138,.13)}
+.lt-svg .st.on .nm{fill:var(--green)}
+.lt-svg .st.side rect{stroke-dasharray:4 3}
+.lt-svg .edge{stroke:rgba(140,162,148,.4);stroke-width:1.4;fill:none}
+.lt-svg .edge.hot{stroke:var(--green);stroke-width:2;stroke-dasharray:6 4;animation:edgeflow .5s linear infinite}
+@keyframes edgeflow{to{stroke-dashoffset:-10}}
+.lt-log{
+  flex:1;min-height:120px;max-height:150px;overflow-y:auto;margin-top:14px;
+  border:1px solid var(--line);border-radius:6px;background:#070c09;padding:10px 12px;
+  font-family:var(--mono);font-size:10.5px;line-height:1.8;color:var(--dim);
+}
+.lt-log div{white-space:pre-wrap}
+.lt-log .lg-t{color:var(--faint)}
+.lt-log .lg-g{color:var(--green)} .lt-log .lg-a{color:var(--amber)} .lt-log .lg-r{color:var(--red)}
+.lane-view{border-top:1px solid var(--line);background:#080d0a;padding:14px 20px}
+.lane{display:grid;grid-template-columns:56px 1fr;column-gap:12px;row-gap:5px;align-items:center;margin:6px 0}
+.lane .ln{font-family:var(--mono);font-size:10px;color:var(--faint);grid-row:1/3;letter-spacing:.06em}
+.ltr{position:relative;height:20px;border-bottom:1px dashed var(--line)}
+.ltr .ltr-l{
+  position:absolute;font-family:var(--mono);font-size:8.5px;color:var(--faint);
+  top:1px;opacity:.8;
+}
+.ltr.tx .ltr-l{left:2px}
+.ltr.rx .ltr-l{right:2px}
+.lane-chip{
+  position:absolute;top:50%;transform:translateY(-50%);
+  font-family:var(--mono);font-size:9px;padding:1px 6px;border-radius:3px;
+  border:1px solid;pointer-events:none;white-space:nowrap;background:rgba(7,11,9,.9);
+}
+.lane-chip.ts{color:var(--amber);border-color:rgba(255,176,46,.4)}
+.lane-chip.tlp{color:var(--green);border-color:var(--green-dim)}
+.lane-chip.dllp{color:var(--cyan);border-color:rgba(87,216,242,.4)}
+.asp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:30px}
+
+/* ============ §05 流控实验室 ============ */
+.fc-stage{
+  display:grid;grid-template-columns:210px 1fr 260px;gap:0;align-items:center;
+  padding:22px;min-width:0;background:#080d0a;
+}
+.fc-node{border:1px solid var(--line2);border-radius:8px;padding:14px 16px;background:var(--panel2)}
+.fc-node .fc-title{font-family:var(--disp);font-size:14px;font-weight:600;margin-bottom:8px}
+.fc-node.tx .fc-title{color:var(--green)} .fc-node.rx .fc-title{color:var(--cyan)}
+.fc-cred{font-family:var(--mono);font-size:11px;color:var(--dim);line-height:2}
+.fc-cred b{color:var(--green);font-size:15px}
+.fc-hold{
+  display:none;font-family:var(--mono);font-size:10px;color:var(--amber);
+  border:1px dashed rgba(255,176,46,.4);border-radius:4px;padding:5px 8px;margin-top:8px;
+}
+.fc-hold.show{display:block}
+.fc-buf{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;margin-top:6px}
+.fc-cell{
+  height:18px;border:1px solid var(--line2);border-radius:3px;
+  background:rgba(87,216,242,.06);transition:background .15s;
+}
+.fc-cell.fill{background:rgba(87,216,242,.55);border-color:rgba(87,216,242,.7)}
+.fc-cell.over{background:rgba(255,100,120,.6);border-color:rgba(255,100,120,.8)}
+.fc-note{font-family:var(--mono);font-size:9.5px;color:var(--faint);margin-top:8px;line-height:1.7}
+.fc-link{position:relative;padding:0 8px;min-width:0}
+.fc-track{position:relative;height:64px;overflow:hidden}
+.fc-linklbl{
+  text-align:center;font-family:var(--mono);font-size:9.5px;color:var(--faint);letter-spacing:.2em;
+}
+.fc-metrics{display:flex;gap:26px;flex-wrap:wrap}
+.fc-metrics .m{display:flex;flex-direction:column}
+.fc-metrics .m .k{font-size:9.5px;color:var(--faint);letter-spacing:.1em}
+.fc-metrics .m .v{font-family:var(--mono);font-size:16px;font-weight:600;color:var(--ink)}
+.fc-metrics .m .v.g{color:var(--green)} .fc-metrics .m .v.r{color:var(--red)}
+
+/* ============ §06 计算器 ============ */
+.calc{border:1px solid var(--line);border-radius:10px;background:var(--panel);display:grid;grid-template-columns:1fr 1fr;overflow:hidden}
+.calc .inputs{padding:28px 30px;border-right:1px solid var(--line)}
+.calc .outputs{padding:28px 30px;background:#0a110d}
+.calc h5{font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.22em;margin-bottom:18px}
+.field{margin-bottom:18px}
+.field label{display:block;font-family:var(--mono);font-size:11.5px;color:var(--dim);margin-bottom:8px;letter-spacing:.06em}
+.field select{
+  width:100%;font-family:var(--mono);font-size:13.5px;color:var(--ink);
+  background:#080d0a;border:1px solid var(--line2);border-radius:5px;padding:10px 12px;outline:none;
+  cursor:pointer;transition:border-color .2s;
+}
+.field select:focus{border-color:var(--green-dim)}
+.check{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11.5px;color:var(--dim);cursor:pointer;user-select:none}
+.check input{accent-color:var(--green)}
+.out-row{display:flex;justify-content:space-between;align-items:baseline;padding:12px 0;border-bottom:1px dashed var(--line)}
+.out-row .ok{font-size:12.5px;color:var(--dim)}
+.out-row .ok small{display:block;font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.08em}
+.out-row .ov{font-family:var(--mono);font-size:18px;font-weight:600;color:var(--green)}
+.out-row .ov small{font-size:11px;color:var(--faint);font-weight:400;margin-left:4px}
+.out-row.big .ov{font-size:25px;color:var(--amber)}
+.calc-formula{
+  grid-column:1/-1;padding:14px 30px;border-top:1px solid var(--line);
+  font-family:var(--mono);font-size:12.5px;color:var(--dim);background:rgba(10,17,13,.8);
+}
+.calc-formula b{color:var(--green);font-weight:500}
+.bw-bars{margin-top:26px;border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:20px 24px}
+.bw-bars h5{font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.22em;margin-bottom:16px}
+.bw-bar{display:grid;grid-template-columns:170px 1fr 90px;gap:12px;align-items:center;margin:9px 0}
+.bw-bar .n{font-family:var(--mono);font-size:11px;color:var(--dim);text-align:right}
+.bw-bar .tr{height:16px;background:rgba(16,26,19,.8);border:1px solid var(--line);border-radius:3px;overflow:hidden}
+.bw-bar .fl{height:100%;background:var(--green-dim);transition:width .4s;border-radius:2px}
+.bw-bar.you .fl{background:linear-gradient(90deg,var(--green),#5cf5a8)}
+.bw-bar.you .n{color:var(--green);font-weight:600}
+.bw-bar .v{font-family:var(--mono);font-size:11px;color:var(--ink)}
+
+/* ============ §07 枚举 ============ */
+.enum-grid{display:grid;grid-template-columns:1.15fr 1fr;gap:26px;align-items:start}
+.enum-tree{border:1px solid var(--line);border-radius:8px;background:#080d0a;padding:14px}
+.enum-tree svg{width:100%;height:auto;display:block}
+.et-svg .nd{cursor:pointer}
+.et-svg .nd rect{fill:rgba(16,26,19,.65);stroke:var(--line2);stroke-width:1.4;transition:.2s}
+.et-svg .nd text{font-family:'IBM Plex Mono',monospace}
+.et-svg .nd .id{fill:var(--ink);font-size:10.5px;font-weight:600}
+.et-svg .nd .nm{fill:var(--dim);font-size:9px}
+.et-svg .nd:hover rect{stroke:var(--green-dim)}
+.et-svg .nd.on rect{stroke:var(--green);fill:rgba(52,224,138,.12)}
+.et-svg .nd.on .id{fill:var(--green)}
+.et-svg .bus-l{fill:var(--faint);font-size:9px;font-family:'IBM Plex Mono',monospace}
+.et-svg .wire{stroke:rgba(140,162,148,.4);stroke-width:1.2;fill:none}
+.enum-side{display:flex;flex-direction:column;gap:16px}
+.enum-info{border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:16px 18px}
+.enum-info h5{font-family:var(--disp);font-size:15px;font-weight:600;display:flex;gap:10px;align-items:baseline}
+.enum-info h5 .id{font-family:var(--mono);font-size:11px;color:var(--green)}
+.enum-info .sub{font-family:var(--mono);font-size:10.5px;color:var(--faint);margin-top:2px}
+.bar-tbl{width:100%;border-collapse:collapse;font-size:11.5px;margin-top:10px;font-family:var(--mono)}
+.bar-tbl th{color:var(--faint);text-align:left;font-weight:500;padding:5px 8px;border-bottom:1px solid var(--line2);font-size:10px}
+.bar-tbl td{padding:6px 8px;border-bottom:1px solid var(--line);color:var(--dim)}
+.bar-tbl td:first-child{color:var(--green)}
+.bar-tbl .none{color:var(--faint);font-style:italic}
+.enum-map{border:1px solid var(--line);border-radius:8px;background:#080d0a;padding:12px}
+.enum-map svg{width:100%;height:auto;display:block}
+.em-svg text{font-family:'IBM Plex Mono',monospace}
+.sizing-strip{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:14px;align-items:stretch;margin-top:30px}
+.sizing-strip .sz{
+  border:1px solid var(--line);border-radius:6px;background:var(--panel);padding:14px 16px;
+  font-family:var(--mono);font-size:11.5px;color:var(--dim);line-height:1.9;
+}
+.sizing-strip .sz b{color:var(--amber);font-weight:500}
+.sizing-strip .sz i{color:var(--green);font-style:normal}
+.sizing-strip .arw{align-self:center;color:var(--faint);font-family:var(--mono);font-size:16px}
+
+/* ============ §08 Linux ============ */
+.term-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+.term{
+  border:1px solid var(--line);border-radius:8px;background:#070c09;
+  overflow:hidden;display:flex;flex-direction:column;min-width:0;
+  transition:border-color .25s;
+}
+.term:hover{border-color:var(--line2)}
+.term.wide{grid-column:1/-1}
+.term-bar{
+  display:flex;align-items:center;gap:7px;padding:10px 14px;
+  border-bottom:1px solid var(--line);background:rgba(10,16,12,.85);
+}
+.term-bar i{width:10px;height:10px;border-radius:50%}
+.term-bar .d1{background:rgba(255,100,120,.55)}
+.term-bar .d2{background:rgba(255,176,46,.5)}
+.term-bar .d3{background:rgba(52,224,138,.5)}
+.term-bar span{margin-left:8px;font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.12em}
+.term-body{padding:15px 18px 17px;font-family:var(--mono);font-size:12px;line-height:1.95;overflow-x:auto;flex:1}
+.term-body div{white-space:pre;min-height:1.35em}
+.t-ps{color:#3f5247;user-select:none}
+.t-cmd{color:var(--green);cursor:pointer;font-family:inherit;border-bottom:1px dotted transparent;transition:border-color .15s}
+.t-cmd:hover{border-bottom-color:var(--green)}
+.t-cmd.copied{color:#052013;background:var(--green);border-radius:2px;padding:0 4px}
+.t-out{color:var(--dim)}
+.t-hl{color:var(--amber)}
+.t-cmt{color:#516657}
+.t-tag{color:var(--cyan)}
+.lnx-note{
+  margin-top:26px;padding:18px 22px;border-left:2px solid var(--cyan);
+  background:rgba(87,216,242,.05);border-radius:0 6px 6px 0;font-size:13.5px;color:var(--dim);
+}
+.lnx-note b{color:var(--cyan);font-weight:500}
+.lnx-note code{font-family:var(--mono);font-size:.9em;color:var(--amber)}
+.decoder{border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:20px 24px;margin-top:26px}
+.decoder h5{font-family:var(--disp);font-size:15px;font-weight:600;margin-bottom:6px}
+.decoder .dc-sub{font-family:var(--mono);font-size:10.5px;color:var(--faint);margin-bottom:14px}
+.dc-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.dc-row input{
+  font-family:var(--mono);font-size:15px;color:var(--ink);width:130px;
+  background:#080d0a;border:1px solid var(--line2);border-radius:5px;padding:8px 12px;outline:none;
+}
+.dc-row input:focus{border-color:var(--green-dim)}
+.dc-pre{font-family:var(--mono);font-size:11px;padding:7px 10px;border:1px solid var(--line2);border-radius:4px;background:transparent;color:var(--dim);cursor:pointer;transition:.18s}
+.dc-pre:hover{color:var(--green);border-color:var(--green-dim)}
+.dc-pre.on{color:#052013;background:var(--green);border-color:var(--green)}
+.dc-out{margin-top:14px;font-family:var(--mono);font-size:12.5px;color:var(--dim);line-height:2}
+.dc-out b{color:var(--ink);font-weight:500}
+.dc-out .g{color:var(--green)} .dc-out .a{color:var(--amber)} .dc-out .r{color:var(--red)}
+
+/* ============ §09 踩坑 ============ */
+.pit-list{display:flex;flex-direction:column;gap:12px;margin-top:34px}
+.pit{
+  display:grid;grid-template-columns:52px 1fr;gap:18px;align-items:start;
+  border:1px solid var(--line);border-radius:6px;padding:17px 20px;background:var(--panel);
+  transition:border-color .2s;
+}
+.pit:hover{border-color:rgba(255,100,120,.4)}
+.pit .symptom{
+  font-family:var(--mono);font-size:10px;letter-spacing:.04em;color:var(--red);
+  border:1px solid rgba(255,100,120,.35);border-radius:4px;padding:5px 7px;text-align:center;
+  line-height:1.5;background:rgba(255,100,120,.05);height:fit-content;
+}
+.pit .fix b{display:block;font-size:14px;font-weight:500;color:var(--ink);margin-bottom:4px}
+.pit .fix b code{font-family:var(--mono);font-size:.88em;color:var(--green)}
+.pit .fix p{font-size:12.8px;color:var(--dim);line-height:1.7}
+.pit .fix p code{font-family:var(--mono);font-size:.9em;color:var(--amber)}
+
+/* ============ §10 速查 ============ */
+.notation{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin:8px 0 30px}
+.n-item{text-align:center}
+.n-item .nv{font-family:var(--mono);font-size:24px;color:var(--green);border:1px solid rgba(52,224,138,.4);
+  padding:8px 18px;border-radius:8px;background:rgba(52,224,138,.06)}
+.n-item .nv.a{color:var(--amber);border-color:rgba(255,176,46,.4);background:rgba(255,176,46,.06)}
+.n-item .nv.c{color:var(--cyan);border-color:rgba(87,216,242,.4);background:rgba(87,216,242,.06)}
+.n-item .nv.v{color:var(--violet);border-color:rgba(199,146,234,.4);background:rgba(199,146,234,.06)}
+.n-item small{display:block;font-size:11.5px;color:var(--dim);margin-top:6px}
+.cheat-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+.rules{list-style:none;display:flex;flex-direction:column;gap:10px}
+.rules li{display:flex;gap:12px;align-items:flex-start;padding:11px 14px;border:1px solid var(--line);border-radius:8px;background:rgba(16,26,19,.45)}
+.rules .no{font-family:var(--mono);color:#052013;background:var(--green);border-radius:5px;min-width:24px;height:24px;
+  display:flex;align-items:center;justify-content:center;font-size:13px;flex:none;margin-top:3px}
+.rules b{color:var(--ink);font-weight:500}
+.rules span{color:var(--dim);font-size:13px}
+dl.gloss{display:grid;grid-template-columns:repeat(2,1fr);gap:0 30px}
+dl.gloss dt{font-family:var(--mono);color:var(--green);font-size:13px;margin-top:14px}
+dl.gloss dd{color:var(--dim);font-size:12.8px;line-height:1.7;margin-top:2px}
+.gen-tbl-wrap{margin-top:18px;overflow-x:auto}
+.gen-tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.gen-tbl th{font-family:var(--mono);font-weight:500;color:var(--faint);text-align:left;padding:8px 12px;border-bottom:1px solid var(--line2);font-size:11px;letter-spacing:.06em}
+.gen-tbl td{padding:9px 12px;border-bottom:1px solid var(--line);color:var(--dim);font-family:var(--mono);font-size:11.5px}
+.gen-tbl td:first-child{color:var(--ink)}
+.gen-tbl .hl{color:var(--green)}
+
+/* ============ footer ============ */
+footer{
+  border-top:1px solid var(--line);padding:44px 6vw 60px;margin-top:40px;
+  display:flex;flex-wrap:wrap;gap:24px;align-items:baseline;justify-content:space-between;
+}
+footer .f-l{font-family:var(--mono);font-size:11.5px;color:var(--faint);line-height:2.1}
+footer .f-l b{color:var(--dim);font-weight:500}
+footer a{color:var(--faint);text-decoration:none;border-bottom:1px dotted var(--faint)}
+footer a:hover{color:var(--green);border-color:var(--green)}
+footer .f-r{font-family:var(--disp);font-weight:700;font-size:22px;color:var(--green)}
+
+/* ============ 响应式 ============ */
+@media (max-width:1000px){
+  .two-col,.layer-grid,.enum-grid,.cheat-grid{grid-template-columns:1fr}
+  .lab-body{grid-template-columns:1fr}
+  .readout{border-left:none;border-top:1px solid var(--line)}
+  .calc{grid-template-columns:1fr}
+  .calc .inputs{border-right:none;border-bottom:1px solid var(--line)}
+  .fc-stage{grid-template-columns:1fr;gap:16px}
+  .sizing-strip{grid-template-columns:1fr}
+  .sizing-strip .arw{display:none}
+  .asp-grid{grid-template-columns:1fr}
+}
+@media (max-width:720px){
+  .fact-grid,.term-grid{grid-template-columns:1fr}
+  .nav-links a{display:none}
+  section{padding:70px 5vw}
+  .sec-head .en{display:none}
+  dl.gloss{grid-template-columns:1fr}
+  .bw-bar{grid-template-columns:96px 1fr 70px}
+  .bw-bar .n{font-size:10px}
+}
+</style>
+</head>
+<body>
+<nav>
+  <div class="nav-in">
+    <div class="brand">PCIE<b>·</b>LAB</div>
+    <div class="nav-links">
+      <a href="#s1">概述</a><a href="#s2">分层</a><a href="#s3">TLP</a><a href="#s4">LTSSM</a><a href="#s5">流控</a><a href="#s6">带宽</a><a href="#s7">枚举</a><a href="#s8">Linux</a><a href="#s9">踩坑</a>
+    </div>
+    <div class="nav-x"><a href="index.html">« HOME</a><a href="i2c.html">I²C</a><a href="spi.html">SPI</a><a href="uart.html">UART</a><a href="ir.html">IR</a><a href="rs485.html">RS-485</a><a href="onewire.html">1-WIRE</a><a href="can.html">CAN</a><a href="i2s.html">I²S</a><a href="dmic.html">DMIC</a><a href="tdm.html">TDM</a><a href="sdio.html">SDIO</a><a href="emmc.html">eMMC</a><a href="ddr.html">DDR</a><a href="rgb.html">RGB</a><a href="lvds.html">LVDS</a><a href="mipi-dsi.html">DSI</a><a href="csi2.html">CSI-2</a><a href="hdmi.html">HDMI</a><a href="usb.html">USB</a><a href="jtag.html">JTAG</a></div>
+    <div class="spacer"></div>
+    <div class="live"><i></i>LINK&nbsp;TRAINER</div>
+  </div>
+</nav>
+
+<main>
+<!-- ================= HERO ================= -->
+<header class="hero">
+  <div class="eyebrow">PCI EXPRESS · 图解硬件协议</div>
+  <h1>PCIe 总线<span class="en">PCI EXPRESS · SERIAL, POINT-TO-POINT, SWITCHED</span></h1>
+  <p class="lede">
+    1992 年的 PCI 把所有设备挂在一条 <b>33 MHz 共享并口</b>上，人多路窄；2003 年 PCI-SIG 把它推倒重来：
+    每个设备独享<b>串行差分点对点链路</b>，数据打包成 TLP，靠交换芯片织成 fabric。
+    往下滚动，看一次 Memory Read 如何被三层协议包装成比特流，再亲眼看链路从 <b>Detect 一步步训练到 L0</b>。
+  </p>
+  <div class="chips">
+    <span><b>1 lane</b> = TX± + RX± 共 4 线</span>
+    <span><b>2.5 → 128 GT/s</b> Gen1 → Gen7</span>
+    <span><b>TLP</b> + LCRC 自动重传</span>
+    <span><b>LTSSM</b> 链路训练状态机</span>
+    <span><b>ASPM</b> L0s / L1 低功耗</span>
+  </div>
+  <div class="hero-cta">
+    <a class="btn primary" href="#s4">▶ 进入 LTSSM 训练实验室</a>
+    <a class="btn ghost" href="#s1">从演进讲起</a>
+  </div>
+  <div class="hero-schema">
+    <svg viewBox="0 0 980 434" xmlns="http://www.w3.org/2000/svg" aria-label="PCIe 拓扑：Root Complex、交换芯片与设备">
+      <defs>
+        <path id="hp-gpu"  d="M250,182 C 420,182 560,64 718,64"/>
+        <path id="hp-gpur" d="M718,64 C 560,64 420,182 250,182"/>
+        <path id="hp-sw"   d="M250,232 C 420,232 560,216 698,216"/>
+        <path id="hp-swr"  d="M698,216 C 560,216 420,232 250,232"/>
+        <path id="hp-nv"   d="M822,258 C 822,278 835,282 835,300"/>
+        <path id="hp-nvr"  d="M835,300 C 835,282 822,278 822,258"/>
+        <path id="hp-nic"  d="M716,252 C 660,300 640,300 572,306"/>
+        <path id="hp-nicr" d="M572,306 C 640,300 660,300 716,252"/>
+        <path id="hp-diff1" d="M268,332 C 320,326 380,338 430,330"/>
+        <path id="hp-diff2" d="M268,354 C 320,360 380,348 430,356"/>
+      </defs>
+      <!-- Root Complex -->
+      <g>
+        <rect class="chip-ic" x="40" y="150" width="210" height="130" rx="12"/>
+        <rect x="52" y="162" width="186" height="106" rx="8" fill="none" stroke="rgba(140,162,148,.25)"/>
+        <circle class="led" cx="234" cy="174" r="4" fill="#34e08a"/>
+        <text class="svg-lab big" x="145" y="205" text-anchor="middle">ROOT COMPLEX</text>
+        <text class="svg-lab" x="145" y="228" text-anchor="middle">CPU · DRAM · DMA 引擎</text>
+        <text class="svg-lab ph" x="145" y="248" text-anchor="middle">一切事务的发起者</text>
+      </g>
+      <!-- GPU -->
+      <g>
+        <rect class="chip-ic" x="718" y="20" width="222" height="88" rx="10"/>
+        <text class="svg-lab big" x="829" y="58" text-anchor="middle">GPU</text>
+        <text class="svg-lab" x="829" y="80" text-anchor="middle">x16 · 显存 BAR 映射</text>
+      </g>
+      <!-- Switch -->
+      <g>
+        <rect class="chip-ic" x="698" y="172" width="242" height="86" rx="10"/>
+        <text class="svg-lab big" x="819" y="206" text-anchor="middle">PCIe SWITCH</text>
+        <text class="svg-lab" x="819" y="228" text-anchor="middle">交换 fabric · 上 x8 下挂多口</text>
+      </g>
+      <!-- NVMe / NIC -->
+      <g>
+        <rect class="chip-ic" x="730" y="300" width="210" height="58" rx="10"/>
+        <text class="svg-lab big" x="835" y="325" text-anchor="middle">NVMe SSD</text>
+        <text class="svg-lab" x="835" y="345" text-anchor="middle">x4 · 8GT/s</text>
+      </g>
+      <g>
+        <rect class="chip-ic" x="382" y="306" width="190" height="58" rx="10"/>
+        <text class="svg-lab big" x="477" y="331" text-anchor="middle">ETH NIC</text>
+        <text class="svg-lab" x="477" y="351" text-anchor="middle">x1 · 5GT/s</text>
+      </g>
+      <!-- 连线 -->
+      <path class="wire p" d="M250,182 C 420,182 560,64 718,64"/>
+      <path class="wire p" d="M250,232 C 420,232 560,216 698,216"/>
+      <path class="wire"    d="M822,258 C 822,278 835,282 835,300"/>
+      <path class="wire"    d="M716,252 C 660,300 640,300 572,306"/>
+      <text class="svg-lab ph" x="484" y="128" text-anchor="middle">x16 · 16 lanes</text>
+      <text class="svg-lab ph" x="474" y="208" text-anchor="middle">x8</text>
+      <text class="svg-lab" x="862" y="286">x4</text>
+      <text class="svg-lab" x="600" y="266">x1</text>
+      <!-- REFCLK / PERST -->
+      <rect x="40" y="330" width="176" height="54" rx="8" fill="rgba(255,176,46,.04)" stroke="rgba(255,176,46,.35)" stroke-dasharray="5 4"/>
+      <text class="svg-lab am" x="128" y="352" text-anchor="middle">100 MHz REFCLK</text>
+      <text class="svg-lab am" x="128" y="370" text-anchor="middle">+ PERST# 复位</text>
+      <path class="wire ctl" d="M128,280 L128,330"/>
+      <!-- lane 放大镜 -->
+      <rect x="252" y="316" width="188" height="62" rx="8" fill="rgba(87,216,242,.03)" stroke="rgba(87,216,242,.3)"/>
+      <text class="svg-lab cy" x="346" y="332" text-anchor="middle" font-size="9.5">1 个 lane = 4 根线</text>
+      <path class="wire" d="M268,332 C 320,326 380,338 430,330" stroke="rgba(87,216,242,.8)" stroke-width="1.6"/>
+      <path class="wire" d="M268,354 C 320,360 380,348 430,356" stroke="rgba(87,216,242,.8)" stroke-width="1.6"/>
+      <text class="svg-lab" x="266" y="326" font-size="8.5">TX+</text>
+      <text class="svg-lab" x="266" y="372" font-size="8.5">TX−</text>
+      <text class="svg-lab" x="436" y="326" font-size="8.5" fill="rgba(140,162,148,.8)">→</text>
+      <text class="svg-lab" x="436" y="372" font-size="8.5" fill="rgba(140,162,148,.8)">→</text>
+      <!-- 数据包 -->
+      <g id="pk-gpu"></g><g id="pk-gpur"></g><g id="pk-sw"></g><g id="pk-swr"></g>
+      <g id="pk-nv"></g><g id="pk-nvr"></g><g id="pk-nic"></g><g id="pk-nicr"></g>
+      <circle r="3" fill="#57d8f2"><animateMotion dur="2.6s" repeatCount="indefinite"><mpath href="#hp-diff1" xlink:href="#hp-diff1"/></animateMotion></circle>
+      <circle r="3" fill="#57d8f2" opacity=".6"><animateMotion dur="2.6s" begin="0s" repeatCount="indefinite"><mpath href="#hp-diff2" xlink:href="#hp-diff2"/></animateMotion></circle>
+    </svg>
+  </div>
+  <div class="scroll-hint">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+    SCROLL · TLP 动画在 03 节 · LTSSM 在 04 节
+  </div>
+</header>
+
+<!-- ================= §01 ================= -->
+<section id="s1">
+  <div class="sec-head reveal"><span class="no">01</span><h2>它是什么，为什么需要它</h2><span class="en">What &amp; Why</span></div>
+  <p class="sec-sub reveal">一句话：<b>PCIe 是把共享并行总线 PCI 拆成「串行差分 + 点对点 + 交换 fabric」的包协议网络</b>——每条链路独享带宽，靠分层协议保证可靠传输。</p>
+  <div class="two-col">
+    <div class="prose reveal">
+      <p>
+        老 <b>PCI</b> 是一根<b>共享并口</b>：32 位地址/数据复用（AD0-AD31），33 MHz，总线上所有设备
+        分时抢线，还要靠 <span class="kw"> arbiter</span> 仲裁。理论 133 MB/s 是<b>全总线合计</b>——
+        设备越多，每人分到的越少；并行线在 66 MHz 以上被走线偏斜（skew）卡死，加宽到 64 位又让主板布线成本爆炸。
+      </p>
+      <p>
+        2003 年 <b>PCI Express</b> 换了个思路：数据<b>串行化</b>、走<b>差分对</b>（抗共模干扰）、
+        <b>点对点</b>连接（没有抢线）、时钟<b>嵌入数据流</b>（<span class="kw">8b/10b</span> 保证足够跳变，无需单独时钟线）。
+        需要挂多个设备？用 <b>Switch</b> 织成 fabric。带宽不够？把 N 个 lane <b>捆绑</b>成 x1/x4/x8/x16——
+        这就是「可伸缩」的由来。
+      </p>
+      <p>
+        一个 <b>lane</b> = 1 对 TX 差分 + 1 对 RX 差分，共 4 根线，两个方向独立（<b>双单工</b>）。
+        Gen1 每个 lane 单向 2.5 GT/s，经 8b/10b 后有效 <span class="kw2">250 MB/s</span>；
+        x16 就是 16 倍。今天 GPU、NVMe、万兆网卡、WiFi（见 <a href="sdio.html">SDIO</a> 的表亲们）
+        全都跑在这套 fabric 上。
+      </p>
+    </div>
+    <table class="cmp-table reveal">
+      <tr><th></th><th>PCI（并行）</th><th>PCIe（串行）</th></tr>
+      <tr><td>拓扑</td><td class="no">共享总线 + 仲裁</td><td class="yes">点对点 + Switch fabric</td></tr>
+      <tr><td>数据形式</td><td>地址/数据复用总线周期</td><td class="yes">打包成 TLP 的报文交换</td></tr>
+      <tr><td>时钟</td><td>33/66 MHz 全局时钟线</td><td class="yes">嵌入数据流 + 100 MHz 参考时钟</td></tr>
+      <tr><td>信号</td><td>单端 LVTTL，5V/3.3V</td><td class="yes">低压差分对（CML）</td></tr>
+      <tr><td>每设备带宽</td><td class="no">全体分摊 133 MB/s</td><td class="yes">每链路独享（Gen1 x1 = 250 MB/s）</td></tr>
+      <tr><td>错误处理</td><td>Parity 报错，不重传</td><td class="yes">LCRC 校验 + 硬件自动重传</td></tr>
+    </table>
+  </div>
+  <div class="fact-grid reveal">
+    <div class="fact"><div class="f-no">FACT / A</div><h4>差分对 · 抗干扰的底牌 <code>TX± RX±</code></h4><p>一根线传信号、一根传反相，接收端取差值——电源纹波与外部噪声同时耦合到两根线上，相减即消。摆幅不到 1V，却能跑 32 GT/s。</p></div>
+    <div class="fact"><div class="f-no">FACT / B</div><h4>嵌入式时钟 <code>8b/10b</code></h4><p>每 8 bit 编成 10 bit，保证 0/1 跳变密度，接收端从数据流里恢复时钟。Gen3 起改用 128b/130b + 扰码，开销从 20% 降到 1.5%。</p></div>
+    <div class="fact"><div class="f-no">FACT / C</div><h4>包协议 · 事务可拆分 <code>Split Transaction</code></h4><p>读请求（MRd）与应答（CplD）是两个独立包，中间链路可以干别的活——不像 PCI 一个总线周期从头占到尾。延迟因此被摊薄。</p></div>
+    <div class="fact"><div class="f-no">FACT / D</div><h4>热插拔与重训练 <code>LTSSM</code></h4><p>链路状态机 Detect→Polling→Configuration→L0 全自动：插入、复位、掉速恢复都由硬件自己完成，软件只看见「设备出现/消失」。</p></div>
+  </div>
+  <div class="svg-panel reveal" id="svgSlots"></div>
+</section>
+
+<!-- ================= §02 ================= -->
+<section id="s2">
+  <div class="sec-head reveal"><span class="no">02</span><h2>三层协议栈 · 一个 TLP 的封装之旅</h2><span class="en">Protocol Stack</span></div>
+  <p class="sec-sub reveal">
+    PCIe 把 PCI 的「一次总线事务」拆成三层流水线：<b>事务层</b>造包，<b>数据链路层</b>保证包不错不丢，<b>物理层</b>把包变成差分比特流。
+    发送方向层层加壳，接收方向层层剥壳。
+  </p>
+  <div class="layer-grid">
+    <div class="svg-panel reveal" id="svgLayer" style="margin-top:0"></div>
+    <div class="arch-cards reveal">
+      <div class="arch">
+        <h5><span class="b">TL</span>事务层 Transaction Layer</h5>
+        <p>组装 / 解析 <b>TLP</b>：3DW 或 4DW 头（Fmt/Type/TC/Tag/Length…）+ 可选数据 + 可选 ECRC。管理<b>请求-完成配对</b>（Tag）、流量分类（TC→VC）、排序规则。设备「人格」全在这一层。</p>
+      </div>
+      <div class="arch">
+        <h5><span class="b a">DLL</span>数据链路层 Data Link Layer</h5>
+        <p>给 TLP 加 <b>12-bit SEQ + 32-bit LCRC</b>，压进重传缓冲区；用 <b>ACK/NAK DLLP</b> 实现硬件自动重传；跑 <b>credit 流控</b>（§05），保证永不发送接收方装不下的包。可靠性的老家。</p>
+      </div>
+      <div class="arch">
+        <h5><span class="b c">PHY</span>物理层 Physical Layer</h5>
+        <p>加 STP/END 成帧令牌，Gen1/2 做 <b>8b/10b</b> 编码，Gen3+ 做 <b>128b/130b + 扰码</b>；串行化后从差分对打出。链路训练（LTSSM）也住在这里——它是 §04 的主角。</p>
+      </div>
+      <div class="arch">
+        <h5><span class="b c">+</span>为什么 ECRC 与 LCRC 并存</h5>
+        <p>LCRC 只保证<b>每一段链路</b>无错；TLP 穿过 Switch 时会被剥壳检查再重新加壳。要验证<b>端到端</b>（RC 到最终 EP）的完整性，得靠事务层的 ECRC——中间节点不碰它。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= §03 TLP 动画 ================= -->
+<section id="s3">
+  <div class="sec-head reveal"><span class="no">03</span><h2>TLP 包结构动画 · 一次 Memory Read 的往返</h2><span class="en">TLP Anatomy Lab</span></div>
+  <p class="sec-sub reveal">
+    下面把一笔 <b>Non-Posted 读事务</b>拆到字段级：RC 发出 <b style="color:var(--green)">MRd（3DW 头）</b>，
+    链路层加 SEQ/LCRC、物理层加 STP/END；EP 校验通过回 <b style="color:var(--amber)">ACK DLLP</b>，
+    再回 <b style="color:var(--cyan)">CplD（头 + 数据）</b>。切成写事务，则看到 <b>Posted 的省与险</b>。
+    <b>逐字段播放或单步，右侧读数同步解说。</b>
+  </p>
+  <div class="lab reveal">
+    <div class="lab-bar">
+      <div class="ctrl"><label>事务</label>
+        <div class="seg" id="tlpSeg">
+          <button data-m="mr" class="on">Memory Read · 读</button>
+          <button data-m="mw">Memory Write · 写</button>
+        </div>
+      </div>
+      <div class="ctrl"><label>速度</label><input type="range" id="tlpSpd" min="2" max="16" value="7"></div>
+      <div class="ctrl">
+        <button class="icon-btn" id="tlpReset" title="重置">⟲</button>
+        <button class="icon-btn" id="tlpStep" title="单步">⏭ 单步</button>
+        <button class="icon-btn play on" id="tlpPlay" title="播放/暂停">❚❚</button>
+      </div>
+    </div>
+    <div class="lab-body">
+      <div class="tlp-stage">
+        <div class="tlp-ents">
+          <div class="tlp-node rc"><div class="nm">RC</div><div class="sb">Root Complex · 00:1c.0</div></div>
+          <div class="tlp-track" id="tlpTrack"><div class="rail" id="tlpRail"></div></div>
+          <div class="tlp-node ep"><div class="nm">EP</div><div class="sb">NVMe · 03:00.0</div></div>
+        </div>
+        <div class="tlp-strips" id="tlpStrips"></div>
+      </div>
+      <div class="readout">
+        <div class="r-title">DECODE · 实时解读</div>
+        <div class="r-row"><span class="k">事务类型</span><span class="v g" id="tType">MRd · Non-Posted</span></div>
+        <div class="r-row"><span class="k">当前字段</span><span class="v" id="tField">—</span></div>
+        <div class="r-row"><span class="k">所属层</span><span class="v a" id="tLayer">—</span></div>
+        <div class="r-row"><span class="k">字段位宽</span><span class="v" id="tBits">—</span></div>
+        <div class="r-row"><span class="k">方向</span><span class="v c" id="tDir">—</span></div>
+        <div class="r-row"><span class="k">进度</span><span class="v" id="tStep">0 / 0</span></div>
+        <div class="r-desc" id="tDesc">按 ▶ 开始播放，或用「单步」逐字段观察每个包头字段的职责。</div>
+      </div>
+    </div>
+    <div class="lab-foot">
+      <span><b style="color:var(--green)">■</b> 事务层字段</span>
+      <span><b style="color:var(--amber)">■</b> 数据链路层（SEQ/LCRC/ACK）</span>
+      <span><b style="color:var(--cyan)">■</b> 物理层令牌</span>
+      <span><b style="color:var(--violet)">■</b> 数据载荷</span>
+      <span><b style="color:var(--red)">■</b> ECRC 端到端</span>
+      <span>3DW 头 = 12 字节 · 4DW 头用于 64-bit 地址/配置空间</span>
+    </div>
+  </div>
+  <div class="rule-callout reveal">
+    <div class="mnemonic">读要回票 · 写不回头<small>NON-POSTED vs POSTED</small></div>
+    <p>
+      <b>Non-Posted</b>（MRd/配置读）：请求必有 <b>CplD 完成包</b>，靠 Tag 配对——发出去的每个读都能对上账。
+      <b>Posted</b>（MWr/消息）：发完即走、不等回包——写吞吐因此极高，代价是「已发送」不等于「已到达」，
+      落盘前还得靠屏障（Fence/读回）保证顺序。
+    </p>
+  </div>
+</section>
+
+<!-- ================= §04 LTSSM ================= -->
+<section id="s4">
+  <div class="sec-head reveal"><span class="no">04</span><h2>LTSSM 链路训练动画 · 从 Detect 到 L0</h2><span class="en">Link Training Lab</span></div>
+  <p class="sec-sub reveal">
+    每次上电、复位、<b>热插拔</b>，链路都要从零开始训练：<b>Detect</b> 找到对端 → <b>Polling</b> 交换 TS1/TS2 锁定比特 →
+    <b>Configuration</b> 给 lane 编号、协商宽度 → <b>L0</b> 开门营业。单步走一遍，这是本页的灵魂实验。
+  </p>
+  <div class="lab reveal">
+    <div class="lab-bar">
+      <div class="ctrl">
+        <button class="icon-btn" id="ltPrev" title="上一步">⏮ 上一步</button>
+        <button class="icon-btn" id="ltNext" title="下一步">下一步 ⏭</button>
+        <button class="icon-btn play" id="ltPlay" title="自动播放">▶ 自动</button>
+      </div>
+      <div class="ctrl"><button class="icon-btn" id="ltHot" title="模拟热插拔">⚡ 热插拔</button></div>
+      <div class="ctrl"><button class="icon-btn" id="ltReset" title="重置">⟲</button></div>
+      <div class="ctrl"><label>速度</label><input type="range" id="ltSpd" min="4" max="30" value="12"></div>
+    </div>
+    <div class="lab-body">
+      <div class="lt-left" id="ltSvgWrap"></div>
+      <div class="readout">
+        <div class="r-title">LINK · 链路状态</div>
+        <div class="r-row"><span class="k">LTSSM 状态</span><span class="v g" id="ltStateR">Detect</span></div>
+        <div class="r-row"><span class="k">当前速率</span><span class="v a" id="ltSpeedR">—</span></div>
+        <div class="r-row"><span class="k">协商宽度</span><span class="v c" id="ltWidthR">—</span></div>
+        <div class="r-row"><span class="k">链路</span><span class="v" id="ltUpR">未建立</span></div>
+        <div class="r-row"><span class="k">步骤</span><span class="v" id="ltStepN">1 / 12</span></div>
+        <div class="r-desc" id="ltTxt">按「下一步」开始训练。</div>
+        <div class="lt-log" id="ltLog"></div>
+      </div>
+    </div>
+    <div class="lane-view" id="ltLanes"></div>
+    <div class="lab-foot">
+      <span><b style="color:var(--amber)">TS1/TS2</b> 训练有序集（物理层专用包）</span>
+      <span><b style="color:var(--green)">TLP/DLLP</b> 业务流量</span>
+      <span>上排 = RC→EP 发送方向 · 下排 = EP→RC</span>
+      <span>真实链路永远从 Gen1 2.5GT/s 起步，训练成功后才升速</span>
+    </div>
+  </div>
+  <div class="asp-grid reveal">
+    <div class="fact"><div class="f-no">ASPM / L0s</div><h4>浅睡 · 亚微秒唤醒</h4><p>物理层待机：接收端收到若干 <b>FTS（快速训练序列）</b> 即恢复，无需完整重训练。省电有限、延迟几乎无感，空闲突发的场景首选。</p></div>
+    <div class="fact"><div class="f-no">ASPM / L1</div><h4>深睡 · 必须重训练</h4><p>链路层协商进入，唤醒要走 <b>Recovery 完整重训</b>（µs 级）。L1.1/L1.2 子状态再关 PLL 与收发器，唤醒到几十 µs——延迟敏感设备常直接禁用。</p></div>
+    <div class="fact"><div class="f-no">ASPM / 重训练抖动</div><h4>省电与延迟的交易</h4><p>频繁进出 L1 会让吞吐毛刺、音频爆音。Linux 用 <b>pcie_aspm.policy</b> 调节；怀疑它作祟时 <b>pcie_aspm=off</b> 一试便知（§09 踩坑 5）。</p></div>
+  </div>
+</section>
+
+<!-- ================= §05 流控 ================= -->
+<section id="s5">
+  <div class="sec-head reveal"><span class="no">05</span><h2>流量控制 · credit 记账</h2><span class="en">Credit-Based Flow Control</span></div>
+  <p class="sec-sub reveal">
+    为什么不能无限速发 TLP？因为<b>接收缓冲是有限的</b>。PCIe 不用握手线，而是「记账」：
+    接收方用 <b>InitFC/UpdateFC DLLP</b> 广播剩余额度（posted / non-posted / completion × 头 / 数据，共 6 本账），
+    发送方花完 credit 就停。切换两种模式，看无限速的下场。
+  </p>
+  <div class="lab reveal">
+    <div class="lab-bar">
+      <div class="ctrl"><label>模式</label>
+        <div class="seg" id="fcSeg">
+          <button data-fc="nofc">无流控 · 无限速发</button>
+          <button data-fc="credit" class="on">credit 流控</button>
+        </div>
+      </div>
+      <div class="ctrl"><label>速度</label><input type="range" id="fcSpd" min="4" max="24" value="10"></div>
+      <div class="ctrl">
+        <button class="icon-btn" id="fcReset" title="重置">⟲</button>
+        <button class="icon-btn play on" id="fcPlay" title="播放/暂停">❚❚</button>
+      </div>
+    </div>
+    <div class="fc-stage">
+      <div class="fc-node tx">
+        <div class="fc-title">RC · 发送端</div>
+        <div class="fc-cred">可用 credit<br><b id="fcCred">16</b> / 16<small style="color:var(--faint)">（1 TLP = 5 credit）</small></div>
+        <div class="fc-hold" id="fcHold">停发：credit 不足，等 UpdateFC…</div>
+      </div>
+      <div class="fc-link">
+        <div class="fc-track" id="fcTrack"></div>
+        <div class="fc-linklbl">PCIe LINK</div>
+      </div>
+      <div class="fc-node rx">
+        <div class="fc-title">EP · 接收缓冲</div>
+        <div class="fc-buf" id="fcBuf"></div>
+        <div class="fc-note">驱动以固定速率取走数据<br>腾出的空间经 UpdateFC 归还</div>
+      </div>
+    </div>
+    <div class="lab-foot fc-metrics">
+      <div class="m"><span class="k">已发送 TLP</span><span class="v" id="fcSent">0</span></div>
+      <div class="m"><span class="k">送达并入缓冲</span><span class="v g" id="fcOk">0</span></div>
+      <div class="m"><span class="k">缓冲溢出丢弃</span><span class="v r" id="fcDrop">0</span></div>
+      <div class="m"><span class="k">有效率</span><span class="v" id="fcThr">—</span></div>
+      <div style="flex:1;min-width:220px;color:var(--dim);font-family:var(--sans);font-size:12.5px" id="fcMsg">credit 模式：发送前查账，花完即停——链路永不丢包。</div>
+    </div>
+  </div>
+  <div class="rule-callout reveal" style="margin-top:26px">
+    <div class="mnemonic">credit 花光就停<small>NO CREDIT, NO TLP</small></div>
+    <p>
+      溢出的 TLP 不会消失——它触发 <b>NAK 重传</b>，把带宽浪费在重发上，最坏情况接收方缓冲长期满、链路「假死」。
+      credit 机制让发送速率自动贴合消费速率：<b>流控是链路层的义务，不是可选项</b>。
+      这也是「MPS（Max Payload Size）调大为什么常能提速」的根源——单位 credit 摊到更多字节。
+    </p>
+  </div>
+</section>
+
+<!-- ================= §06 带宽 ================= -->
+<section id="s6">
+  <div class="sec-head reveal"><span class="no">06</span><h2>速率演进与带宽计算器</h2><span class="en">Generations &amp; Bandwidth</span></div>
+  <p class="sec-sub reveal">
+    每代 PCIe 只做两件事：<b>翻倍速率</b>、（偶尔）换更高效的编码。有效带宽 = <b>lane 数 × 速率 × 编码效率 ÷ 8</b>，
+    下面选一代、选宽度，和 SATA / USB / 以太网当场对比。
+  </p>
+  <div class="gen-tbl-wrap reveal svg-panel" style="margin-top:0">
+    <table class="gen-tbl">
+      <tr><th>代际</th><th>年份</th><th>速率 / lane</th><th>编码</th><th>每 lane 单向</th><th>x16 单向</th><th>关键变化</th></tr>
+      <tr><td>Gen1</td><td>2003</td><td>2.5 GT/s</td><td>8b/10b</td><td>250 MB/s</td><td>4.0 GB/s</td><td>起点：取代 PCI/PCI-X</td></tr>
+      <tr><td>Gen2</td><td>2007</td><td>5 GT/s</td><td>8b/10b</td><td>500 MB/s</td><td>8.0 GB/s</td><td>速率翻倍</td></tr>
+      <tr><td class="hl">Gen3</td><td>2010</td><td>8 GT/s</td><td class="hl">128b/130b + 扰码</td><td>985 MB/s</td><td>15.8 GB/s</td><td>弃 8b/10b，效率 80%→98.5%</td></tr>
+      <tr><td>Gen4</td><td>2017</td><td>16 GT/s</td><td>128b/130b</td><td>1.97 GB/s</td><td>31.5 GB/s</td><td>消费级 NVMe 主战场</td></tr>
+      <tr><td class="hl">Gen5</td><td>2019</td><td>32 GT/s</td><td>128b/130b</td><td>3.94 GB/s</td><td>63.0 GB/s</td><td>走线损耗逼近极限，重定时器登场</td></tr>
+      <tr><td>Gen6</td><td>2022</td><td>64 GT/s</td><td>PAM4 + FLIT + FEC</td><td>≈7.56 GB/s</td><td>≈121 GB/s</td><td>改用 PAM4 四电平调制</td></tr>
+      <tr><td>Gen7</td><td>2025</td><td>128 GT/s</td><td>PAM4</td><td colspan="3" style="color:var(--faint)">—— PAM4 一句话：每符号携带 2 bit，带宽再翻倍，代价是误码率上升，必须引入 FEC 前向纠错 ——</td></tr>
+    </table>
+  </div>
+  <div class="calc reveal" style="margin-top:26px">
+    <div class="inputs">
+      <h5>INPUT · 输入</h5>
+      <div class="field"><label>代际 Generation</label>
+        <select id="cGen">
+          <option value="1">Gen1 · 2.5 GT/s · 8b/10b</option>
+          <option value="2">Gen2 · 5 GT/s · 8b/10b</option>
+          <option value="3" selected>Gen3 · 8 GT/s · 128b/130b</option>
+          <option value="4">Gen4 · 16 GT/s</option>
+          <option value="5">Gen5 · 32 GT/s</option>
+          <option value="6">Gen6 · 64 GT/s · PAM4</option>
+        </select>
+      </div>
+      <div class="field"><label>链路宽度 Link Width</label>
+        <select id="cLanes">
+          <option value="1">x1 · 1 lane（网卡/AIOM）</option>
+          <option value="2">x2 · 2 lanes</option>
+          <option value="4" selected>x4 · 4 lanes（NVMe 主流）</option>
+          <option value="8">x8 · 8 lanes</option>
+          <option value="16">x16 · 16 lanes（GPU）</option>
+        </select>
+      </div>
+      <div class="field"><label class="check" style="font-size:11.5px;color:var(--dim)"><input type="checkbox" id="cDir"> 计入反向（双向合计，厂商最爱标的数）</label></div>
+    </div>
+    <div class="outputs">
+      <h5>OUTPUT · 输出</h5>
+      <div class="out-row big"><span class="ok">单向有效带宽<small>EFFECTIVE / DIRECTION</small></span><span class="ov" id="bwTotal">3.94<small>GB/s</small></span></div>
+      <div class="out-row"><span class="ok">每 lane 单向<small>PER LANE</small></span><span class="ov" id="bwLane">985<small>MB/s</small></span></div>
+      <div class="out-row"><span class="ok">编码效率 × 原始速率<small>ENCODING</small></span><span class="ov" id="bwRaw">98.5% × 8 GT/s</span></div>
+      <div class="out-row"><span class="ok">实际可达 ≈ 88%（TLP 开销）<small>REAL WORLD</small></span><span class="ov" id="bwReal">3.5<small>GB/s</small></span></div>
+    </div>
+    <div class="calc-formula" id="fExpr">有效带宽 = lane 数 × GT/s × 编码效率 ÷ 8 = 4 × 8 × 98.5% ÷ 8 = 3.94 GB/s</div>
+  </div>
+  <div class="bw-bars reveal">
+    <h5>COMPARE · 你的链路 vs 邻居们（单向 MB/s）</h5>
+    <div id="bwBars"></div>
+  </div>
+</section>
+
+<!-- ================= §07 枚举 ================= -->
+<section id="s7">
+  <div class="sec-head reveal"><span class="no">07</span><h2>枚举 · 总线/设备/功能与 BAR 空间</h2><span class="en">Enumeration &amp; BAR</span></div>
+  <p class="sec-sub reveal">
+    链路训练好只是「通了电」；固件还要<b>枚举</b>：从总线 0 出发深度优先扫描，读每个位置的 Vendor ID，
+    遇到桥就给它分配下级总线号；再用 <b>BAR 探测尺寸</b>，把每块设备的寄存器/FIFO 映射进统一内存地图。
+    <b>点击左侧树里的设备</b>，右侧看它的配置头与 BAR 落位。
+  </p>
+  <div class="enum-grid reveal">
+    <div class="enum-tree" id="enumTree"></div>
+    <div class="enum-side">
+      <div class="enum-info" id="enumInfo"></div>
+      <div class="enum-map" id="enumMap"></div>
+    </div>
+  </div>
+  <div class="sizing-strip reveal">
+    <div class="sz"><b>① 写全 1</b><br>向 BAR0 写 <i>0xFFFF_FFFF</i><br>（设备只保留地址高位）</div>
+    <div class="arw">→</div>
+    <div class="sz"><b>② 读回掩码</b><br>读回 <i>0xFFFF_C000</i><br>低 14 位被硬件拉成 0</div>
+    <div class="arw">→</div>
+    <div class="sz"><b>③ 得出尺寸</b><br>补 1 再 +1：<i>2¹⁴ = 16 KB</i><br>再由固件写入基址完成映射</div>
+  </div>
+  <div class="rule-callout reveal" style="margin-top:26px">
+    <div class="mnemonic">B : D . F<small>BUS / DEVICE / FUNCTION</small></div>
+    <p>
+      三级寻址：<b>8 bit 总线（256 条）× 5 bit 设备（每总线 32 个）× 3 bit 功能（每设备 8 个）</b>。
+      独立显卡是 <b>01:00.0</b>，NVMe 可能是 <b>03:00.0</b>——这就是 <a href="#s8">lspci</a> 输出里冒号串的含义。
+      桥的 secondary/subordinate 总线号把树延展开来；现代系统用 <b>ECAM</b>（MMCFG）把 4 KB 配置空间直接映射进内存，
+      地址 = 总线&lt;&lt;20 | 设备&lt;&lt;15 | 功能&lt;&lt;12。
+    </p>
+  </div>
+</section>
+
+<!-- ================= §08 Linux ================= -->
+<section id="s8">
+  <div class="sec-head reveal"><span class="no">08</span><h2>Linux 实战 · lspci / setpci</h2><span class="en">Linux Cheat Sheet</span></div>
+  <p class="sec-sub reveal">
+    PCIe 在 Linux 里是 <b>pci 总线 + ECAM</b>。排查链路问题三板斧：<b>lspci -t</b> 看拓扑、
+    <b>lspci -vv</b> 看 LnkCap/LnkSta 协商结果、<b>setpci</b> 直读配置寄存器。<b>点击任意命令行即可复制。</b>
+  </p>
+  <div class="term-grid">
+    <div class="term reveal">
+      <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span>lspci — 拓扑与设备</span></div>
+      <div class="term-body">
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="lspci | grep -iE 'nvme|vga|ethernet'">lspci | grep -iE 'nvme|vga|ethernet'</code></div>
+        <div class="t-out">00:01.0 <span class="t-hl">VGA compatible controller</span>: NVIDIA GA106 [GeForce RTX 3060]</div>
+        <div class="t-out">03:00.0 <span class="t-hl">Non-Volatile memory controller</span>: Samsung NVMe SSD Controller 980</div>
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="lspci -t">lspci -t</code><span class="t-cmt">            # 总线树：谁挂在哪个桥下</span></div>
+        <div class="t-out">-[0000:00]-+-00.0 Host Bridge</div>
+        <div class="t-out">           +-01.0-[01]--00.0 NVIDIA RTX 3060</div>
+        <div class="t-out">           \-1c.0-[02]-+-00.0-[03]--+-00.0 Samsung 980</div>
+        <div class="t-out">                        \-02.0     \-02.0 Intel I225-V</div>
+      </div>
+    </div>
+    <div class="term reveal">
+      <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span>sysfs — 链路状态节点</span></div>
+      <div class="term-body">
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="cat /sys/bus/pci/devices/0000:03:00.0/current_link_speed">cat .../0000:03:00.0/current_link_speed</code></div>
+        <div class="t-out"><span class="t-hl">8 GT/s</span></div>
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="cat /sys/bus/pci/devices/0000:03:00.0/current_link_width">cat .../0000:03:00.0/current_link_width</code></div>
+        <div class="t-out"><span class="t-hl">4</span>   <span class="t-cmt"># x4 · 与 max_link_* 对得上 = 协商正常</span></div>
+        <div class="t-cmt"># 热复位三连（设备假死时的无重启救援）：</div>
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="echo 1 > /sys/bus/pci/devices/0000:03:00.0/remove">echo 1 > .../0000:03:00.0/remove</code></div>
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="echo 1 > /sys/bus/pci/rescan">echo 1 > /sys/bus/pci/rescan</code></div>
+      </div>
+    </div>
+    <div class="term wide reveal">
+      <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span>lspci -vv — LnkCap/LnkSta 判决书</span></div>
+      <div class="term-body">
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="lspci -vv -s 03:00.0 | grep -E 'LnkCap|LnkSta|DevCap'">lspci -vv -s 03:00.0 | grep -E 'LnkCap|LnkSta|DevCap'</code></div>
+        <div class="t-out">        DevCap: Max Payload <span class="t-hl">256 bytes</span>, Phantoms 0, ExtTag- …</div>
+        <div class="t-out">        LnkCap: Port #0, Speed <span class="t-hl">8GT/s</span>, Width <span class="t-hl">x4</span>, ASPM L1, Exit Latency L1 &lt;64us</div>
+        <div class="t-out">        LnkCtl: ASPM L1 Enabled; Speed 8GT/s, Width x4</div>
+        <div class="t-out">        LnkSta: Speed <span class="t-hl">8GT/s (ok)</span>, Width <span class="t-hl">x4 (ok)</span>   <span class="t-cmt"># ← 健康：能力=现状</span></div>
+        <div class="t-cmt"># ↓ 同一台机器上的故障卡（x16 槽只跑 x1 · 回落到 Gen1）：</div>
+        <div class="t-out">        LnkCap: Port #0, Speed 8GT/s, Width x16</div>
+        <div class="t-out">        LnkSta: Speed <span class="t-hl">2.5GT/s (downgraded)</span>, Width <span class="t-hl">x1 (downgraded)</span></div>
+        <div class="t-cmt"># (downgraded) = 训练没谈成：能力是上限，LnkSta 才是实况 —— 见 §09 踩坑 1/2</div>
+      </div>
+    </div>
+    <div class="term reveal">
+      <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span>setpci — 直读配置寄存器</span></div>
+      <div class="term-body">
+        <div class="t-cmt"># PCIe 能力块里的 LnkSta（偏移 CAP_EXP+0x12，16bit）</div>
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="sudo setpci -s 03:00.0 CAP_EXP+12.W">sudo setpci -s 03:00.0 CAP_EXP+12.W</code></div>
+        <div class="t-out"><span class="t-hl">0043</span>   <span class="t-cmt"># = Gen3 · x4 —— 用下方解码器拆它</span></div>
+        <div class="t-cmt"># LnkCtl 低 2 位 = ASPM：00 关 / 01 L0s / 10 L1 / 11 L0s+L1</div>
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="sudo setpci -s 03:00.0 CAP_EXP+10.W">sudo setpci -s 03:00.0 CAP_EXP+10.W</code></div>
+        <div class="t-out">0002   <span class="t-cmt"># L1 已启用（写回要三思！）</span></div>
+      </div>
+    </div>
+    <div class="term reveal">
+      <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span>dmesg — 内核眼中的链路</span></div>
+      <div class="term-body">
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="dmesg | grep -iE 'pcie|aer|aspm' | tail -6">dmesg | grep -iE 'pcie|aer|aspm' | tail -6</code></div>
+        <div class="t-out">pcieport 0000:00:1c.0: <span class="t-hl">ASPM</span>: could not configure common clock</div>
+        <div class="t-out">nvme nvme0: pci function 0000:03:00.0: <span class="t-hl">8 GT/s</span>, x4</div>
+        <div class="t-out">pcieport 0000:03:00.0: PCIe Bus Error: severity=<span class="t-hl">Corrected</span>, type=…</div>
+        <div class="t-cmt"># Corrected 偶发＝硬件已自愈，无害；Uncorrected 刷屏＝信号完整性（§09 踩坑 3）</div>
+        <div class="t-cmt"># 验证 ASPM 抖动嫌疑：内核参数 pcie_aspm=off 后复测</div>
+      </div>
+    </div>
+  </div>
+  <div class="decoder reveal">
+    <h5>LnkSta 解码器 · 16 bit 拆开看</h5>
+    <div class="dc-sub">bit[3:0]=Current Link Speed · bit[9:4]=协商宽度 · bit[11]=训练中 · bit[12]=插槽时钟</div>
+    <div class="dc-row">
+      <input type="text" id="lnkIn" value="0043" maxlength="4" spellcheck="false" aria-label="LnkSta 十六进制值">
+      <button class="dc-pre on" data-v="0043">0x0043</button>
+      <button class="dc-pre" data-v="0103">0x0103</button>
+      <button class="dc-pre" data-v="0011">0x0011</button>
+      <button class="dc-pre" data-v="0025">0x0025</button>
+      <span style="font-family:var(--mono);font-size:10.5px;color:var(--faint)">（预设：健康 x4·Gen3 / 健康 x16·Gen3 / 降级 x1·Gen1 / x2·Gen5）</span>
+    </div>
+    <div class="dc-out" id="lnkOut"></div>
+  </div>
+  <div class="lnx-note reveal">
+    <b>两个高频动作：</b>① 性能异常先看 <code>LnkSta</code> 与 sysfs 的 <code>current_link_*</code> 是否等于能力值——
+    <code>(downgraded)</code> 就是铁证；② setpci <b>写</b>配置空间能直接改 ASPM/MPS，调错可能导致链路挂死，
+    生产系统优先用 <code>lspci -vv</code> 只读诊断与内核参数。
+  </div>
+</section>
+
+<!-- ================= §09 踩坑 ================= -->
+<section id="s9">
+  <div class="sec-head reveal"><span class="no">09</span><h2>对比与踩坑 · 症状 → 病因</h2><span class="en">Compare &amp; Troubleshooting</span></div>
+  <p class="sec-sub reveal">先把 PCIe 放回接口版图，再按症状对号入座——大部分「玄学」都能落到 LnkSta 或 LTSSM 上。</p>
+  <div class="gen-tbl-wrap reveal svg-panel" style="margin-top:0">
+    <table class="cmp-table">
+      <tr><th></th><th>PCIe</th><th>SATA</th><th>USB</th><th>以太网</th></tr>
+      <tr><td>定位</td><td>主机内部 fabric</td><td>存储接口</td><td>通用外设总线</td><td>网络</td></tr>
+      <tr><td>拓扑</td><td class="yes">点对点 + Switch</td><td>点对点（AHCI/1 盘 1 口）</td><td>集线器树（共享主机控制器）</td><td>交换机网络</td></tr>
+      <tr><td>常见单口带宽</td><td class="yes">0.25–63 GB/s（按代×宽）</td><td>0.6 GB/s（SATA III）</td><td>0.5–4 GB/s（USB3 家族）</td><td>0.125–>10 GB/s</td></tr>
+      <tr><td>协议复杂度</td><td>高（TLP/DLLP/LTSSM）</td><td>中</td><td>高（但驱动栈全托管）</td><td>中（MAC+PHY 分层）</td></tr>
+      <tr><td>热插拔</td><td class="yes">支持（需平台配合）</td><td class="no">基本不支持</td><td class="yes">原生核心特性</td><td class="yes">支持</td></tr>
+      <tr><td>延迟</td><td class="yes">sub-µs 级</td><td>数十 µs 级</td><td>µs 级</td><td>µs–ms 级</td></tr>
+      <tr><td>传输距离</td><td>主板尺径（含线缆 CXL/OCuLink）</td><td>1 m 内</td><td>数 m</td><td>100 m（铜）</td></tr>
+    </table>
+  </div>
+  <div class="pit-list reveal">
+    <div class="pit"><div class="symptom">x16 槽<br>只跑 x1</div><div class="fix"><b>lane 协商失败 · LnkSta: Width x1 (downgraded)</b><p>训练时部分 lane 没通过 Detect/Polling，链路降级到最小可用集。查：金手指氧化/没插到底、延长线/竖装转接卡压信号、BIOS 里插槽宽度被限。对照 <code>LnkCap x16</code> vs <code>LnkSta x1</code> 即可确诊。</p></div></div>
+    <div class="pit"><div class="symptom">降速<br>2.5GT/s</div><div class="fix"><b>速率训练失败回落 Gen1 · LnkSta: 2.5GT/s (downgraded)</b><p>Gen4/5 对走线极苛刻：损耗超标就只能回 Gen1 保命。清理接插件、换短 riser、BIOS 手动限 Gen3 试探——若 Gen3 稳定则是信号余量不足，不是设备坏了。</p></div></div>
+    <div class="pit"><div class="symptom">随机<br>掉盘</div><div class="fix"><b>信号完整性 · AER Uncorrected 刷屏</b><p><code>dmesg</code> 出现 Uncorrected/Internal Error 且伴随设备消失：Gen4+ 长走线缺重定时器（retimer）、主板供电纹波、散热极限导致的眼图塌陷。降一代速率复测是第一诊断步。</p></div></div>
+    <div class="pit"><div class="symptom">双 M.2<br>只见一个</div><div class="fix"><b>bifurcation 未配置</b><p>一块 x16 拆成 x8+x8（或 x4×4）需要 CPU/主板支持且 <b>BIOS 开启 PCIex16 Bifurcation</b>；用转接卡却没开，第二块盘完全不可见（枚举不到，不是慢）。服务器主板常默认关闭。</p></div></div>
+    <div class="pit"><div class="symptom">延迟<br>抖动</div><div class="fix"><b>ASPM L1 进出 / 重训练抖动</b><p>链路频繁 L1→Recovery→L0：吞吐毛刺、音频爆音、NVMe QoS 波动。先用 <code>pcie_aspm=off</code> 验证；坐实后按设备粒度关（<code>setpci</code> 清 LnkCtl[1:0]）或选 performance 策略。</p></div></div>
+    <div class="pit"><div class="symptom">睡眠<br>唤醒失联</div><div class="fix"><b>唤醒后链路没重训成功</b><p>resume 时 PERST#/REFCLK 时序不满足，LTSSM 卡在 Detect/Recovery。看 <code>dmesg</code> 里 <code>link is not trained</code> 类日志；remove+rescan 可救急，根治要更新固件/调整电源时序。</p></div></div>
+    <div class="pit"><div class="symptom">多卡<br>枚举不全</div><div class="fix"><b>BAR 空间不够 / Above 4G 未开</b><p>多张显卡+采集卡把 32-bit MMIO 挤爆，多余 BAR 分配失败被禁用。BIOS 打开 <code>Above 4G Decoding</code>，让 64-bit BAR 搬到高位地址（§07 的 GPU 8GB BAR 就是这么放的）。</p></div></div>
+  </div>
+</section>
+
+<!-- ================= §10 速查 ================= -->
+<section id="s10">
+  <div class="sec-head reveal"><span class="no">10</span><h2>速查表 &amp; 术语表</h2><span class="en">Cheat Sheet</span></div>
+  <div class="notation reveal">
+    <div class="n-item"><div class="nv">4 根线</div><small>1 lane = TX± + RX±（双单工）</small></div>
+    <div class="n-item"><div class="nv a">250 MB/s</div><small>Gen1 每 lane 单向基准</small></div>
+    <div class="n-item"><div class="nv c">3DW / 4DW</div><small>TLP 头长度（12 / 16 字节）</small></div>
+    <div class="n-item"><div class="nv v">B:D.F</div><small>256 总线 × 32 设备 × 8 功能</small></div>
+  </div>
+  <div class="cheat-grid reveal">
+    <div>
+      <h5 style="font-family:var(--disp);font-size:15px;font-weight:600;margin-bottom:12px">七条铁律</h5>
+      <ul class="rules">
+        <li><span class="no">1</span><span><b>每次复位/插拔都从 Detect 重训</b>——链路没有"记忆"，PERST# 之后一切重来</span></li>
+        <li><span class="no">2</span><span><b>协商结果 = 两端能力取小</b>（速率与宽度都是），LnkSta 是唯一判决书</span></li>
+        <li><span class="no">3</span><span><b>训练永远先以 Gen1 起步</b>，成功后才经 Recovery 升到目标代数</span></li>
+        <li><span class="no">4</span><span><b>读要回票（Non-Posted + CplD），写不回头（Posted）</b>——性能与语义的关键分叉</span></li>
+        <li><span class="no">5</span><span><b>credit 花光就停发</b>——流控是链路层义务；MPS 越大单位信用摊得越薄</span></li>
+        <li><span class="no">6</span><span><b>LCRC 管一段链路，ECRC 管端到端</b>——穿过 Switch 时会被重新封装</span></li>
+        <li><span class="no">7</span><span><b>带宽 = lanes × GT/s × 编码效率 ÷ 8</b>——先算理论值再谈优化</span></li>
+      </ul>
+    </div>
+    <div>
+      <h5 style="font-family:var(--disp);font-size:15px;font-weight:600;margin-bottom:12px">命令速查</h5>
+      <table class="bar-tbl">
+        <tr><th>用途</th><th>命令</th></tr>
+        <tr><td>拓扑树</td><td>lspci -t</td></tr>
+        <tr><td>链路协商详情</td><td>lspci -vv -s &lt;BDF&gt; | grep Lnk</td></tr>
+        <tr><td>当前速率/宽度</td><td>cat …/current_link_{speed,width}</td></tr>
+        <tr><td>读 LnkSta</td><td>setpci -s &lt;BDF&gt; CAP_EXP+12.W</td></tr>
+        <tr><td>ASPM 控制</td><td>setpci -s &lt;BDF&gt; CAP_EXP+10.W</td></tr>
+        <tr><td>热复位救援</td><td>echo 1 &gt; …/remove; echo 1 &gt; …/rescan</td></tr>
+        <tr><td>关 ASPM 验证</td><td>内核参数 pcie_aspm=off</td></tr>
+        <tr><td>链路错误</td><td>dmesg | grep -iE 'aer|pcie'</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="svg-panel reveal" style="margin-top:20px">
+    <h5 style="font-family:var(--disp);font-size:15px;font-weight:600;margin-bottom:4px">术语表</h5>
+    <dl class="gloss">
+      <dt>TLP</dt><dd>Transaction Layer Packet，事务层包：头 + 可选数据 + 可选 ECRC，软件世界的"业务报文"</dd>
+      <dt>DLLP</dt><dd>Data Link Layer Packet，链路层包：ACK/NAK/流控（FC）等内部管理帧，不进事务层</dd>
+      <dt>LTSSM</dt><dd>Link Training and Status State Machine，链路训练状态机：Detect→Polling→Config→L0 及低功耗支线</dd>
+      <dt>TS1 / TS2</dt><dd>Training Set，训练有序集：携带链路/lane 号、速率能力、均衡请求，Polling/Configuration 阶段的"对话用语"</dd>
+      <dt>ASPM</dt><dd>Active State Power Management，链路动态电源管理：L0s 浅睡与 L1 深睡</dd>
+      <dt>BAR</dt><dd>Base Address Register：设备声明"我要多大、什么类型"的地址窗口，枚举时被写上基址</dd>
+      <dt>ECAM</dt><dd>Enhanced Configuration Access Mechanism：把配置空间映射进 MMIO 的现代访问方式（总线&lt;20|设备&lt;15|功能&lt;12）</dd>
+      <dt>MPS / MRRS</dt><dd>Max Payload Size / Max Read Request Size：单包载荷上限与单读请求上限，可调的吞吐旋钮</dd>
+      <dt>TC / VC</dt><dd>Traffic Class / Virtual Channel：给 TLP 分服务等级的机制（音视频 vs 批量）</dd>
+      <dt>Bifurcation</dt><dd>把一条 x16 物理链路拆成 x8+x8 / x4×4 供多设备使用，需芯片组与 BIOS 支持</dd>
+    </dl>
+  </div>
+</section>
+
+<footer>
+  <div class="f-l">
+    <b>HW-PROTOCOLS · MAINTAINED WITH ♥ FOR EMBEDDED ENGINEERS</b><br>
+    参考 · PCI-SIG《PCI Express Base Specification》 · MindShare《PCI Express System Architecture》 · Linux 内核 Documentation/PCI ·<br>
+    本页为单文件交互式图解，可离线打开 · 所有动画由浏览器实时渲染
+  </div>
+  <div class="f-r">PCIE·LAB</div>
+</footer>
+</main>
+
+<script>
+(function(){
+"use strict";
+/* ================================================================
+   PCIE·LAB 交互引擎 —— 纯 vanilla JS，全部内联。
+   模块：hero 数据包 / §01 插槽图 / §02 分层图 / §03 TLP 字段动画 /
+   §04 LTSSM 状态机+lane 视图 / §05 credit 流控 / §06 带宽计算器 /
+   §07 枚举树+BAR 地图 / §08 LnkSta 解码器 / 复制 / reveal
+================================================================ */
+const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
+const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const COL={green:'#34e08a',amber:'#ffb02e',cyan:'#57d8f2',red:'#ff6478',violet:'#c792ea',
+           ink:'#dcebe1',dim:'#8aa294',faint:'#5c7264'};
+
+/* ---------- 全局动画注册表：单 rAF 驱动所有实验室 ---------- */
+const anims=[];
+let lastT=performance.now();
+function loop(now){
+  const dt=Math.min((now-lastT)/1000,.05); lastT=now;
+  for(const a of anims){ try{ a(dt); }catch(e){ if(!a.__e){ a.__e=1; console.error(e); } } }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+/* ============ Hero：沿拓扑路径流动的数据包 ============ */
+(function heroPackets(){
+  const NS='http://www.w3.org/2000/svg', XL='http://www.w3.org/1999/xlink';
+  const CCOL={g:'#34e08a',c:'#57d8f2',a:'#ffb02e',v:'#c792ea'};
+  function mk(parentId,pathId,items){
+    const g=document.getElementById(parentId); if(!g) return;
+    items.forEach(it=>{
+      const grp=document.createElementNS(NS,'g');
+      grp.setAttribute('class','pkt');
+      const r=document.createElementNS(NS,'rect');
+      r.setAttribute('x','-16');r.setAttribute('y','-10');
+      r.setAttribute('width','32');r.setAttribute('height','20');r.setAttribute('rx','4');
+      r.setAttribute('fill','rgba(7,11,9,.9)');
+      r.setAttribute('stroke',CCOL[it.c]);r.setAttribute('stroke-width','1.4');
+      const t=document.createElementNS(NS,'text');
+      t.setAttribute('text-anchor','middle');t.setAttribute('y','4');
+      t.setAttribute('font-family','IBM Plex Mono,monospace');t.setAttribute('font-size','10');
+      t.setAttribute('fill',CCOL[it.c]); t.textContent=it.t;
+      const mo=document.createElementNS(NS,'animateMotion');
+      mo.setAttribute('dur',it.dur+'s');mo.setAttribute('begin',it.beg+'s');
+      mo.setAttribute('repeatCount','indefinite');
+      const mp=document.createElementNS(NS,'mpath');
+      mp.setAttribute('href','#'+pathId);
+      mp.setAttributeNS(XL,'xlink:href','#'+pathId);
+      mo.appendChild(mp);
+      const op=document.createElementNS(NS,'animate');
+      op.setAttribute('attributeName','opacity');
+      op.setAttribute('values','0;1;1;0');op.setAttribute('keyTimes','0;.05;.92;1');
+      op.setAttribute('dur',it.dur+'s');op.setAttribute('begin',it.beg+'s');
+      op.setAttribute('repeatCount','indefinite');
+      grp.appendChild(r);grp.appendChild(t);grp.appendChild(mo);grp.appendChild(op);
+      g.appendChild(grp);
+    });
+  }
+  mk('pk-gpu','hp-gpu',[{t:'MRd',c:'g',dur:5.4,beg:0},{t:'TLP',c:'g',dur:5.4,beg:2.7}]);
+  mk('pk-gpur','hp-gpur',[{t:'CplD',c:'c',dur:5.4,beg:1.6},{t:'CplD',c:'c',dur:5.4,beg:4.3}]);
+  mk('pk-sw','hp-sw',[{t:'MRd',c:'g',dur:4.6,beg:.5},{t:'MWr',c:'v',dur:4.6,beg:2.9}]);
+  mk('pk-swr','hp-swr',[{t:'CplD',c:'c',dur:4.6,beg:2.1}]);
+  mk('pk-nv','hp-nv',[{t:'TLP',c:'g',dur:3.2,beg:.2},{t:'TLP',c:'g',dur:3.2,beg:1.7}]);
+  mk('pk-nvr','hp-nvr',[{t:'DLLP',c:'a',dur:3.2,beg:1}]);
+  mk('pk-nic','hp-nic',[{t:'TLP',c:'g',dur:4,beg:.8}]);
+  mk('pk-nicr','hp-nicr',[{t:'CplD',c:'c',dur:4,beg:2.4}]);
+})();
+
+/* ============ §01 插槽拓扑图（静态 SVG 生成） ============ */
+(function slots(){
+  const rows=[
+    ['x1', 140, '18 pin · 1 lane · Gen1 = 250 MB/s','网卡 / 声卡 / WiFi'],
+    ['x4', 250, '32 pin · 4 lane · Gen3 ≈ 3.9 GB/s','NVMe SSD（主流）'],
+    ['x8', 380, '49 pin · 8 lane','HBA / 万兆网卡'],
+    ['x16',600, '82 pin · 16 lane · Gen3 ≈ 15.8 GB/s','GPU / 采集卡'],
+  ];
+  let svg=`<svg viewBox="0 0 960 300" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono,monospace">
+  <text x="14" y="26" fill="rgba(140,162,148,.8)" font-size="11">▲ 插槽正面宽度 ∝ lane 数 —— 同一协议，按带宽需求伸缩</text>`;
+  rows.forEach((r,i)=>{
+    const y=52+i*56;
+    svg+=`<g>
+      <rect x="64" y="${y}" width="${r[1]}" height="26" rx="3" fill="rgba(52,224,138,.07)" stroke="rgba(52,224,138,.45)"/>
+      <rect x="64" y="${y+26}" width="${r[1]}" height="7" rx="2" fill="rgba(52,224,138,.04)" stroke="rgba(52,224,138,.25)"/>
+      ${Array.from({length:Math.round(r[1]/22)},(_,k)=>`<line x1="${78+k*22}" y1="${y+3}" x2="${78+k*22}" y2="${y+23}" stroke="rgba(52,224,138,.3)" stroke-width="1.4"/>`).join('')}
+      <text x="64" y="${y-8}" fill="#34e08a" font-size="14" font-weight="600">${r[0]}</text>
+      <text x="${64+r[1]+14}" y="${y+11}" fill="#dcebe1" font-size="10.5">${r[2]}</text>
+      <text x="${64+r[1]+14}" y="${y+26}" fill="rgba(140,162,148,.75)" font-size="9.5">${r[3]}</text>
+    </g>`;
+  });
+  svg+=`<text x="64" y="290" fill="rgba(255,176,46,.8)" font-size="10.5">短板卡可插长槽（末端开放）；x16 卡插 x1 槽则只有 1 条 lane 可用 —— 速率由双方 lane 与代数共同协商</text>
+  </svg>`;
+  const box=$('#svgSlots'); if(box) box.innerHTML=svg+`<div class="cap">PCIe 插槽按 lane 数加长；缺口（key）防插错方向。GPU 的 x16 金手指插进 x8/x1 开口槽仍能工作，只是降宽。</div>`;
+})();
+
+/* ============ §02 分层封装图（静态 SVG 生成） ============ */
+(function layerSvg(){
+  const svg=`
+  <svg viewBox="0 0 640 430" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono,monospace">
+    <defs><marker id="arL" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="context-stroke"/></marker></defs>
+    <text x="16" y="24" fill="rgba(140,162,148,.8)" font-size="11">发送：层层加壳 ↓ · 接收：层层剥壳 ↑</text>
+    <!-- TX 栈 -->
+    ${[['事务层 TL · 造 TLP',36,'#34e08a'],['数据链路层 DLL · 保证可靠',106,'#ffb02e'],['物理层 PHY · 比特流',176,'#57d8f2']].map((L,i)=>`
+      <rect x="20" y="${L[1]}" width="170" height="52" rx="7" fill="rgba(16,26,19,.7)" stroke="${L[2]}" stroke-opacity=".55"/>
+      <text x="105" y="${L[1]+22}" text-anchor="middle" fill="${L[2]}" font-size="11" font-weight="600">${L[0].split(' · ')[0]}</text>
+      <text x="105" y="${L[1]+38}" text-anchor="middle" fill="rgba(140,162,148,.8)" font-size="9">${L[0].split(' · ')[1]}</text>
+      ${i<2?`<line x1="105" y1="${L[1]+52}" x2="105" y2="${L[1]+66}" stroke="rgba(220,235,225,.5)" stroke-width="1.5" marker-end="url(#arL)"/>`:''}
+    `).join('')}
+    <!-- RX 栈 -->
+    <rect x="450" y="176" width="170" height="52" rx="7" fill="rgba(16,26,19,.7)" stroke="rgba(87,216,242,.55)"/>
+    <text x="535" y="198" text-anchor="middle" fill="#57d8f2" font-size="11" font-weight="600">物理层 PHY</text>
+    <text x="535" y="214" text-anchor="middle" fill="rgba(140,162,148,.8)" font-size="9">解串 / 解码 / 校验</text>
+    <rect x="450" y="106" width="170" height="52" rx="7" fill="rgba(16,26,19,.7)" stroke="rgba(255,176,46,.55)"/>
+    <text x="535" y="128" text-anchor="middle" fill="#ffb02e" font-size="11" font-weight="600">数据链路层 DLL</text>
+    <text x="535" y="144" text-anchor="middle" fill="rgba(140,162,148,.8)" font-size="9">LCRC 校验 · 回 ACK/NAK</text>
+    <rect x="450" y="36" width="170" height="52" rx="7" fill="rgba(16,26,19,.7)" stroke="rgba(52,224,138,.55)"/>
+    <text x="535" y="58" text-anchor="middle" fill="#34e08a" font-size="11" font-weight="600">事务层 TL</text>
+    <text x="535" y="74" text-anchor="middle" fill="rgba(140,162,148,.8)" font-size="9">重组 TLP 上交软件</text>
+    <!-- 封装洋葱 -->
+    <rect x="228" y="268" width="392" height="120" rx="8" fill="rgba(87,216,242,.05)" stroke="rgba(87,216,242,.5)"/>
+    <text x="240" y="288" fill="#57d8f2" font-size="10">PHY 帧：STP … END · 8b/10b 或 128b/130b · 扰码</text>
+    <rect x="252" y="298" width="336" height="78" rx="7" fill="rgba(255,176,46,.06)" stroke="rgba(255,176,46,.55)"/>
+    <text x="264" y="316" fill="#ffb02e" font-size="10">DLL：SEQ + LCRC · 重传缓冲</text>
+    <rect x="276" y="326" width="264" height="42" rx="6" fill="rgba(52,224,138,.08)" stroke="rgba(52,224,138,.6)"/>
+    <text x="408" y="344" text-anchor="middle" fill="#34e08a" font-size="10.5" font-weight="600">TLP</text>
+    <text x="408" y="360" text-anchor="middle" fill="rgba(220,235,225,.85)" font-size="9">3DW/4DW 头 + 数据 + (ECRC)</text>
+    <line x1="228" y1="202" x2="300" y2="268" stroke="rgba(87,216,242,.35)" stroke-dasharray="4 4"/>
+    <line x1="190" y1="132" x2="270" y2="300" stroke="rgba(255,176,46,.3)" stroke-dasharray="4 4"/>
+    <line x1="190" y1="62"  x2="288" y2="336" stroke="rgba(52,224,138,.35)" stroke-dasharray="4 4"/>
+    <line x1="620" y1="202" x2="560" y2="268" stroke="rgba(87,216,242,.3)" stroke-dasharray="4 4"/>
+    <text x="16" y="418" fill="rgba(140,162,148,.55)" font-size="9.5">Gen3+：128b/130b 把编码开销压到 1.5%，再加 LFSR 扰码打散重复图案防 EMI</text>
+  </svg>`;
+  const box=$('#svgLayer'); if(box) box.innerHTML=svg+`<div class="cap">左：发送栈逐层加壳；中：一个完整 PHY 帧的洋葱结构；右：接收栈逐层剥壳。</div>`;
+})();
+
+/* ============ §03 TLP 字段动画 ============ */
+const TLP=(function(){
+  const F={ // 字段定义：[主标, 副标, 层类]
+    mr0:[['STP','起始令牌','phy'],['SEQ#5','DLL·序号','dll'],['DW0','Fmt·Type·TC·Len','tlp'],
+         ['DW1','地址 0xF000_1000','tlp'],['DW2','ReqID·Tag·BE','tlp'],
+         ['LCRC','DLL·32bit 校验','dll'],['END','结束令牌','phy']],
+    ack:[['ACK DLLP','确认 SEQ#5','dll'],['LCRC','DLLP 自带','dll']],
+    cpl:[['STP','起始令牌','phy'],['SEQ#12','DLL·序号','dll'],['DW0','Fmt010·Type01010','tlp'],
+         ['DW1','CplID·状态','tlp'],['DW2','ReqID·Tag17','tlp'],['DATA','4DW 读数','dat'],
+         ['ECRC','端到端·可选','e2e'],['LCRC','DLL·32bit 校验','dll'],['END','结束令牌','phy']],
+    mw0:[['STP','起始令牌','phy'],['SEQ#5','DLL·序号','dll'],['DW0','Fmt010·Type00000','tlp'],
+         ['DW1','地址 0xF000_2000','tlp'],['DW2','ReqID·Tag·BE','tlp'],['DATA','4DW 写入','dat'],
+         ['ECRC','端到端·可选','e2e'],['LCRC','DLL·32bit 校验','dll'],['END','结束令牌','phy']]
+  };
+  const MODE={
+    mr:{ type:'MRd · Non-Posted 读', posted:false,
+      strips:[
+        {h:'① MRd · Memory Read 请求', tag:'RC → EP', cls:'nonposted', flds:F.mr0},
+        {h:'② ACK DLLP', tag:'EP → RC', cls:'nonposted', flds:F.ack},
+        {h:'③ CplD · Completion with Data（16B 读数）', tag:'EP → RC', cls:'nonposted', flds:F.cpl},
+        {h:'④ ACK DLLP', tag:'RC → EP', cls:'nonposted', flds:F.ack}
+      ],
+      steps:[
+        {s:0,f:0,dir:1,cls:'c',n:'STP 起始令牌',bits:'1 符号',ly:'物理层',
+         d:'物理层给 TLP 戴上起始令牌 STP，宣告"一个包来了"。Gen1/2 是专用符号；Gen3+ 是 128b/130b 块首的 SDP。'},
+        {s:0,f:1,dir:1,cls:'a',n:'SEQ 序号 = 0x005',bits:'12 bit',ly:'数据链路层',
+         d:'DLL 给 TLP 编号并压入<b>重传缓冲区</b>——将来收到 NAK，靠这个序号原样重发。'},
+        {s:0,f:2,dir:1,cls:'g',n:'DW0 · Fmt/Type/TC/Length',bits:'32 bit',ly:'事务层',
+         d:'<b>Fmt=000、Type=00000</b>：3DW 头、无数据的 Memory Read；Length=4DW；TC=0 走默认通道。'},
+        {s:0,f:3,dir:1,cls:'g',n:'DW1 · 32-bit 目标地址',bits:'32 bit',ly:'事务层',
+         d:'地址 0xF000_1000（低 2 位保留）。64-bit 地址要用 4DW 头——这就是两种头长的由来。'},
+        {s:0,f:4,dir:1,cls:'g',n:'DW2 · Requester ID + Tag',bits:'32 bit',ly:'事务层',
+         d:'ReqID=00:1c.0，<b>Tag=0x17</b>：在途事务的"取餐号"。CplD 必须原样带回，RC 才能配对入账。'},
+        {s:0,f:5,dir:1,cls:'a',n:'LCRC',bits:'32 bit',ly:'数据链路层',
+         d:'链路 CRC 覆盖 SEQ+整个 TLP。校验失败回 NAK 重传——<b>PCIe 可靠性的根基</b>。'},
+        {s:0,f:6,dir:1,cls:'c',n:'END 结束令牌',bits:'1 符号',ly:'物理层',
+         d:'物理层封口。整包经 8b/10b（或 128b/130b）编码、扰码后串行发出。'},
+        {s:1,f:0,dir:-1,cls:'a',n:'ACK DLLP',bits:'8 字节',ly:'数据链路层',
+         d:'EP 校验通过回 ACK；RC 收到后<b>释放重传缓冲区</b>里的 SEQ#5。'},
+        {s:2,f:0,dir:-1,cls:'c',n:'STP（CplD）',bits:'1 符号',ly:'物理层',
+         d:'EP 的完成包出发——同样的封装流程，反方向再走一遍。'},
+        {s:2,f:1,dir:-1,cls:'a',n:'SEQ 序号（EP 侧计数）',bits:'12 bit',ly:'数据链路层',d:'EP 的 DLL 有自己独立的序号空间。'},
+        {s:2,f:2,dir:-1,cls:'g',n:'DW0 · Fmt=010 Type=01010',bits:'32 bit',ly:'事务层',
+         d:'带数据的完成包 <b>CplD</b>。Fmt 的"有无数据"位与 Type 区分四大类事务。'},
+        {s:2,f:3,dir:-1,cls:'g',n:'DW1 · Completer ID + 状态',bits:'32 bit',ly:'事务层',
+         d:'CplID=03:00.0；完成状态 000=SC 成功（UR/CA 则是错误完成）。'},
+        {s:2,f:4,dir:-1,cls:'g',n:'DW2 · 原样带回 Tag=0x17',bits:'32 bit',ly:'事务层',
+         d:'RC 用它在成百个在途事务中找到发起者——<b>请求与完成的配对凭证</b>。'},
+        {s:2,f:5,dir:-1,cls:'v',n:'DATA · 4DW 读数',bits:'128 bit',ly:'事务层载荷',
+         d:'16 字节一笔带回；超过 MPS 会被拆成多笔 CplD（字节计数器收尾）。'},
+        {s:2,f:6,dir:-1,cls:'r',n:'ECRC（可选）',bits:'32 bit',ly:'端到端',
+         d:'穿 Switch 时不被检查、只由最终端点校验——保护"两端之间"的完整性。'},
+        {s:2,f:7,dir:-1,cls:'a',n:'LCRC',bits:'32 bit',ly:'数据链路层',d:'EP 这一段链路的 CRC。'},
+        {s:2,f:8,dir:-1,cls:'c',n:'END',bits:'1 符号',ly:'物理层',d:'封口，完成包上线。'},
+        {s:3,f:0,dir:1,cls:'a',n:'ACK DLLP',bits:'8 字节',ly:'数据链路层',
+         d:'RC 回 ACK、数据上交内存——<b>一笔 Non-Posted 读事务闭环</b>。'}
+      ]},
+    mw:{ type:'MWr · Posted 写', posted:true,
+      strips:[
+        {h:'① MWr · Memory Write（带 16B 数据）', tag:'RC → EP', cls:'posted', flds:F.mw0},
+        {h:'② ACK DLLP', tag:'EP → RC', cls:'posted', flds:F.ack},
+        {h:'③ —— Posted 事务：没有完成包 ——', tag:'不发 CplD', cls:'posted', flds:[]},
+        {h:'', tag:'', cls:'', flds:[]}
+      ],
+      steps:[
+        {s:0,f:0,dir:1,cls:'c',n:'STP 起始令牌',bits:'1 符号',ly:'物理层',d:'写事务同样从 STP 开始。'},
+        {s:0,f:1,dir:1,cls:'a',n:'SEQ 序号 = 0x009',bits:'12 bit',ly:'数据链路层',d:'进重传缓冲区，等待 ACK。'},
+        {s:0,f:2,dir:1,cls:'g',n:'DW0 · Fmt=010 Type=00000',bits:'32 bit',ly:'事务层',
+         d:'<b>Fmt=010</b> 表示"3DW 头 + 带数据"——与 MRd 只差 Fmt 的一位。'},
+        {s:0,f:3,dir:1,cls:'g',n:'DW1 · 目标地址',bits:'32 bit',ly:'事务层',d:'写入 0xF000_2000。'},
+        {s:0,f:4,dir:1,cls:'g',n:'DW2 · Requester ID + Tag',bits:'32 bit',ly:'事务层',
+         d:'Posted 事务的 Tag 仅用于排序诊断——不会有完成包来引用它。'},
+        {s:0,f:5,dir:1,cls:'v',n:'DATA · 4DW 写入数据',bits:'128 bit',ly:'事务层载荷',
+         d:'单笔 TLP 数据 ≤ MPS（常见 128–256 字节）；大块 DMA 由 RC 自动切片。'},
+        {s:0,f:6,dir:1,cls:'r',n:'ECRC（可选）',bits:'32 bit',ly:'端到端',d:'端到端校验同样适用于写。'},
+        {s:0,f:7,dir:1,cls:'a',n:'LCRC',bits:'32 bit',ly:'数据链路层',d:'本段链路 CRC。'},
+        {s:0,f:8,dir:1,cls:'c',n:'END',bits:'1 符号',ly:'物理层',d:'封口发送。'},
+        {s:1,f:0,dir:-1,cls:'a',n:'ACK DLLP',bits:'8 字节',ly:'数据链路层',
+         d:'EP 回 ACK。注意：ACK 只表示"<b>链路收到了</b>"，不表示"设备已处理"。'},
+        {s:2,f:-1,note:true,n:'Posted：没有 CplD',bits:'—',ly:'协议语义',
+         d:'<b>写完即走</b>：RC 发出 MWr 后不等待任何完成包，立刻处理下一笔——写路径吞吐因此极高。'
+           +'代价是"已发送 ≠ 已落盘"，需要严格顺序时得靠读回或 Fence 消息兜底。'}
+      ]}
+  };
+  const S={mode:'mr',idx:0,prog:0,playing:!reduced,speed:7,chip:null,dwell:0,track:null};
+  const track=$('#tlpTrack');
+  function buildStrips(){
+    const m=MODE[S.mode], box=$('#tlpStrips');
+    box.innerHTML='';
+    m.strips.forEach(st=>{
+      if(!st.h) return;
+      const div=document.createElement('div');
+      div.className='tlp-strip';
+      const tag=st.tag?`<span class="tag ${st.cls}">${st.tag}</span>`:'';
+      div.innerHTML=`<div class="s-h">${st.h}${tag}</div><div class="tlp-fields"></div>`;
+      const fw=div.querySelector('.tlp-fields');
+      st.flds.forEach((f,i)=>{
+        const sp=document.createElement('span');
+        sp.className='fld f-'+f[2]; sp.dataset.si=i;
+        sp.innerHTML=`${f[0]}<small>${f[1]}</small>`;
+        fw.appendChild(sp);
+      });
+      box.appendChild(div);
+    });
+  }
+  function markFields(){
+    const m=MODE[S.mode];
+    $$('#tlpStrips .tlp-strip').forEach((stripDiv,si)=>{
+      const st=m.strips.filter(x=>x.h)[si]; if(!st) return;
+      stripDiv.querySelectorAll('.fld').forEach((el,fi)=>{
+        el.classList.toggle('in', S.idx>0 && stepIdxBefore(S.idx,si,fi));
+        el.classList.toggle('cur', false);
+      });
+    });
+    // 当前字段高亮
+    const cur=m.steps[S.idx-1]||m.steps[0];
+    if(S.idx>0 && cur && !cur.note){
+      const strips=$$('#tlpStrips .tlp-strip');
+      const visIdx=m.strips.map((x,i)=>x.h?i:-1).filter(i=>i>=0).indexOf(cur.s);
+      const sd=strips[visIdx];
+      if(sd){ const el=sd.querySelectorAll('.fld')[cur.f]; if(el) el.classList.add('cur'); }
+    }
+  }
+  function stepIdxBefore(idx,si,fi){ // 步骤 0..idx-1 中，(si,fi) 是否已完成
+    const m=MODE[S.mode];
+    for(let k=0;k<idx;k++){ const st=m.steps[k]; if(!st.note && st.s===si && st.f<=fi) return true; }
+    return false;
+  }
+  function stripVisIndex(si){ // 字段条在 DOM 中的可见序号
+    const m=MODE[S.mode];
+    return m.strips.map((x,i)=>x.h?i:-1).filter(i=>i>=0).indexOf(si);
+  }
+  function readout(){
+    const m=MODE[S.mode], st=m.steps[S.idx];
+    $('#tType').textContent=m.type;
+    $('#tStep').textContent=(S.idx+1)+' / '+m.steps.length;
+    if(!st) return;
+    $('#tField').textContent=st.n;
+    $('#tLayer').textContent=st.ly||'—';
+    $('#tBits').textContent=st.bits||'—';
+    $('#tDir').textContent=st.note?'—':(st.dir>0?'RC → EP':'EP → RC');
+    $('#tDesc').innerHTML=st.d;
+  }
+  function clearChip(){ if(S.chip){ S.chip.remove(); S.chip=null; } }
+  function startStep(){
+    const m=MODE[S.mode], st=m.steps[S.idx];
+    if(!st){ // 播完：短暂停留后循环
+      S.dwell=1.6; return;
+    }
+    readout(); markFields();
+    clearChip();
+    if(st.note){ S.dwell=2.6; return; }
+    const chip=document.createElement('span');
+    chip.className='chip-fly '+st.cls;
+    chip.textContent=st.n.split('·')[0].trim();
+    track.appendChild(chip);
+    S.chip=chip; S.prog=0; S.dwell=0;
+    const rail=$('#tlpRail');
+    rail.className='rail'+(st.dir<0?' rev':'');
+  }
+  function finishStep(){
+    const m=MODE[S.mode], st=m.steps[S.idx];
+    if(st && !st.note){ // 字段点亮
+      const strips=$$('#tlpStrips .tlp-strip');
+      const sd=strips[stripVisIndex(st.s)];
+      if(sd){ const el=sd.querySelectorAll('.fld')[st.f]; if(el) el.classList.add('in'); }
+    }
+    clearChip();
+    S.dwell=.5;
+  }
+  function next(){ const m=MODE[S.mode]; S.idx=(S.idx+1)%m.steps.length; if(S.idx===0) buildStrips(); startStep(); markFields(); }
+  const tick=dt=>{
+    if(!S.playing) return;
+    const m=MODE[S.mode], st=m.steps[S.idx];
+    if(st.note||!S.chip){
+      S.dwell-=dt;
+      if(S.dwell<=0) next();
+      return;
+    }
+    S.prog+=dt*S.speed*.42;
+    const w=track.clientWidth||600, cw=S.chip.offsetWidth||60;
+    const x=st.dir>0? S.prog*(w-cw) : (1-S.prog)*(w-cw);
+    S.chip.style.left=Math.max(0,Math.min(w-cw,x))+'px';
+    if(S.prog>=1) finishStep();
+  };
+  anims.push(function(dt){ tick(dt); });
+  // 控件
+  function setPlay(p){
+    S.playing=p;
+    const b=$('#tlpPlay');
+    b.textContent=p?'❚❚':'▶';
+    b.classList.toggle('on',p);
+  }
+  if(reduced) setPlay(false);
+  $('#tlpPlay').addEventListener('click',()=>setPlay(!S.playing));
+  $('#tlpStep').addEventListener('click',()=>{ setPlay(false); next(); });
+  $('#tlpReset').addEventListener('click',()=>{ S.idx=0; buildStrips(); startStep(); markFields(); });
+  $('#tlpSpd').addEventListener('input',e=>{ S.speed=+e.target.value; });
+  $('#tlpSeg').addEventListener('click',e=>{
+    const b=e.target.closest('button'); if(!b) return;
+    $$('#tlpSeg button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    S.mode=b.dataset.m; S.idx=0; buildStrips(); startStep(); markFields();
+  });
+  buildStrips(); startStep(); markFields();
+  return {};
+})();
+
+/* ============ §04 LTSSM 状态机 + lane 视图 ============ */
+const LT=(function(){
+  const NODES=[
+    {id:'detect',  x:14, y:126, w:112, h:48, n:'Detect',        sub:'检测远端端接'},
+    {id:'polling', x:156,y:126, w:132, h:48, n:'Polling',       sub:'TS1 → TS2 · 位锁定'},
+    {id:'config',  x:318,y:126, w:138, h:48, n:'Configuration', sub:'lane 编号 · 宽度协商'},
+    {id:'l0',      x:492,y:112, w:150, h:76, n:'L0',            sub:'正常工作 · TLP 流通'},
+    {id:'recovery',x:500,y:18,  w:134, h:44, n:'Recovery',      sub:'换速 / 重训练'},
+    {id:'l0s',     x:474,y:226, w:80,  h:44, n:'L0s',           sub:'浅睡', side:1},
+    {id:'l1',      x:566,y:226, w:76,  h:44, n:'L1',            sub:'深睡', side:1}
+  ];
+  const EDGES=[
+    ['detect','polling'],['polling','config'],['config','l0'],
+    ['l0','recovery'],['recovery','l0'],['l0','l0s'],['l0s','l0'],['l0','l1'],['l1','l0']
+  ];
+  const STEPS=[
+    {st:'detect',chip:'none',spd:'—',wdt:'—',up:'未建立',
+     t:'<b>复位/上电/热插拔</b>：PERST# 释放，LTSSM 从 Detect 启动。每次插拔与复位，链路都要从这里完整重走一遍。',
+     log:['[rst] LTSSM → DETECT','[rst] PERST# 已释放，接收机使能']},
+    {st:'detect',chip:'none',spd:'—',wdt:'—',up:'未建立',
+     t:'<b>Detect.Active</b>：发射机送出小幅共模电压，看被拉低的程度——判断远端有没有 ~50Ω 端接。检测不到就停留重试（设备不存在/未上电）。',
+     log:['[det] lane0..3：远端端接 ✓','[det] 无端接的 lane 保持待命']},
+    {st:'polling',chip:'ts1',spd:'2.5 GT/s · Gen1',wdt:'x4',up:'训练中',
+     t:'<b>Polling.Active</b>：双方都退回最低速率 Gen1（2.5GT/s）互发 <b>TS1</b>（link/lane 号 = PAD）。接收端由此建立位同步与 DC 平衡。',
+     log:['[pol] TX：TS1(PAD,PAD) 连发','[pol] RX：lane0..3 位锁定 ✓']},
+    {st:'polling',chip:'ts2',spd:'2.5 GT/s · Gen1',wdt:'x4',up:'训练中',
+     t:'收到 8 个连续 TS1 并完成<b>极性反转检查</b>（防 D+/D− 焊反）后改发 TS2——"我看见你了，也知道你看见我了"。',
+     log:['[pol] 极性反转检查通过','[pol] TX：TS1(link0,PAD) → TS2 ×8']},
+    {st:'config',chip:'ts1n',spd:'2.5 GT/s · Gen1',wdt:'协商中',up:'训练中',
+     t:'<b>Configuration</b>：TS1 开始携带 <b>lane 号</b>（0..N−1）。两端/交换芯片把物理 lane 重排成逻辑 lane——走线交叉、lane 乱序都在这一步被消化。',
+     log:['[cfg] TX：TS1(link0, lane0..3)','[cfg] lane 编号对齐 ✓']},
+    {st:'config',chip:'ts1n',spd:'2.5 GT/s · Gen1',wdt:'x4',up:'LinkUp = 1',
+     t:'<b>宽度协商</b>：取两端能力交集 min(x16, x4) = x4，多余 lane 转入备用。交换 TS2 后 <b>LinkUp 置 1</b>——配置空间从此可被枚举。',
+     log:['[cfg] 宽度 = min(x16, x4) = x4','[cfg] LinkUp=1 → 准备进 L0']},
+    {st:'l0',chip:'tlp',spd:'2.5 GT/s · Gen1',wdt:'x4',up:'L0 · 开门营业',
+     t:'<b>L0</b>：数据面开放，TLP/DLLP 正常收发，枚举开始。Gen1 到此即完成；Gen3+ 还要经 Recovery 做<b>均衡 Equalization</b> 才能上高速。',
+     log:['[l0] L0 达成 · 枚举可以开始','[l0] TLP 流量上线']},
+    {st:'recovery',chip:'ts1',spd:'切换中…',wdt:'x4',up:'重训练',
+     t:'<b>Recovery</b>：驱动请求升到 Gen3，链路回 Recovery 交换携带速率标识与均衡参数的 TS，锁定后以 8GT/s 回 L0。换速、退出 L1 都走这条路。',
+     log:['[rec] 速率变更请求 → Recovery','[rec] TS 携带 8GT/s + 均衡请求']},
+    {st:'l0',chip:'tlp',spd:'8 GT/s · Gen3',wdt:'x4',up:'L0 · Gen3',
+     t:'回到 L0，这次是 <b>8GT/s · 128b/130b</b>。链路速率只经由 Recovery 改变——这正是"降级到 2.5GT/s"发生的机制（§09 踩坑 2）。',
+     log:['[l0] L0 · 8GT/s · x4','[l0] 数据率切换完成']},
+    {st:'l0s',chip:'none',spd:'待机',wdt:'x4',up:'L0s · 浅睡',
+     t:'<b>ASPM L0s</b>：物理层浅睡，收到 FTS（快速训练序列）即可恢复，亚微秒级。空闲突发的间歇流量最划算。',
+     log:['[aspm] 空闲超时 → L0s','[aspm] FTS 快速恢复 < 1µs']},
+    {st:'l1',chip:'none',spd:'深睡',wdt:'x4',up:'L1 · 深睡',
+     t:'<b>ASPM L1</b>：更深的睡眠，唤醒必须走 <b>Recovery 完整重训</b>（µs 级）；L1.1/L1.2 连 PLL 与收发器都关，唤醒到几十 µs。省电与延迟在此交易。',
+     log:['[aspm] DLL 协商进入 L1','[aspm] 退出：L1 → Recovery → L0']},
+    {st:'detect',chip:'none',spd:'—',wdt:'—',up:'链路丢失',
+     t:'<b>热插拔/拔出</b>：端接与信号瞬间消失，LTSSM 跌回 Detect 待命；重新插入后从 Detect 完整重训。点「⚡ 热插拔」随时重演这一幕。',
+     log:['[hot] lane 信号丢失 → DETECT','[hot] 等待重新插入…']}
+  ];
+  const S={idx:0,playing:false,speed:12,autoT:0,chipMode:'none',laneChips:[],spawnT:0,prevSt:null};
+  const wrap=$('#ltSvgWrap');
+  function nodeById(id){ return NODES.find(n=>n.id===id); }
+  function buildSvg(){
+    const g=(a,b)=>{ const A=nodeById(a),B=nodeById(b);
+      const x1=A.x+A.w, y1=A.y+A.h/2, x2=B.x, y2=B.y+B.h/2;
+      if(Math.abs(y1-y2)<4) return `M${x1},${y1} L${x2},${y2}`;
+      const mx=(x1+x2)/2;
+      return `M${x1},${y1} C ${mx},${y1} ${mx},${y2} ${x2},${y2}`;
+    };
+    let svg=`<svg class="lt-svg" viewBox="0 0 660 286" xmlns="http://www.w3.org/2000/svg">
+      <defs><marker id="arLT" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="context-stroke"/></marker></defs>`;
+    EDGES.forEach(e=>{
+      svg+=`<path class="edge" data-e="${e[0]}-${e[1]}" d="${g(e[0],e[1])}" marker-end="url(#arLT)"/>`;
+    });
+    NODES.forEach(n=>{
+      svg+=`<g class="st ${n.side?'side':''}" data-st="${n.id}">
+        <rect x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="7"/>
+        <text class="nm" x="${n.x+n.w/2}" y="${n.y+(n.side?20:22)}" text-anchor="middle">${n.n}</text>
+        <text class="sub" x="${n.x+n.w/2}" y="${n.y+(n.side?35:38)}" text-anchor="middle">${n.sub}</text>
+      </g>`;
+    });
+    svg+=`</svg>`;
+    wrap.innerHTML=svg;
+    $$('#ltSvgWrap .st').forEach(el=>{
+      el.addEventListener('click',()=>{
+        const id=el.dataset.st;
+        const idx=STEPS.findIndex(s=>s.st===id);
+        setStep(idx>=0?idx:0);
+        S.playing=false; syncPlay();
+      });
+    });
+  }
+  function buildLanes(){
+    const box=$('#ltLanes');
+    let html='<div style="font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.18em;margin-bottom:6px">LANE VIEW · 4 条 lane 实时流量（x4）</div>';
+    for(let i=0;i<4;i++){
+      html+=`<div class="lane"><span class="ln">LANE ${i}</span>
+        <div class="ltr tx" data-lane="${i}" data-dir="1"><span class="ltr-l">TX→</span></div>
+        <div class="ltr rx" data-lane="${i}" data-dir="-1"><span class="ltr-l">←RX</span></div>
+      </div>`;
+    }
+    box.innerHTML=html;
+  }
+  function appendLog(lines){
+    const box=$('#ltLog');
+    lines.forEach(l=>{
+      const d=document.createElement('div');
+      const cls=/^\[(rst|det)\]/.test(l)?'lg-t':/✓|LinkUp|L0|完成/.test(l)?'lg-g':/hot|丢失/.test(l)?'lg-r':'';
+      d.className=cls; d.textContent=l;
+      box.appendChild(d);
+    });
+    while(box.children.length>80) box.removeChild(box.firstChild);
+    box.scrollTop=box.scrollHeight;
+  }
+  function setStep(i){
+    const prev=STEPS[S.idx]; S.idx=Math.max(0,Math.min(STEPS.length-1,i));
+    const st=STEPS[S.idx];
+    $$('#ltSvgWrap .st').forEach(el=>el.classList.toggle('on',el.dataset.st===st.st));
+    $$('#ltSvgWrap .edge').forEach(el=>{
+      const key=el.dataset.e.split('-');
+      el.classList.toggle('hot', prev && ((key[0]===prev.st&&key[1]===st.st)||(key[0]===st.st&&key[1]===prev.st&&prev.st!=='detect')));
+    });
+    $('#ltStateR').textContent=st.st==='config'?'Configuration':st.st.charAt(0).toUpperCase()+st.st.slice(1);
+    $('#ltSpeedR').textContent=st.spd;
+    $('#ltWidthR').textContent=st.wdt;
+    $('#ltUpR').textContent=st.up;
+    $('#ltStepN').textContent=(S.idx+1)+' / '+STEPS.length;
+    $('#ltTxt').innerHTML=st.t;
+    appendLog(st.log);
+    S.chipMode=st.chip;
+  }
+  function syncPlay(){
+    const b=$('#ltPlay');
+    b.textContent=S.playing?'❚ 暂停':'▶ 自动';
+    b.classList.toggle('on',S.playing);
+  }
+  // lane 芯片引擎
+  function spawnChip(lane,dir,cls,label){
+    const tr=document.querySelector(`.ltr[data-lane="${lane}"][data-dir="${dir}"]`);
+    if(!tr) return;
+    const el=document.createElement('span');
+    el.className='lane-chip '+cls;
+    el.textContent=label;
+    tr.appendChild(el);
+    S.laneChips.push({el,dir,prog:0,lane,tr});
+  }
+  const laneTick=dt=>{
+    // 按当前状态生成芯片
+    if(S.chipMode!=='none'){
+      S.spawnT-=dt*S.speed/12;
+      if(S.spawnT<=0){
+        S.spawnT=.55;
+        const lane=Math.floor(Math.random()*4);
+        if(S.chipMode==='ts1'){ spawnChip(lane,1,'ts','TS1'); spawnChip((lane+1)%4,-1,'ts','TS1'); }
+        else if(S.chipMode==='ts2'){ spawnChip(lane,1,'ts','TS2'); spawnChip((lane+2)%4,-1,'ts','TS2'); }
+        else if(S.chipMode==='ts1n'){ spawnChip(lane,1,'ts','TS1·L'+lane); spawnChip(lane,-1,'ts','TS1·L'+lane); }
+        else if(S.chipMode==='tlp'){
+          const r=Math.random();
+          if(r<.45){ spawnChip(lane,1,'tlp','TLP'); }
+          else if(r<.7){ spawnChip(lane,-1,'tlp','CplD'); }
+          else if(r<.85){ spawnChip(lane,1,'dllp','DLLP'); }
+          else { spawnChip(lane,-1,'dllp','ACK'); }
+        }
+      }
+    }
+    // 移动
+    const spd=.55*S.speed/12;
+    for(let i=S.laneChips.length-1;i>=0;i--){
+      const c=S.laneChips[i];
+      c.prog+=dt*spd;
+      const w=c.tr.clientWidth||300, cw=c.el.offsetWidth||40;
+      const x=c.dir>0? c.prog*(w-cw) : (1-c.prog)*(w-cw);
+      c.el.style.left=Math.max(0,x)+'px';
+      if(c.prog>=1){ c.el.remove(); S.laneChips.splice(i,1); }
+    }
+  };
+  anims.push(function(dt){
+    laneTick(dt);
+    if(!S.playing) return;
+    S.autoT+=dt;
+    if(S.autoT>=Math.max(1.4,3.4-S.speed*.08)){
+      S.autoT=0;
+      if(S.idx>=STEPS.length-1){ S.playing=false; syncPlay(); }
+      else setStep(S.idx+1);
+    }
+  });
+  $('#ltNext').addEventListener('click',()=>{ S.playing=false; syncPlay(); setStep(S.idx+1); });
+  $('#ltPrev').addEventListener('click',()=>{ S.playing=false; syncPlay(); setStep(S.idx-1); });
+  $('#ltPlay').addEventListener('click',()=>{ S.playing=!S.playing; S.autoT=99; syncPlay(); });
+  $('#ltReset').addEventListener('click',()=>{ S.playing=false; syncPlay(); $('#ltLog').innerHTML=''; S.laneChips.forEach(c=>c.el.remove()); S.laneChips=[]; setStep(0); });
+  $('#ltHot').addEventListener('click',()=>{
+    S.playing=false; syncPlay();
+    appendLog(['[hot] ⚡ 用户触发热插拔：链路立即跌回 Detect']);
+    setStep(STEPS.length-1);
+    setTimeout(()=>setStep(0),700);
+  });
+  $('#ltSpd').addEventListener('input',e=>{ S.speed=+e.target.value; });
+  buildSvg(); buildLanes(); setStep(0); syncPlay();
+  return {};
+})();
+
+/* ============ §05 credit 流控实验室 ============ */
+const FC=(function(){
+  const CAP=16, PER=5;
+  const S={mode:'credit',playing:!reduced,speed:10,buf:0,cred:CAP,sent:0,ok:0,drop:0,
+           spawnT:0,drainT:0,retT:0,retPool:0,chips:[]};
+  const track=$('#fcTrack');
+  function buildBuf(){
+    const box=$('#fcBuf'); box.innerHTML='';
+    for(let i=0;i<CAP;i++){ const c=document.createElement('div'); c.className='fc-cell'; box.appendChild(c); }
+  }
+  function paint(){
+    $$('#fcBuf .fc-cell').forEach((c,i)=>{
+      c.classList.toggle('fill', i<S.buf);
+    });
+    $('#fcCred').textContent=S.cred;
+    $('#fcSent').textContent=S.sent;
+    $('#fcOk').textContent=S.ok;
+    $('#fcDrop').textContent=S.drop;
+    $('#fcThr').textContent=S.sent? Math.round(S.ok/S.sent*100)+'%':'—';
+  }
+  function flashOver(){
+    $$('#fcBuf .fc-cell').forEach(c=>{ c.classList.add('over'); setTimeout(()=>c.classList.remove('over'),350); });
+  }
+  function spawn(cls,label,onArrive){
+    const el=document.createElement('span');
+    el.className='chip-fly '+cls;
+    el.textContent=label;
+    track.appendChild(el);
+    S.chips.push({el,prog:0,dir:1,onArrive});
+  }
+  function sendUpdateFC(){
+    const el=document.createElement('span');
+    el.className='chip-fly a';
+    el.textContent='UpdateFC +'+PER;
+    track.appendChild(el);
+    S.chips.push({el,prog:0,dir:-1,onArrive:()=>{ S.cred=Math.min(CAP,S.cred+PER); }});
+  }
+  function trySend(){
+    if(S.mode==='nofc' || S.cred>=PER){
+      if(S.mode==='credit') S.cred-=PER;
+      S.sent++;
+      spawn('v','TLP · 5cr',()=>{
+        if(S.buf+PER>CAP){ S.drop++; flashOver();
+          // 溢出丢弃 → 只能靠 NAK 重传，带宽白白浪费
+        } else { S.buf+=PER; S.ok++; }
+        paint();
+      });
+      $('#fcHold').classList.remove('show');
+      paint();
+    } else {
+      $('#fcHold').classList.add('show');
+    }
+  }
+  const tick=dt=>{
+    if(!S.playing) return;
+    const k=S.speed/10;
+    S.spawnT-=dt*k;
+    if(S.spawnT<=0){ S.spawnT=S.mode==='nofc'?.55:.62; trySend(); }
+    S.drainT-=dt*k;
+    if(S.drainT<=0){
+      S.drainT=.5;
+      if(S.buf>0){ S.buf--; S.retPool++; paint(); }
+      if(S.retPool>=PER){ S.retPool-=PER; sendUpdateFC(); }
+    }
+    for(let i=S.chips.length-1;i>=0;i--){
+      const c=S.chips[i];
+      c.prog+=dt*k*.6;
+      const w=track.clientWidth||500, cw=c.el.offsetWidth||70;
+      const x=c.dir>0? c.prog*(w-cw) : (1-c.prog)*(w-cw);
+      c.el.style.left=Math.max(0,Math.min(w-cw,x))+'px';
+      if(c.prog>=1){ c.el.remove(); if(c.onArrive)c.onArrive(); S.chips.splice(i,1); }
+    }
+  };
+  anims.push(function(dt){ tick(dt); if(S.cred<0) S.cred=0; });
+  function setPlay(p){
+    S.playing=p;
+    const b=$('#fcPlay'); b.textContent=p?'❚❚':'▶'; b.classList.toggle('on',p);
+  }
+  function reset(){
+    S.buf=0;S.cred=CAP;S.sent=0;S.ok=0;S.drop=0;S.retPool=0;
+    S.chips.forEach(c=>c.el.remove()); S.chips=[];
+    paint();
+    $('#fcMsg').textContent=S.mode==='credit'
+      ?'credit 模式：发送前查账，花完即停——链路永不丢包。'
+      :'无流控模式：只管发——接收缓冲溢出，TLP 被丢，只能靠 NAK 重传，带宽白白浪费。';
+  }
+  $('#fcSeg').addEventListener('click',e=>{
+    const b=e.target.closest('button'); if(!b) return;
+    $$('#fcSeg button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    S.mode=b.dataset.fc; reset();
+  });
+  $('#fcPlay').addEventListener('click',()=>setPlay(!S.playing));
+  $('#fcReset').addEventListener('click',reset);
+  $('#fcSpd').addEventListener('input',e=>{ S.speed=+e.target.value; });
+  if(reduced) setPlay(false);
+  buildBuf(); reset();
+  return {};
+})();
+
+/* ============ §06 带宽计算器 ============ */
+(function calc(){
+  const GENS={
+    1:{gt:2.5,eff:.8, enc:'8b/10b'},
+    2:{gt:5,  eff:.8, enc:'8b/10b'},
+    3:{gt:8,  eff:128/130, enc:'128b/130b'},
+    4:{gt:16, eff:128/130, enc:'128b/130b'},
+    5:{gt:32, eff:128/130, enc:'128b/130b'},
+    6:{gt:64, eff:.945,enc:'PAM4+FLIT'}
+  };
+  const PEERS=[
+    {n:'你的链路',v:0,you:1},{n:'SATA III',v:600},{n:'USB 3.2 Gen2',v:1250},
+    {n:'2.5GbE 以太网',v:312},{n:'USB4 40G',v:4000}
+  ];
+  function fmtMB(v){ return v>=1000? (v/1000).toFixed(v>=10000?0:2)+' GB/s' : Math.round(v)+' MB/s'; }
+  function render(){
+    const g=GENS[+$('#cGen').value], L=+$('#cLanes').value, dual=$('#cDir').checked;
+    const laneMB=g.gt*125*g.eff;            // MB/s per lane 单向
+    let total=laneMB*L;                      // MB/s
+    const effPct=(g.eff*100).toFixed(1).replace(/\.0$/,'');
+    $('#bwLane').innerHTML=Math.round(laneMB)+'<small>MB/s</small>';
+    let shown=total*(dual?2:1);
+    $('#bwTotal').innerHTML=(shown/1000).toFixed(shown>=10000?1:2)+'<small>GB/s</small>';
+    $('#bwRaw').textContent=effPct+'% × '+g.gt+' GT/s';
+    $('#bwReal').innerHTML=(total*.88/1000).toFixed(2)+'<small>GB/s</small>';
+    $('#fExpr').textContent=
+      `有效带宽 = lane 数 × GT/s × 编码效率 ÷ 8 = ${L} × ${g.gt} × ${effPct}% ÷ 8 = ${(total/1000).toFixed(2)} GB/s`
+      +(dual?` · 双向合计 ×2 = ${(total*2/1000).toFixed(2)} GB/s`:'');
+    // 对比条
+    PEERS[0].v=Math.round(total);
+    const max=Math.max(...PEERS.map(p=>p.v));
+    const box=$('#bwBars');
+    box.innerHTML=PEERS.map(p=>`
+      <div class="bw-bar ${p.you?'you':''}">
+        <span class="n">${p.n}</span>
+        <div class="tr"><div class="fl" style="width:${Math.max(2,p.v/max*100)}%"></div></div>
+        <span class="v">${fmtMB(p.v)}</span>
+      </div>`).join('');
+  }
+  ['cGen','cLanes'].forEach(id=>$('#'+id).addEventListener('change',render));
+  $('#cDir').addEventListener('change',render);
+  render();
+})();
+
+/* ============ §07 枚举树 + BAR 地图 ============ */
+(function enumeration(){
+  const DEVS=[
+    {id:'00:00.0',x:16, y:30, n:'Host Bridge',sub:'总线 0 · 根',bars:[]},
+    {id:'00:01.0',x:16, y:110,n:'Root Port x16',sub:'桥 → 总线 01',bars:[]},
+    {id:'01:00.0',x:250,y:30, n:'GPU（VGA）',sub:'x16 · 8GT/s',bars:[
+      {r:'BAR0',t:'32-bit MMIO',s:'256 MB',a:'0xC0000000',w:34},
+      {r:'BAR1',t:'32-bit MMIO',s:'16 MB',a:'0xD0000000',w:22},
+      {r:'BAR2',t:'64-bit 预取',s:'8 GB',a:'0x38_00000000',w:30,hi:1}
+    ]},
+    {id:'00:1c.0',x:16, y:190,n:'Root Port x4',sub:'桥 → 总线 02',bars:[]},
+    {id:'02:00.0',x:250,y:110,n:'Switch 上联',sub:'桥 → 总线 03',bars:[]},
+    {id:'03:00.0',x:470,y:60, n:'NVMe SSD',sub:'x4 · 8GT/s',bars:[
+      {r:'BAR0',t:'64-bit MMIO',s:'16 KB',a:'0xD1100000',w:14},
+      {r:'BAR1',t:'64-bit MMIO',s:'4 KB',a:'0xD1104000',w:12}
+    ]},
+    {id:'03:02.0',x:470,y:150,n:'ETH NIC',sub:'x1 · 5GT/s',bars:[
+      {r:'BAR0',t:'32-bit MMIO',s:'64 KB',a:'0xD1120000',w:16}
+    ]}
+  ];
+  const WIRES=[
+    ['00:01.0','01:00.0','x16'],['00:1c.0','02:00.0','x4'],
+    ['02:00.0','03:00.0','x4↓'],['02:00.0','03:02.0','x1↓']
+  ];
+  function dev(id){ return DEVS.find(d=>d.id===id); }
+  const W=680,H=240,NW=190,NH=46;
+  function buildTree(){
+    let svg=`<svg class="et-svg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+    WIRES.forEach(([a,b,lab])=>{
+      const A=dev(a),B=dev(b);
+      const x1=A.x+NW,y1=A.y+NH/2,x2=B.x,y2=B.y+NH/2;
+      svg+=`<path class="wire" d="M${x1},${y1} C ${x1+40},${y1} ${x2-40},${y2} ${x2},${y2}"/>
+            <text class="bus-l" x="${(x1+x2)/2-8}" y="${Math.min(y1,y2)-6}" fill="rgba(52,224,138,.7)">${lab}</text>`;
+    });
+    svg+=`<text class="bus-l" x="16" y="18">BUS 0</text><text class="bus-l" x="250" y="18">BUS 1 / 2</text><text class="bus-l" x="470" y="42">BUS 3</text>`;
+    DEVS.forEach(d=>{
+      svg+=`<g class="nd" data-id="${d.id}">
+        <rect x="${d.x}" y="${d.y}" width="${NW}" height="${NH}" rx="6"/>
+        <text class="id" x="${d.x+12}" y="${d.y+19}">${d.id}</text>
+        <text class="nm" x="${d.x+12}" y="${d.y+35}">${d.n} · ${d.sub}</text>
+      </g>`;
+    });
+    svg+='</svg>';
+    $('#enumTree').innerHTML=svg;
+    $$('#enumTree .nd').forEach(el=>el.addEventListener('click',()=>select(el.dataset.id)));
+  }
+  function select(id){
+    $$('#enumTree .nd').forEach(el=>el.classList.toggle('on',el.dataset.id===id));
+    const d=dev(id);
+    const rows=d.bars.length
+      ? d.bars.map(b=>`<tr><td>${b.r}</td><td>${b.t}</td><td>${b.s}</td><td>${b.a}</td></tr>`).join('')
+      : `<tr><td colspan="4" class="none">桥设备：无设备 BAR（只转发）——它有的是总线号窗口</td></tr>`;
+    $('#enumInfo').innerHTML=`
+      <h5>${d.n}<span class="id">${d.id}</span></h5>
+      <div class="sub">${d.sub} · VendorID 0x8086 · DeviceID 0x····</div>
+      <table class="bar-tbl">
+        <tr><th>寄存器</th><th>类型</th><th>尺寸</th><th>映射基址</th></tr>${rows}
+      </table>`;
+    // 地图高亮
+    $$('#enumMap .seg').forEach(el=>{
+      el.setAttribute('opacity', el.dataset.dev===id?1:.25);
+      el.setAttribute('stroke', el.dataset.dev===id?'#34e08a':'#27392d');
+    });
+  }
+  function buildMap(){
+    const SEGS=[
+      {dev:'01:00.0',y:22, h:52, label:'GPU BAR2 · 8GB 64-bit 预取', hi:1, addr:'0x38_00000000（Above 4G）'},
+      {dev:'01:00.0',y:84, h:26, label:'GPU BAR0 · 256MB', addr:'0xC0000000'},
+      {dev:'01:00.0',y:118,h:18, label:'GPU BAR1 · 16MB', addr:'0xD0000000'},
+      {dev:'03:00.0',y:144,h:12, label:'NVMe BAR0 · 16KB', addr:'0xD1100000'},
+      {dev:'03:00.0',y:162,h:10, label:'NVMe BAR1 · 4KB', addr:'0xD1104000'},
+      {dev:'03:02.0',y:178,h:14, label:'NIC BAR0 · 64KB', addr:'0xD1120000'}
+    ];
+    let svg=`<svg class="em-svg" viewBox="0 0 480 240" xmlns="http://www.w3.org/2000/svg">
+      <text x="12" y="16" fill="rgba(140,162,148,.8)" font-size="10">MMIO 地址地图（示意 · 非等比）</text>
+      <line x1="24" y1="22" x2="24" y2="192" stroke="#27392d" stroke-width="1.5"/>`;
+    SEGS.forEach(s=>{
+      svg+=`<g class="seg" data-dev="${s.dev}" opacity=".85">
+        <rect x="44" y="${s.y}" width="270" height="${s.h}" rx="3" fill="${s.hi?'rgba(199,146,234,.18)':'rgba(87,216,242,.15)'}" stroke="#27392d"/>
+        <text x="52" y="${s.y+s.h/2+3.5}" fill="#dcebe1" font-size="${s.h>14?10:8.5}">${s.label}</text>
+        <text x="324" y="${s.y+s.h/2+3.5}" fill="rgba(140,162,148,.75)" font-size="8.5">${s.addr}</text>
+      </g>`;
+    });
+    svg+=`<text x="44" y="212" fill="rgba(140,162,148,.6)" font-size="9">0xFFFFFFFF ↑ 高地址 ─ 32-bit MMIO 窗口 ─ 低地址 ↓ 0xC0000000</text>
+      <text x="44" y="228" fill="rgba(199,146,234,.7)" font-size="9">64-bit 预取 BAR 放到 Above-4G 高位——多卡时代的必需品</text></svg>`;
+    $('#enumMap').innerHTML=svg;
+  }
+  buildTree(); buildMap(); select('03:00.0');
+})();
+
+/* ============ §08 LnkSta 解码器 ============ */
+(function decoder(){
+  const SPEED={1:'2.5 GT/s · Gen1',2:'5 GT/s · Gen2',3:'8 GT/s · Gen3',4:'16 GT/s · Gen4',5:'32 GT/s · Gen5',6:'64 GT/s · Gen6'};
+  function decode(){
+    const raw=$('#lnkIn').value.trim();
+    const out=$('#lnkOut');
+    if(!/^[0-9a-fA-F]{1,4}$/.test(raw)){
+      out.innerHTML='<span class="r">✗ 请输入 1–4 位十六进制（如 0043）</span>';
+      return;
+    }
+    const v=parseInt(raw,16);
+    const spd=v&0xF, wdt=(v>>4)&0x3F, trn=(v>>11)&1, slot=(v>>12)&1;
+    const spdTxt=SPEED[spd]||('保留值 '+spd);
+    const good=(spd>=3&&wdt>=4);
+    out.innerHTML=
+      `0x${raw.toUpperCase().padStart(4,'0')} = 0b${v.toString(2).padStart(16,'0')}<br>`+
+      `Current Link Speed <b>[3:0] = ${spd}</b> → <span class="a">${spdTxt}</span><br>`+
+      `Negotiated Width <b>[9:4] = ${wdt}</b> → <span class="a">x${wdt}</span> 单向 ${wdt} 条 lane<br>`+
+      `Link Training <b>[11] = ${trn}</b> → ${trn?'<span class="r">正在训练（链路还没稳定）</span>':'<span class="g">空闲/稳定</span>'}<br>`+
+      `Slot Clock <b>[12] = ${slot}</b> → ${slot?'使用插槽参考时钟':'使用内部时钟'}<br>`+
+      (good?'<span class="g">✓ 这个值对应一条健康的 Gen3 x4 链路（NVMe 常见）</span>'
+           :'<span class="r">⚠ 宽度或速率明显低于预期？回 §09 踩坑 1/2 对照 LnkCap 看是否 downgraded</span>');
+  }
+  $('#lnkIn').addEventListener('input',decode);
+  $$('.dc-pre').forEach(b=>b.addEventListener('click',()=>{
+    $$('.dc-pre').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    $('#lnkIn').value=b.dataset.v;
+    decode();
+  }));
+  decode();
+})();
+
+/* ============ 命令点击复制（事件委托） ============ */
+document.addEventListener('click',async e=>{
+  const el=e.target.closest('.t-cmd');
+  if(!el) return;
+  const txt=el.dataset.copy||el.textContent;
+  let ok=false;
+  try{ await navigator.clipboard.writeText(txt); ok=true; }
+  catch{
+    const ta=document.createElement('textarea');
+    ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    try{ ok=document.execCommand('copy'); }catch(_){}
+    ta.remove();
+  }
+  const old=el.textContent;
+  el.classList.add('copied');
+  el.textContent=ok?'已复制 ✓':'复制失败';
+  setTimeout(()=>{ el.classList.remove('copied'); el.textContent=old; },900);
+});
+
+/* ============ 滚动显现 ============ */
+const io=new IntersectionObserver(es=>es.forEach(en=>{
+  if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target); }
+}),{threshold:.12});
+$$('.reveal').forEach(el=>io.observe(el));
+})();
+</script>
+</body>
+</html>

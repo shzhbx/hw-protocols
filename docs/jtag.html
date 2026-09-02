@@ -1,0 +1,1365 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JTAG / SWD 调试接口详解 · 交互式图解</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%23070b09'/><path d='M2 22 h4 v-12 h4 v12 h4 v-12 h4 v12 h6 M2 10 h6 v0' stroke='%2334e08a' stroke-width='2.5' fill='none'/><circle cx='26' cy='10' r='3' fill='none' stroke='%23ffb02e' stroke-width='2'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#070b09; --bg2:#0a100c; --panel:#0d1510;
+  --panel2:#101a13; --line:#1d2c22; --line2:#27392d;
+  --ink:#dcebe1; --dim:#8aa294; --faint:#5c7264;
+  --green:#34e08a; --green-dim:#1d8a55; --amber:#ffb02e;
+  --cyan:#57d8f2; --red:#ff6478; --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --disp:'Chakra Petch','Noto Sans SC',sans-serif; --sans:'Noto Sans SC',-apple-system,sans-serif;
+}
+  *{margin:0;padding:0;box-sizing:border-box} html{scroll-behavior:smooth}
+body{
+  background:var(--bg); color:var(--ink); font-family:var(--sans);
+  font-weight:300; line-height:1.8; letter-spacing:.01em;
+  overflow-x:hidden;
+}
+body::before{
+  content:"";position:fixed;inset:0;z-index:0;pointer-events:none; background-image: linear-gradient(rgba(52,224,138,.028) 1px,transparent 1px),
+  linear-gradient(90deg,rgba(52,224,138,.028) 1px,transparent 1px), linear-gradient(rgba(52,224,138,.014) 1px,transparent 1px), linear-gradient(90deg,rgba(52,224,138,.014) 1px,transparent 1px);
+  background-size:120px 120px,120px 120px,24px 24px,24px 24px;
+}
+body::after{
+  content:"";position:fixed;inset:0;z-index:0;pointer-events:none; background:radial-gradient(ellipse 120% 90% at 50% 0%,transparent 60%,rgba(0,0,0,.5));
+}
+  main{position:relative;z-index:1} ::selection{background:rgba(52,224,138,.3)}
+
+/* ============ 导航 ============ */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:100; display:flex;align-items:center;gap:16px; padding:0 26px;height:52px;
+  background:rgba(7,11,9,.82);backdrop-filter:blur(12px); border-bottom:1px solid var(--line);
+}
+  nav .logo{font-family:var(--disp);font-weight:700;font-size:17px;color:var(--green);letter-spacing:.04em;white-space:nowrap} nav .logo b{color:var(--amber)}
+nav>a{
+  color:var(--dim);text-decoration:none;font-size:12.5px; font-family:var(--mono);letter-spacing:.05em; transition:color .2s;white-space:nowrap;
+}
+  nav>a:hover{color:var(--green)} nav .spacer{flex:1} nav .live{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11px;color:var(--faint);white-space:nowrap}
+  nav .live i{width:7px;height:7px;border-radius:50%;background:var(--green);animation:blink 1.6s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+  nav .xnav{display:flex;gap:6px;margin-left:4px;padding-left:14px;border-left:1px solid var(--line); white-space:nowrap;overflow-x:auto;max-width:46vw;scrollbar-width:none} nav .xnav::-webkit-scrollbar{display:none}
+nav .xnav a{
+  display:inline-block;font-size:11px;letter-spacing:.06em;font-family:var(--mono); color:var(--dim);padding:5px 9px;border:1px solid var(--line);border-radius:3px; text-decoration:none;transition:all .18s;
+}
+  nav .xnav a:hover{color:var(--green);border-color:rgba(52,224,138,.45)}
+
+/* ============ Hero ============ */
+.hero{
+  min-height:92vh;display:flex;flex-direction:column;justify-content:center; padding:110px 6vw 40px;position:relative;
+}
+.hero .eyebrow{
+  font-family:var(--mono);font-size:12px;color:var(--amber); letter-spacing:.32em;margin-bottom:22px; display:flex;align-items:center;gap:14px;
+}
+  .hero .eyebrow::before{content:"";width:44px;height:1px;background:var(--amber)}
+.hero h1{
+  font-family:var(--disp);font-weight:700; font-size:clamp(56px,11vw,148px); line-height:.95;letter-spacing:-.01em;
+  color:var(--ink);
+}
+.hero h1 .zh{
+  display:block;font-family:var(--sans);font-weight:300; font-size:clamp(18px,2.4vw,30px);color:var(--dim); letter-spacing:.42em;margin-top:18px;
+}
+  .hero p.lede{max-width:660px;margin-top:34px;font-size:16px;color:var(--dim)} .hero p.lede b{color:var(--ink);font-weight:500} .hero .chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:30px}
+.hero .chips span{
+  font-family:var(--mono);font-size:11.5px;padding:5px 12px; border:1px solid var(--line2);border-radius:3px;color:var(--dim); background:rgba(13,21,16,.6);
+}
+  .hero .chips span b{color:var(--green);font-weight:500} .hero .cta{display:flex;gap:14px;flex-wrap:wrap;margin-top:30px}
+.hero .cta a{
+  font-family:var(--disp);font-weight:600;font-size:14.5px;letter-spacing:.05em; text-decoration:none;padding:11px 24px;border-radius:5px;transition:all .2s;
+}
+  .hero .cta .primary{color:#052013;background:var(--green);box-shadow:0 0 22px rgba(52,224,138,.3)} .hero .cta .primary:hover{transform:translateY(-2px);box-shadow:0 6px 28px rgba(52,224,138,.45)} .hero .cta .ghost{color:var(--dim);border:1px solid var(--line2);background:rgba(13,21,16,.5)}
+  .hero .cta .ghost:hover{color:var(--green);border-color:rgba(52,224,138,.4)}
+.hero .svgwrap{
+  margin-top:44px;border:1px solid var(--line);border-radius:6px; overflow:hidden;background:rgba(9,14,11,.75);position:relative;
+}
+.hero .svgwrap::after{
+  content:"";position:absolute;inset:0;pointer-events:none; background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.15) 3px 4px);
+}
+  .hero svg{display:block;width:100%;height:auto}
+.hero .scroll-hint{
+  margin-top:34px;font-family:var(--mono);font-size:11px;color:var(--faint); letter-spacing:.2em;display:flex;align-items:center;gap:10px;
+}
+  .hero .scroll-hint svg{animation:bounce 1.8s infinite;width:14px;height:14px}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(6px)}}
+/* hero 示意线路 */
+  .wire{stroke:var(--faint);stroke-width:2;fill:none} .wire.tck{stroke:var(--green);stroke-dasharray:5 4} .wire.tms{stroke:var(--amber)}
+  .wire.tdi{stroke:var(--green)} .wire.tdo{stroke:var(--cyan)} .gnd-wire{stroke:var(--faint);stroke-width:1.6;fill:none;stroke-dasharray:7 6}
+  .svg-lab{font-family:var(--mono);fill:var(--dim);font-size:12px;letter-spacing:1px} .svg-lab.big{fill:var(--ink);font-size:15px} .svg-lab.g{fill:var(--green)} .svg-lab.a{fill:var(--amber)} .svg-lab.c{fill:var(--cyan)}
+  .chip-ic{fill:#0d181d;stroke:var(--line2);stroke-width:1.5} .bcell-ic{fill:rgba(87,216,242,.10);stroke:rgba(87,216,242,.5);stroke-width:1} .hpk rect{fill:rgba(7,11,9,.85)}
+@media (prefers-reduced-motion: reduce){
+  .hero .scroll-hint svg{animation:none} html{scroll-behavior:auto}
+}
+
+/* ============ 通用 section ============ */
+  section{padding:96px 6vw;max-width:1280px;margin:0 auto;position:relative} .sec-head{display:flex;align-items:baseline;gap:20px;margin-bottom:16px}
+.sec-head .no{
+  font-family:var(--mono);font-size:13px;color:var(--green); letter-spacing:.1em;border:1px solid var(--green-dim); padding:3px 10px;border-radius:3px;white-space:nowrap;
+}
+  .sec-head h2{font-family:var(--disp);font-weight:600;font-size:clamp(26px,3.6vw,40px);letter-spacing:.01em}
+.sec-head .en{
+  font-family:var(--mono);font-size:12px;color:var(--faint);letter-spacing:.24em; text-transform:uppercase;margin-left:auto;white-space:nowrap;
+}
+  .sec-sub{color:var(--dim);max-width:780px;margin-bottom:44px;font-size:15px} .sec-sub b{color:var(--ink);font-weight:500} .reveal{opacity:0;transform:translateY(26px);transition:opacity .7s ease,transform .7s ease}
+  .reveal.in{opacity:1;transform:none}
+
+/* ============ §01 ============ */
+  .two-col{display:grid;grid-template-columns:1.25fr .9fr;gap:44px;align-items:start} .prose p{margin-bottom:18px;color:var(--dim);font-size:15px} .prose p b{color:var(--ink);font-weight:500}
+  .prose .kw{color:var(--green);font-family:var(--mono);font-size:.92em} .prose .kw2{color:var(--amber);font-family:var(--mono);font-size:.92em} .cmp-table{width:100%;border-collapse:collapse;font-size:13px}
+.cmp-table th{
+  font-family:var(--mono);font-weight:500;color:var(--faint);text-align:left; padding:9px 12px;border-bottom:1px solid var(--line2);font-size:11.5px;letter-spacing:.06em;
+}
+  .cmp-table td{padding:10px 12px;border-bottom:1px solid var(--line);color:var(--dim);vertical-align:top} .cmp-table td:first-child{color:var(--ink);font-weight:400;white-space:nowrap} .cmp-table .yes{color:var(--green)}
+  .cmp-table .no{color:var(--red)} .fact-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:36px}
+.fact{
+  border:1px solid var(--line);border-radius:6px;padding:20px 20px 18px; background:linear-gradient(160deg,var(--panel) 0%,rgba(13,21,16,.4) 100%); transition:border-color .25s,transform .25s;
+}
+  .fact:hover{border-color:var(--green-dim);transform:translateY(-3px)} .fact .f-no{font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.14em} .fact h4{font-family:var(--disp);font-size:16.5px;font-weight:600;margin:8px 0 8px}
+  .fact h4 code{font-family:var(--mono);font-size:.85em;color:var(--green)} .fact p{font-size:12.8px;color:var(--dim);line-height:1.7} .fact p b{color:var(--ink);font-weight:500}
+
+/* ============ §02 信号线 ============ */
+  .sig-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+.sig-card{
+  border:1px solid var(--line);border-radius:8px;overflow:hidden; background:var(--panel);display:flex;flex-direction:column; transition:border-color .25s;
+}
+  .sig-card:hover{border-color:var(--line2)} .sig-card .scope{background:#080d0a;border-bottom:1px solid var(--line);position:relative}
+.sig-card .scope::after{
+  content:"";position:absolute;inset:0;pointer-events:none; background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.18) 3px 4px);
+}
+  .sig-card canvas{display:block;width:100%;height:84px} .sig-card .body{padding:20px 22px 22px} .sig-card .names{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+  .sig-card .names .main{font-family:var(--disp);font-size:21px;font-weight:600} .sig-card .names .alias{font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.06em} .sig-card .names .pin{margin-left:auto;font-family:var(--mono);font-size:10px;letter-spacing:.1em;padding:2px 8px;border-radius:3px}
+  .sig-card p{font-size:13px;color:var(--dim);margin-top:10px;line-height:1.75} .sig-card p b{color:var(--ink);font-weight:500}
+.sig-card .formula{
+  font-family:var(--mono);font-size:12px;color:var(--green); margin-top:12px;padding:8px 12px;background:rgba(52,224,138,.06); border-left:2px solid var(--green-dim);border-radius:0 3px 3px 0;
+}
+  .c-clk .main,.c-clk .pin{color:var(--green)} .c-clk .pin{background:rgba(52,224,138,.1);border:1px solid var(--green-dim)} .c-tms .main,.c-tms .pin{color:var(--amber)} .c-tms .pin{background:rgba(255,176,46,.08);border:1px solid rgba(255,176,46,.35)} .c-dat .main,.c-dat .pin{color:var(--cyan)} .c-dat .pin{background:rgba(87,216,242,.08);border:1px solid rgba(87,216,242,.3)}
+  .c-aux .main,.c-aux .pin{color:var(--dim)} .c-aux .pin{background:rgba(140,162,148,.08);border:1px dashed var(--faint)} .c-aux{border-style:dashed}
+
+/* ============ 实验室通用 ============ */
+  .lab{border:1px solid var(--line);border-radius:10px;background:var(--panel);overflow:hidden}
+.lab-bar{
+  display:flex;flex-wrap:wrap;align-items:center;gap:18px; padding:16px 20px;border-bottom:1px solid var(--line);background:rgba(10,16,12,.7);
+}
+  .ctrl{display:flex;align-items:center;gap:9px;flex-wrap:wrap} .ctrl label{font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.1em} .seg{display:flex;border:1px solid var(--line2);border-radius:5px;overflow:hidden}
+.seg button{
+  font-family:var(--mono);font-size:12px;padding:7px 13px;border:none;cursor:pointer; background:transparent;color:var(--dim);border-right:1px solid var(--line2); transition:all .18s;letter-spacing:.02em;
+}
+  .seg button:last-child{border-right:none} .seg button:hover{color:var(--ink);background:rgba(52,224,138,.06)} .seg button.on{background:var(--green);color:#052013;font-weight:600}
+.icon-btn{
+  height:32px;padding:0 12px;border:1px solid var(--line2);border-radius:5px;background:transparent; color:var(--dim);cursor:pointer;font-family:var(--mono);font-size:12px; transition:all .18s;display:flex;align-items:center;justify-content:center;
+}
+  .icon-btn:hover{color:var(--green);border-color:var(--green-dim)} .icon-btn.play.on{color:var(--green);border-color:var(--green-dim);background:rgba(52,224,138,.08)}
+.tmsbtn{
+  font-family:var(--mono);font-size:13px;font-weight:600;padding:9px 16px;border-radius:5px; cursor:pointer;border:1px solid;transition:all .15s;
+}
+  .tmsbtn.b0{color:var(--green);border-color:var(--green-dim);background:rgba(52,224,138,.07)} .tmsbtn.b1{color:var(--amber);border-color:rgba(255,176,46,.45);background:rgba(255,176,46,.07)} .tmsbtn.b0:hover{background:var(--green);color:#052013}
+  .tmsbtn.b1:hover{background:var(--amber);color:#241500}
+input[type=range]{
+  -webkit-appearance:none;width:120px;height:2px;background:var(--line2);border-radius:2px;outline:none;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--green); cursor:pointer;box-shadow:0 0 8px rgba(52,224,138,.5);
+}
+  .lab-body{display:grid;grid-template-columns:1fr 280px;gap:0} .scope-main{position:relative;background:#080d0a;min-width:0}
+.scope-main::after{
+  content:"";position:absolute;inset:0;pointer-events:none; background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.14) 3px 4px);
+}
+  .scope-main canvas{display:block;width:100%}
+.readout{
+  border-left:1px solid var(--line);background:#0a110d; padding:18px 18px 14px;display:flex;flex-direction:column;min-width:0;
+}
+.readout .r-title{
+  font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.22em; margin-bottom:14px;display:flex;align-items:center;gap:8px;
+}
+  .readout .r-title::before{content:"";width:6px;height:6px;background:var(--red);border-radius:50%;animation:blink 1.4s infinite}
+.r-row{
+  display:flex;justify-content:space-between;align-items:baseline;gap:10px; font-family:var(--mono);padding:7px 0;border-bottom:1px dashed var(--line);
+}
+  .r-row .k{font-size:11px;color:var(--faint);letter-spacing:.08em;white-space:nowrap} .r-row .v{font-size:13px;color:var(--ink);text-align:right;word-break:break-all} .r-row .v.g{color:var(--green)} .r-row .v.a{color:var(--amber)} .r-row .v.c{color:var(--cyan)} .r-row .v.r{color:var(--red)}
+  .r-note{font-size:11px;color:var(--faint);line-height:1.65;margin-top:12px;font-family:var(--mono)} .r-note b{color:var(--dim);font-weight:500}
+.lab-foot{
+  padding:14px 20px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:10px 26px; background:rgba(10,16,12,.6);
+}
+  .legend{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;color:var(--dim)} .legend i{width:18px;height:2px;border-radius:2px} .lab-decode{padding:16px 20px;border-top:1px solid var(--line);background:#0a110d}
+  .lab-decode .d-title{font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.2em;margin-bottom:10px} .bitrow{display:flex;gap:3px;flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px}
+.dcell{
+  flex:1 0 0;min-width:14px;height:30px;border:1px solid var(--line2);border-radius:3px; display:flex;align-items:center;justify-content:center; font-family:var(--mono);font-size:12px;color:var(--faint);transition:all .18s;
+}
+  .dcell.on{color:#052013;font-weight:600} .dcell.c0{border-color:rgba(255,100,120,.5)} .dcell.c0.on{background:var(--red)} .dcell.cm{border-color:rgba(255,176,46,.4)} .dcell.cm.on{background:var(--amber);color:#241500}
+  .dcell.cp{border-color:rgba(52,224,138,.4)} .dcell.cp.on{background:var(--green)} .dcell.cv{border-color:rgba(87,216,242,.4)} .dcell.cv.on{background:var(--cyan);color:#03222c}
+.dres{
+  margin-top:10px;font-family:var(--mono);font-size:12.5px;color:var(--dim); display:flex;gap:10px 28px;flex-wrap:wrap;align-items:baseline;
+}
+  .dres b{color:var(--ink);font-weight:600} .dres .ok{color:var(--green);margin-right:10px}
+.rule-callout{
+  margin-top:26px;display:grid;grid-template-columns:auto 1fr;gap:22px;align-items:center; border:1px solid rgba(255,176,46,.3);border-radius:8px;padding:20px 26px; background:linear-gradient(120deg,rgba(255,176,46,.06),transparent 60%);
+}
+.rule-callout .mnemonic{
+  font-family:var(--disp);font-weight:700;font-size:clamp(19px,2.6vw,26px); color:var(--amber);letter-spacing:.08em;white-space:nowrap;
+}
+  .rule-callout .mnemonic small{display:block;font-size:11px;font-weight:500;color:var(--faint);letter-spacing:.24em;margin-top:6px;font-family:var(--mono)} .rule-callout p{font-size:13.5px;color:var(--dim)} .rule-callout p b{color:var(--ink);font-weight:500}
+
+/* ============ §03 TAP 状态机 ============ */
+  .tapwrap{background:#080d0a;padding:14px;overflow-x:auto} #tapSvg{min-width:840px;width:100%;height:auto;display:block} #tapSvg .tapn rect{fill:#0d1510;stroke:var(--line2);stroke-width:1.2}
+  #tapSvg .tapn text{fill:var(--ink);font-family:var(--mono);font-size:11.5px;font-weight:600;text-anchor:middle} #tapSvg .tapn.nd rect{stroke:var(--green-dim)} #tapSvg .tapn.ni rect{stroke:rgba(255,176,46,.4)}
+  #tapSvg .tapn.nc rect{stroke:rgba(255,100,120,.5)} #tapSvg .tapn.nr rect{stroke:rgba(87,216,242,.45)} #tapSvg .tapn{cursor:pointer}
+  #tapSvg .tapn:hover rect{stroke:var(--ink)} #tapSvg .tapn.cur rect{fill:rgba(52,224,138,.16);stroke:var(--green);stroke-width:2;filter:drop-shadow(0 0 7px rgba(52,224,138,.7))} #tapSvg .tapn.cur text{fill:var(--green)}
+  #tapSvg .tapedge{fill:none;stroke-width:1.5} #tapSvg .tapedge.t0{stroke:rgba(52,224,138,.38)} #tapSvg .tapedge.t1{stroke:rgba(255,176,46,.38)}
+  #tapSvg .tapedge.hot{stroke-width:3;stroke-dasharray:7 5;animation:tapedash .45s linear infinite} #tapSvg .tapedge.hot.t0{stroke:var(--green)} #tapSvg .tapedge.hot.t1{stroke:var(--amber)}
+@keyframes tapedash{to{stroke-dashoffset:-12}}
+  #tapSvg .taplbl{font-family:var(--mono);font-size:10px;font-weight:600;text-anchor:middle} #tapSvg .taplbl.t0{fill:rgba(52,224,138,.85)} #tapSvg .taplbl.t1{fill:rgba(255,176,46,.85)} #tapSvg .tapband{font-family:var(--mono);font-size:10.5px;fill:var(--faint);letter-spacing:.2em}
+  #tapSvg.mp .tapedge{opacity:.13} #tapSvg.mp .tapedge.mp{opacity:1;stroke:rgba(87,216,242,.8);stroke-width:2.2} #tapSvg.mp .tapedge.hot{opacity:1}
+  .hist-wrap{margin-top:6px} .hb{color:var(--ink)} .hb.cur{color:var(--green);font-weight:600} .ht{font-family:var(--mono);font-size:10px;padding:1px 5px;border-radius:3px;margin:0 3px}
+  .ht.b0{color:var(--green);border:1px solid var(--green-dim)} .ht.b1{color:var(--amber);border:1px solid rgba(255,176,46,.45)} .tapdesc{font-size:12.3px;color:var(--dim);line-height:1.7;margin-top:10px;min-height:66px} .tapdesc b{color:var(--green);font-weight:500;font-family:var(--mono)}
+  .tapdesc .nx{font-family:var(--mono);font-size:11px;display:block;margin-top:4px} .tapdesc .nx i{font-style:normal;color:var(--faint)}
+
+/* ============ §05 扫描链 ============ */
+.chwrap{
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap; padding:22px 20px;background:#080d0a;border-bottom:1px solid var(--line);
+}
+  .ch-lab{font-family:var(--mono);font-size:12px;color:var(--faint);letter-spacing:.1em;white-space:nowrap} .ch-dev{border:1px solid var(--line2);border-radius:8px;padding:12px 14px;background:var(--panel)} .ch-dev .n{font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.1em;margin-bottom:8px}
+  .ch-cells{display:flex;gap:6px}
+.ch-cell{
+  width:40px;height:44px;border:1px solid var(--line2);border-radius:5px;background:#0a110d; display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px; font-family:var(--mono);transition:all .18s;
+}
+  .ch-cell .b{font-size:18px;font-weight:600;color:var(--faint)} .ch-cell small{font-size:9px;color:var(--faint)} .ch-cell.devA.hot .b,.ch-cell.devA.hot{border-color:rgba(52,224,138,.6)} .ch-cell.devA.hot .b{color:var(--green)}
+  .ch-cell.devB.hot .b,.ch-cell.devB.hot{border-color:rgba(255,176,46,.55)} .ch-cell.devB.hot .b{color:var(--amber)}
+.ch-io{
+  display:flex;gap:22px;flex-wrap:wrap;align-items:center;padding:14px 20px; border-bottom:1px solid var(--line);background:rgba(10,17,13,.7); font-family:var(--mono);font-size:12px;color:var(--dim);
+}
+  .ch-io .seq{display:flex;gap:5px;align-items:center;flex-wrap:wrap} .ch-io .seq span{width:24px;height:24px;border:1px solid var(--line2);border-radius:4px; display:flex;align-items:center;justify-content:center;color:var(--faint)}
+  .ch-io .seq span.used{opacity:.25} .ch-io .seq span.next{border-color:var(--green);color:var(--green)}
+.ch-banner{
+  padding:13px 20px;font-family:var(--mono);font-size:12.5px;color:var(--faint); border-top:1px solid var(--line);background:#0a110d;min-height:44px;
+}
+  .ch-banner.ok{color:var(--green)} .ms-grid{display:grid;grid-template-columns:1.05fr 1fr;gap:34px;align-items:start;margin-top:34px} .ms-diagram{border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:20px}
+  .ms-diagram svg{width:100%;height:auto;display:block}
+
+/* ============ §06 边界扫描 ============ */
+  .xt-table{width:100%;border-collapse:collapse;font-size:12.3px;margin-top:22px}
+.xt-table th{
+  font-family:var(--mono);font-weight:500;color:var(--faint);text-align:left; padding:8px 12px;border-bottom:1px solid var(--line2);font-size:11px;letter-spacing:.08em;
+}
+  .xt-table td{padding:8px 12px;border-bottom:1px solid var(--line);color:var(--dim);font-family:var(--mono)} .xt-table td:first-child{color:var(--ink)} .xt-table .bad{color:var(--red)} .xt-table .good{color:var(--green)}
+  #xtSvg{width:100%;height:auto;display:block} #xtSvg .net path{stroke:var(--line2);stroke-width:2.5;fill:none;transition:all .35s} #xtSvg .net.on path{stroke:var(--green);filter:drop-shadow(0 0 5px rgba(52,224,138,.8))}
+  #xtSvg .net.brk path{stroke:rgba(255,100,120,.6);stroke-dasharray:6 5} #xtSvg .cell rect{fill:#0d1510;stroke:var(--line2);stroke-width:1.2;transition:all .3s} #xtSvg .cell text{fill:var(--faint);font-family:var(--mono);font-size:12px;text-anchor:middle}
+  #xtSvg .cell.on rect{fill:rgba(52,224,138,.2);stroke:var(--green)} #xtSvg .cell.on text{fill:var(--green);font-weight:600} #xtSvg .cell.miss rect{stroke:rgba(255,100,120,.7)}
+  #xtSvg .cell.miss text{fill:var(--red)} #xtSvg .lab{font-family:var(--mono);font-size:11px;fill:var(--dim)} #xtSvg .lab.b{font-size:14px;fill:var(--ink)}
+
+/* ============ §07 SWD ============ */
+  .swd-bar{padding:22px 20px 16px;background:#080d0a;border-bottom:1px solid var(--line);overflow-x:auto} .swd-row{display:flex;align-items:flex-end;gap:6px;min-width:660px}
+.swf{
+  border:1px solid var(--line2);border-radius:5px;background:#0a110d; padding:7px 8px 6px;text-align:center;min-width:46px;transition:all .2s;
+}
+  .swf small{display:block;font-family:var(--mono);font-size:9px;color:var(--faint);letter-spacing:.06em;margin-bottom:3px} .swf b{font-family:var(--mono);font-size:15px;color:var(--faint);font-weight:600} .swf.on{border-color:var(--green);background:rgba(52,224,138,.09)}
+  .swf.on b{color:var(--green)} .swf.wide{flex:1} .swf.ack.on{border-color:var(--cyan);background:rgba(87,216,242,.1)} .swf.ack.on b{color:var(--cyan)}
+  .swf.err.on{border-color:var(--red);background:rgba(255,100,120,.1)} .swf.err.on b{color:var(--red)}
+.turn{
+  writing-mode:vertical-rl;font-family:var(--mono);font-size:9px;color:var(--faint); border-left:1px dashed var(--line2);padding-left:6px;height:46px;letter-spacing:.1em;
+}
+  .swphase{font-family:var(--mono);font-size:9.5px;color:var(--faint);letter-spacing:.18em;align-self:center;white-space:nowrap} .databits{display:flex;gap:2px;margin-top:8px;flex-wrap:nowrap}
+.databits i{
+  flex:1 0 0;min-width:10px;height:18px;border:1px solid var(--line2);border-radius:2px; transition:all .18s;
+}
+  .databits i.on{background:var(--cyan);border-color:var(--cyan)}
+#swdNarr{
+  padding:16px 20px;font-family:var(--mono);font-size:12.8px;line-height:2; min-height:96px;color:var(--dim);
+}
+  #swdNarr .last{color:var(--green)} #swdNarr .last.err{color:var(--red)} #swdNarr .old{color:var(--faint)}
+
+/* ============ 计算器 / 终端 / 踩坑 ============ */
+.calc{
+  border:1px solid var(--line);border-radius:10px;background:var(--panel); display:grid;grid-template-columns:1fr 1fr;overflow:hidden;
+}
+  .calc .inputs{padding:30px 32px;border-right:1px solid var(--line)} .calc .outputs{padding:30px 32px;background:#0a110d} .calc h5{font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.22em;margin-bottom:18px}
+  .field{margin-bottom:20px} .field label{display:block;font-family:var(--mono);font-size:11.5px;color:var(--dim);margin-bottom:8px;letter-spacing:.06em}
+.field select{
+  width:100%;font-family:var(--mono);font-size:13.5px;color:var(--ink); background:#080d0a;border:1px solid var(--line2);border-radius:5px;padding:10px 12px;outline:none; cursor:pointer;transition:border-color .2s;
+}
+  .field select:focus{border-color:var(--green-dim)} .out-row{display:flex;justify-content:space-between;align-items:baseline;padding:13px 0;border-bottom:1px dashed var(--line)} .out-row .ok{font-size:12.5px;color:var(--dim)}
+  .out-row .ok small{display:block;font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.08em} .out-row .ov{font-family:var(--mono);font-size:19px;font-weight:600;color:var(--green)} .out-row .ov small{font-size:11px;color:var(--faint);font-weight:400;margin-left:4px}
+  .out-row.big .ov{font-size:26px;color:var(--amber)}
+.calc-formula{
+  grid-column:1/-1;padding:15px 32px;border-top:1px solid var(--line); font-family:var(--mono);font-size:12.5px;color:var(--dim);background:rgba(10,17,13,.8);
+}
+  .calc-formula b{color:var(--green);font-weight:500}
+
+  .term-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+.term{
+  border:1px solid var(--line);border-radius:8px;background:#070c09; overflow:hidden;display:flex;flex-direction:column;min-width:0; transition:border-color .25s;
+}
+  .term:hover{border-color:var(--line2)} .term.wide{grid-column:1/-1}
+.term-bar{
+  display:flex;align-items:center;gap:7px;padding:10px 14px; border-bottom:1px solid var(--line);background:rgba(10,16,12,.85);
+}
+  .term-bar i{width:10px;height:10px;border-radius:50%} .term-bar .d1{background:rgba(255,100,120,.55)} .term-bar .d2{background:rgba(255,176,46,.5)}
+  .term-bar .d3{background:rgba(52,224,138,.5)} .term-bar span{margin-left:8px;font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.12em} .term-body{padding:15px 18px 17px;font-family:var(--mono);font-size:12.3px;line-height:1.95;overflow-x:auto;flex:1}
+  .term-body div{white-space:pre;min-height:1.35em} .t-ps{color:#3f5247;user-select:none} .t-cmd{color:var(--green);cursor:pointer;font-family:inherit;border-bottom:1px dotted transparent;transition:border-color .15s}
+  .t-cmd:hover{border-bottom-color:var(--green)} .t-cmd.copied{color:#052013;background:var(--green);border-radius:2px;padding:0 4px} .t-out{color:var(--dim)}
+  .t-hl{color:var(--amber)} .t-cmt{color:#516657} .t-tag{color:var(--cyan)}
+.lnx-note{
+  margin-top:26px;padding:18px 22px;border-left:2px solid var(--cyan); background:rgba(87,216,242,.05);border-radius:0 6px 6px 0;font-size:13.5px;color:var(--dim);
+}
+  .lnx-note b{color:var(--cyan);font-weight:500} .lnx-note code{font-family:var(--mono);font-size:.9em;color:var(--amber)}
+
+  .pit-list{display:flex;flex-direction:column;gap:12px}
+.pit{
+  display:grid;grid-template-columns:56px 1fr;gap:18px;align-items:start; border:1px solid var(--line);border-radius:6px;padding:17px 20px;background:var(--panel); transition:border-color .2s;
+}
+  .pit:hover{border-color:rgba(255,100,120,.4)}
+.pit .symptom{
+  font-family:var(--mono);font-size:10px;letter-spacing:.06em;color:var(--red); border:1px solid rgba(255,100,120,.35);border-radius:4px;padding:5px 7px;text-align:center; line-height:1.5;background:rgba(255,100,120,.05);height:fit-content;
+}
+  .pit .fix b{display:block;font-size:14px;font-weight:500;color:var(--ink);margin-bottom:4px} .pit .fix b code{font-family:var(--mono);font-size:.88em;color:var(--green)} .pit .fix p{font-size:12.8px;color:var(--dim);line-height:1.7}
+  .pit .fix p code{font-family:var(--mono);font-size:.9em;color:var(--amber)}
+
+/* ============ 速查 ============ */
+  .notation{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin:8px 0 10px} .n-item{text-align:center}
+.n-item .nv{
+  font-family:var(--mono);font-size:24px;color:var(--green);border:1px solid rgba(52,224,138,.4); padding:8px 16px;border-radius:8px;background:rgba(52,224,138,.06);
+}
+  .n-item .nv.a{color:var(--amber);border-color:rgba(255,176,46,.4);background:rgba(255,176,46,.06)} .n-item .nv.c{color:var(--cyan);border-color:rgba(87,216,242,.4);background:rgba(87,216,242,.06)} .n-item small{display:block;font-size:11.5px;color:var(--dim);margin-top:6px}
+  .rules{list-style:none;display:flex;flex-direction:column;gap:10px} .rules li{display:flex;gap:12px;align-items:flex-start;padding:11px 14px;border:1px solid var(--line);border-radius:8px;background:rgba(16,26,19,.5)}
+.rules .no{
+  font-family:var(--mono);color:#052013;background:var(--green);border-radius:5px;min-width:24px;height:24px; display:flex;align-items:center;justify-content:center;font-size:13px;flex:none;margin-top:2px;font-weight:600;
+}
+  .rules b{color:var(--ink);font-weight:500}
+
+footer{
+  border-top:1px solid var(--line);padding:44px 6vw 60px;margin-top:40px; display:flex;flex-wrap:wrap;gap:24px;align-items:baseline;justify-content:space-between;
+}
+  footer .f-l{font-family:var(--mono);font-size:11.5px;color:var(--faint);line-height:2.1} footer .f-l b{color:var(--dim);font-weight:500} footer a{color:var(--faint);text-decoration:none;border-bottom:1px dotted var(--faint)}
+  footer a:hover{color:var(--green);border-color:var(--green)} footer .f-r{font-family:var(--disp);font-weight:700;font-size:22px;color:var(--green)}
+
+/* ============ 响应式 ============ */
+@media (max-width:1000px){
+  .two-col,.ms-grid{grid-template-columns:1fr} .lab-body{grid-template-columns:1fr} .readout{border-left:none;border-top:1px solid var(--line)}
+  .calc{grid-template-columns:1fr} .calc .inputs{border-right:none;border-bottom:1px solid var(--line)}
+}
+@media (max-width:720px){
+  .sig-grid,.term-grid,.fact-grid{grid-template-columns:1fr} nav>a{display:none} nav .xnav{max-width:70vw}
+  section{padding:70px 5vw} .sec-head .en{display:none}
+}
+</style>
+</head>
+<body>
+<nav>
+  <div class="logo">JTAG<b>·</b>LAB</div>
+  <a href="#s1">概述</a><a href="#s2">信号线</a><a href="#s3">TAP 状态机</a><a href="#s4">IDCODE 时序</a><a href="#s5">扫描链</a><a href="#s6">边界扫描</a><a href="#s7">SWD</a><a href="#s8">实战</a><a href="#s9">踩坑·速查</a>
+  <div class="xnav"><a href="index.html">« HOME</a><a href="i2c.html">I²C</a><a href="spi.html">SPI</a><a href="uart.html">UART</a><a href="ir.html">IR</a><a href="rs485.html">RS-485</a><a href="onewire.html">1-WIRE</a><a href="can.html">CAN</a><a href="i2s.html">I²S</a><a href="dmic.html">DMIC</a><a href="tdm.html">TDM</a><a href="sdio.html">SDIO</a><a href="emmc.html">eMMC</a><a href="ddr.html">DDR</a><a href="rgb.html">RGB</a><a href="lvds.html">LVDS</a><a href="mipi-dsi.html">DSI</a><a href="csi2.html">CSI-2</a><a href="hdmi.html">HDMI</a><a href="usb.html">USB</a><a href="pcie.html">PCIE</a></div>
+  <div class="spacer"></div>
+  <div class="live"><i></i>BOUNDARY&nbsp;SCAN</div>
+</nav>
+
+<main>
+<!-- ================= HERO ================= -->
+<header class="hero">
+  <div class="eyebrow">IEEE 1149.1 · TEST ACCESS PORT · DEBUG PORT</div>
+  <h1>JTAG<span class="zh">边 界 扫 描 与 调 试 通 道 · 图 解 JTAG / SWD</span></h1>
+  <p class="lede">
+    它生于 1990 年的难题：PCB 密度越来越高，测试探针根本扎不进去了。于是工程师把「探针」搬进芯片内部——
+    每个引脚背后放一个寄存器单元，串成一条链，用 <b>TCK / TMS / TDI / TDO 四根线</b>驱动。
+    三十年后，这条「边界扫描链」成了芯片烧录、断点调试、RTOS 感知调试、产线测试的<b>万能后门</b>。
+    <b>往下滚动：亲手点击 TMS，驱动 16 态 TAP 状态机；再看 32 位 IDCODE 如何逐位移出。</b>
+  </p>
+  <div class="chips">
+    <span><b>4+1</b> 根信号线 · TCK/TMS/TDI/TDO(+TRST)</span>
+    <span><b>16</b> 状态 TAP 状态机</span>
+    <span><b>32</b> bit IDCODE · 器件身份证</span>
+    <span><b>≤50 MHz</b> TCK · 烧录+调试+板测</span>
+  </div>
+  <div class="cta">
+    <a class="primary" href="#s3">▶ 进入 TAP 状态机模拟器</a>
+    <a class="ghost" href="#s1">从边界扫描的起源讲起</a>
+  </div>
+  <div class="svgwrap">
+      <svg id="heroSvg" viewBox="0 0 920 330" xmlns="http://www.w3.org/2000/svg" aria-label="JTAG 调试器与目标芯片连接示意图"> <path class="gnd-wire" d="M120,286 L120,312 L770,312 L770,286"/> <text class="svg-lab" x="445" y="326" text-anchor="middle">GND · 共地（调试链路的参考平面）</text>
+  <!-- 调试器 --> <g> <rect class="chip-ic" x="36" y="104" width="196" height="182" rx="10"/>
+  <text class="svg-lab big" x="134" y="140" text-anchor="middle">调试器</text> <text class="svg-lab" x="134" y="160" text-anchor="middle">J-Link / ST-Link / DAP-Link</text> <text class="svg-lab" x="134" y="182" text-anchor="middle">USB ← PC（另见 USB 页）</text>
+  <text class="svg-lab g" x="228" y="149" text-anchor="end" font-size="11">TCK →</text> <text class="svg-lab a" x="228" y="183" text-anchor="end" font-size="11">TMS →</text> <text class="svg-lab g" x="228" y="219" text-anchor="end" font-size="11">TDI →</text>
+  <text class="svg-lab c" x="228" y="257" text-anchor="end" font-size="11">← TDO</text> </g> <!-- 四根线 -->
+  <path id="hwTCK" class="wire tck" d="M232,144 L618,144"/> <path id="hpTMS" class="wire tms" d="M232,178 L618,178"/> <path id="hpTDI" class="wire tdi" d="M232,214 C 380,214 500,214 618,214"/>
+  <path id="hpTDO" class="wire tdo" d="M618,252 C 500,252 380,252 232,252"/> <text class="svg-lab" x="300" y="134">TCK · 时钟（上升沿采样）</text> <text class="svg-lab a" x="540" y="168">TMS · 状态机驾驶杆</text>
+  <text class="svg-lab g" x="300" y="205" font-size="11">TDI · 数据入</text> <text class="svg-lab c" x="300" y="243" font-size="11">TDO · 数据出（IDCODE 在这里移出）</text> <!-- 目标芯片 -->
+  <g> <rect class="chip-ic" x="618" y="48" width="268" height="238" rx="10"/> <text class="svg-lab big" x="752" y="42" text-anchor="middle">目标芯片</text>
+  <!-- 边界寄存器环 --> <g id="heroBsc"></g> <rect x="690" y="140" width="150" height="112" rx="6" fill="rgba(52,224,138,.06)" stroke="rgba(52,224,138,.45)"/>
+  <text class="svg-lab g" x="765" y="186" text-anchor="middle">TAP 控制器</text> <text class="svg-lab g" x="765" y="204" text-anchor="middle">16 态状态机</text> <text class="svg-lab" x="765" y="222" text-anchor="middle">IR / DR 移位链</text>
+  <text class="svg-lab c" x="765" y="116" text-anchor="middle" font-size="11">边界扫描寄存器环（每个 IO 一个单元）</text> </g> <!-- 移动的数据包 -->
+  <g id="hpkTDI"></g> <g id="hpkTMS"></g> <g id="hpkTDO"></g>
+  <text class="svg-lab" id="heroStat" x="460" y="302" text-anchor="middle"></text>
+    </svg>
+  </div>
+  <div class="scroll-hint">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+    SCROLL · 状态机模拟器在 03 节 · IDCODE 时序在 04 节
+  </div>
+</header>
+
+<!-- ================= §01 ================= -->
+<section id="s1">
+  <div class="sec-head reveal"><span class="no">01</span><h2>它是什么，为什么存在</h2><span class="en">What &amp; Why</span></div>
+  <p class="sec-sub reveal">一句话：<b>JTAG 是一条从 PCB 直通芯片内部的标准化串行通道</b>——最初为了测试电路板，如今是烧录、调试、产测的公共入口。</p>
+  <div class="two-col">
+    <div class="prose reveal">
+      <p>
+        1980 年代末，表面贴装和多层数字电路让「针床夹具」测试越来越难：芯片引脚间距缩小到探针扎不进去，
+        高速总线也无法从外面触碰。1990 年，<b>Joint Test Action Group</b> 的方案成为
+        <span class="kw">IEEE 1149.1</span> 标准——<b>边界扫描（Boundary Scan）</b>：
+        在芯片每个 IO 单元里放一个可捕获/可驱动的寄存器，全部串成一条移位链，
+        板级连通性测试就能<b>从芯片内部</b>驱动和观察每一个焊球。
+      </p>
+      <p>
+        标准同时定义了访问这条链的通用端口：<span class="kw">TCK</span>（时钟）、<span class="kw">TMS</span>（状态机控制）、
+        <span class="kw">TDI</span>（数据入）、<span class="kw">TDO</span>（数据出），外加可选的 <span class="kw">TRST</span>——
+        以及一个小而完整的 16 态状态机（TAP）。硬件工程师很快发现：既然能把数据移到每个引脚，
+        当然也能移到内核调试模块、FLASH 控制器、OTP——于是 JTAG 演变成
+        <b>烧录固件、设断点单步、RTOS 感知调试、FPGA 配置</b>的标准通道，
+        调试器通过 <a href="usb.html" style="color:var(--green)">USB</a> 接到 PC，
+        而不再是简单的 <a href="uart.html" style="color:var(--green)">UART</a> 打印。
+      </p>
+      <p>
+        ARM Cortex-M 时代，JTAG 与更省引脚的 <b>SWD</b>（2 线）共用调试口（SWJ-DP，上电自动识别协议）——
+        07 节会专门对比。两者共享同一套调试基础设施（OpenOCD / GDB / CMSIS-DAP）。
+      </p>
+    </div>
+    <table class="cmp-table reveal">
+      <tr><th></th><th>JTAG</th><th>SWD</th><th>UART</th></tr>
+      <tr><td>信号线</td><td>4 + TRST</td><td class="yes">2</td><td class="yes">2</td></tr>
+      <tr><td>速率量级</td><td class="yes">TCK 数十 MHz</td><td>SWCLK 数 MHz</td><td class="no">≤ 数 Mbps</td></tr>
+      <tr><td>烧录固件</td><td class="yes">✓</td><td class="yes">✓</td><td>需 bootloader</td></tr>
+      <tr><td>断点 / 单步</td><td class="yes">✓</td><td class="yes">✓</td><td class="no">✗</td></tr>
+      <tr><td>边界扫描 / 板测</td><td class="yes">✓ 独有</td><td class="no">✗</td><td class="no">✗</td></tr>
+      <tr><td>多器件</td><td>菊花链 ✓</td><td>multidrop</td><td>点对点</td></tr>
+      <tr><td>典型角色</td><td>调试·烧录·产测</td><td>调试·烧录</td><td>打印·AT 指令</td></tr>
+    </table>
+  </div>
+  <div class="fact-grid reveal">
+    <div class="fact"><div class="f-no">FACT / A</div><h4>为板测而生 <code>1990</code></h4><p><b>IEEE 1149.1</b>：在 IO 里放边界单元、串成链，用四根线从芯片内部「探」每个引脚——针床夹具的替代品。</p></div>
+    <div class="fact"><div class="f-no">FACT / B</div><h4>万能后门 <code>IR / DR</code></h4><p>任何操作都是两步：<b>移 IR 选寄存器 → 移 DR 读写数据</b>。选中的可以是 IDCODE、边界链、也可以是内核调试口。</p></div>
+    <div class="fact"><div class="f-no">FACT / C</div><h4>器件身份证 <code>IDCODE</code></h4><p>TAP 复位后 DR 默认装载 32 位 IDCODE：版本 / 部件号 / 厂商号（JEDEC）。扫一条链就能知道接了谁——见 04 节。</p></div>
+    <div class="fact"><div class="f-no">FACT / D</div><h4>与 SWD 引脚复用 <code>SWJ-DP</code></h4><p>Cortex-M 的调试口上电监听特定序列自动切换 JTAG / SWD——四个 JTAG 脚与两个 SWD 脚物理共用。</p></div>
+  </div>
+</section>
+
+<!-- ================= §02 ================= -->
+<section id="s2">
+  <div class="sec-head reveal"><span class="no">02</span><h2>四根信号线（+ 可选 TRST）</h2><span class="en">Signals</span></div>
+  <p class="sec-sub reveal">JTAG 的信号世界极简：一根时钟、一根「驾驶杆」、一进一出两根数据。每张卡片都是<b>正在运行的实时波形</b>——注意 TDO 的第三种状态：高阻 Z。</p>
+  <div class="sig-grid">
+    <div class="sig-card c-clk reveal">
+      <div class="scope"><canvas data-wave="tck"></canvas></div>
+      <div class="body">
+        <div class="names"><span class="main">TCK</span><span class="alias">测试时钟</span><span class="pin">CLOCK</span></div>
+        <p>调试器单向驱动的时钟，典型 <b>1–50 MHz</b>（OpenOCD 里叫 adapter speed）。所有信号以它对齐：<b>TMS/TDI 在上升沿被采样</b>。链路不稳时第一件事就是降它。</p>
+        <div class="formula">采样规则：TMS · TDI ⇈ TCK 上升沿</div>
+      </div>
+    </div>
+    <div class="sig-card c-tms reveal">
+      <div class="scope"><canvas data-wave="tms"></canvas></div>
+      <div class="body">
+        <div class="names"><span class="main">TMS</span><span class="alias">测试模式选择 · 状态机驾驶杆</span><span class="pin">MODE</span></div>
+        <p>每个 TCK 上升沿，TAP 用 <b>TMS 的一位</b>决定状态去留——TMS=1 走「上方」、TMS=0 走「下方」。全部 16 个状态全由这根线驾驶；<b>连续 5 个 1 必回复位态</b>。</p>
+        <div class="formula">TMS=1 ×5 → Test-Logic-Reset（万能恢复键）</div>
+      </div>
+    </div>
+    <div class="sig-card c-dat reveal">
+      <div class="scope"><canvas data-wave="tdi"></canvas></div>
+      <div class="body">
+        <div class="names"><span class="main">TDI</span><span class="alias">测试数据入 · 主机→器件</span><span class="pin">IN</span></div>
+        <p>移位阶段的数据输入：在 <b>TCK 上升沿</b>进入链首，逐拍向 TDO 方向推进。空闲时被上拉为高——所以「什么都没发」时移进来的是全 1（恰是 BYPASS 指令）。</p>
+        <div class="formula">移位规则：LSB 先行 · 一拍一位</div>
+      </div>
+    </div>
+    <div class="sig-card c-dat reveal">
+      <div class="scope"><canvas data-wave="tdo"></canvas></div>
+      <div class="body">
+        <div class="names"><span class="main">TDO</span><span class="alias">测试数据出 · 器件→主机</span><span class="pin">OUT</span></div>
+        <p>移位阶段的数据输出：<b>在 TCK 下降沿更新</b>（与输入采样错开半拍，保证建立时间）。<b>仅在 Shift-IR / Shift-DR 被驱动，其余状态高阻 Z</b>——菊花链里它直接连下一颗的 TDI。</p>
+        <div class="formula">TDO ⇊ TCK 下降沿更新 · 非 Shift 态 = 高阻</div>
+      </div>
+    </div>
+    <div class="sig-card c-aux reveal" style="grid-column:1/-1">
+      <div class="scope"><canvas data-wave="trst"></canvas></div>
+      <div class="body">
+        <div class="names"><span class="main">TRST</span><span class="alias">测试复位 · 可选 · 低有效</span><span class="pin">AUX</span></div>
+        <p>异步把 TAP 直接拉回 Test-Logic-Reset，<b>不动芯片内核</b>（与 nRST 的区别）。现代设计几乎都省掉它——<b>在 TMS 上连发 5 个 1 就能同步地达到同样效果</b>，于是四线就够。量产板上它常与 nSRST 一起留成测试点。</p>
+        <div class="formula">TRST 低有效 · 可省略（TMS=1×5 等效替代）</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= §03 TAP 状态机 ================= -->
+<section id="s3">
+  <div class="sec-head reveal"><span class="no">03</span><h2>TAP 状态机模拟器 · 亲自拍一次 TMS</h2><span class="en">TAP Controller</span></div>
+  <p class="sec-sub reveal">
+    整个 JTAG 协议就是这台 16 态状态机。每个 TCK 上升沿读一次 TMS：<b style="color:var(--green)">TMS=0 走绿线</b>、<b style="color:var(--amber)">TMS=1 走琥珀线</b>。
+    点击下面的按钮逐拍驱动，或让自动序列带你走完 <b>TLR → Shift-IR → Shift-DR</b> 主路径——这是所有 JTAG 操作的必经之路。
+  </p>
+  <div class="lab reveal">
+    <div class="lab-bar">
+      <div class="ctrl"><label>手动拍时钟</label>
+        <button class="tmsbtn b0" id="tms0">TMS = 0 ▲TCK</button>
+        <button class="tmsbtn b1" id="tms1">TMS = 1 ▲TCK</button>
+      </div>
+      <div class="ctrl"><label>自动序列</label>
+        <button class="icon-btn" id="toTLR">⇤ 回 TLR</button>
+        <button class="icon-btn" id="seqIR">→ Shift-IR</button>
+        <button class="icon-btn" id="seqDR">→ Shift-DR</button>
+        <button class="icon-btn" id="seqFull">▶ IDCODE 全流程</button>
+        <button class="icon-btn" id="tapReset">↺ 重置</button>
+      </div>
+      <div class="ctrl"><label>主路径</label>
+        <button class="icon-btn play on" id="tapMain">TLR→IR→DR 高亮</button>
+      </div>
+    </div>
+    <div class="lab-body" style="grid-template-columns:1fr 300px">
+      <div class="scope-main">
+        <div class="tapwrap" id="tapHost"></div>
+      </div>
+      <div class="readout">
+        <div class="r-title">TAP · 实时状态</div>
+        <div class="r-row"><span class="k">当前状态</span><span class="v g" id="tapCur">Test-Logic-Reset</span></div>
+        <div class="r-row"><span class="k">已发 TCK</span><span class="v" id="tapClk">0</span></div>
+        <div class="r-row"><span class="k">到 Shift-IR</span><span class="v a" id="tapH1">TMS = 0100</span></div>
+        <div class="r-row"><span class="k">到 Shift-DR</span><span class="v c" id="tapH2">TMS = 010100</span></div>
+        <div class="tapdesc" id="tapDesc"></div>
+        <div class="r-title" style="margin-top:12px">路径追踪</div>
+        <div class="hist-wrap r-row" style="border:none;display:block;line-height:2.2" id="tapHist"></div>
+        <div class="r-note"><b>提示</b>：键盘 0 / 1 也能拍时钟。任何状态下连拍 5 个 TMS=1 都会回到 TLR——调试器每次会话开始都这么干。</div>
+      </div>
+    </div>
+    <div class="lab-foot">
+      <div class="legend"><i style="background:rgba(52,224,138,.8)"></i>TMS=0 转移</div>
+      <div class="legend"><i style="background:rgba(255,176,46,.8)"></i>TMS=1 转移</div>
+      <div class="legend"><i style="height:8px;width:8px;border-radius:50%;background:var(--red)"></i>Test-Logic-Reset</div>
+      <div class="legend">上带 = DR 列（绿框） · 下带 = IR 列（琥珀框）</div>
+      <div class="legend">点击状态框可查看说明</div>
+    </div>
+  </div>
+  <div class="rule-callout reveal">
+    <div class="mnemonic">先 IR 后 DR<small>THE CANONICAL PATH</small></div>
+    <p>
+      所有 JTAG 操作都是同一条主路径：<b>TLR → Run-Test/Idle → Select-DR → Select-IR → Capture-IR → Shift-IR（移入指令码）→ Update-IR</b>，
+      再走一遍 <b>Select-DR → Capture-DR → Shift-DR（读写数据）→ Update-DR</b>。
+      记住「<b>过 Select-DR 不进（TMS=1）就是去 IR；进 DR 列（TMS=0）就是读写数据</b>」，任何波形都能反推出状态机走位。
+    </p>
+  </div>
+</section>
+
+<!-- ================= §04 IDCODE 时序 ================= -->
+<section id="s4">
+  <div class="sec-head reveal"><span class="no">04</span><h2>IDCODE 读取 · 逐位时序动画</h2><span class="en">IDCODE Timing Lab</span></div>
+  <p class="sec-sub reveal">
+    一台「虚拟逻辑分析仪」回放读 IDCODE 的完整事务：TMS 走位进 <b>Shift-IR</b> 移入指令码 0xE → Update-IR 生效 →
+    再进 <b>Shift-DR</b>，32 位器件身份证从 TDO <b style="color:var(--cyan)">LSB 先行逐位移出</b>，同时解码着色。
+    切换「双器件菊花链」看 32+32 位如何先后吐出。<b style="color:var(--red)">红色探针</b>是接收端上升沿采样点。
+  </p>
+  <div class="lab reveal">
+    <div class="lab-bar">
+      <div class="ctrl"><label>扫描链</label>
+        <div class="seg" id="modeSeg">
+          <button data-mode="single" class="on">单器件 · IDCODE</button>
+          <button data-mode="daisy">双器件菊花链</button>
+        </div>
+      </div>
+      <div class="ctrl"><label>速度</label><input type="range" id="idcSpeed" min="2" max="60" value="14"></div>
+      <div class="ctrl">
+        <button class="icon-btn" id="idcZoomOut" title="缩小">−</button>
+        <button class="icon-btn" id="idcZoomIn" title="放大">＋</button>
+        <button class="icon-btn play on" id="idcPlay" title="暂停/播放">❚❚</button>
+        <button class="icon-btn" id="idcStep" title="单步一拍 TCK">⏭ 单步</button>
+      </div>
+    </div>
+    <div class="lab-body">
+      <div class="scope-main"><canvas id="idcScope"></canvas></div>
+      <div class="readout">
+        <div class="r-title">PROBE · 实时解码</div>
+        <div class="r-row"><span class="k">扫描链</span><span class="v g" id="rMode">单器件</span></div>
+        <div class="r-row"><span class="k">事务阶段</span><span class="v a" id="rPhase">—</span></div>
+        <div class="r-row"><span class="k">TAP 状态</span><span class="v" id="rState">—</span></div>
+        <div class="r-row"><span class="k">TMS / TDI</span><span class="v" id="rBits">—</span></div>
+        <div class="r-row"><span class="k">TDO 采样值</span><span class="v c" id="rTdo">Z</span></div>
+        <div class="r-row"><span class="k">移位进度</span><span class="v" id="rBit">—</span></div>
+        <div class="r-note">
+          <b>规则</b>：TMS/TDI 电平整拍保持、上升沿被采样；TDO 在<b>下降沿</b>更新，所以探针读到的是半拍前移出的位。非 Shift 阶段 TDO 高阻（Z）。
+        </div>
+      </div>
+    </div>
+    <div class="lab-decode">
+      <div class="d-title">IDCODE · 移位解码（左起 = 先移出的位，LSB first）</div>
+      <div class="bitrow" id="decRow"></div>
+      <div class="dres" id="decRes"></div>
+    </div>
+    <div class="lab-foot">
+      <div class="legend"><i style="background:var(--green)"></i>TCK</div>
+      <div class="legend"><i style="background:var(--amber)"></i>TMS</div>
+      <div class="legend"><i style="background:var(--cyan)"></i>TDI · TDO</div>
+      <div class="legend"><i style="height:8px;width:8px;border-radius:50%;background:var(--red)"></i>上升沿采样探针</div>
+      <div class="legend">背景带 = 事务阶段（走位 / SHIFT-IR / SHIFT-DR / UPDATE）</div>
+      <div class="legend">TDO 虚线中段 = 高阻 Z</div>
+    </div>
+  </div>
+  <div class="rule-callout reveal">
+    <div class="mnemonic">IDCODE bit0 ≡ 1<small>THE SIGNATURE</small></div>
+    <p>
+      TAP 复位后 DR 默认选中 IDCODE，其最低位<b>恒为 1</b>——这是故意的：让主机即使不知道链上有几颗器件，
+      也能靠「移一位看是不是 1」来探测。读出全 1（0xFFFFFFFF）或全 0 则说明链路根本没通（09 节）。
+      解码：<b>[31:28] 版本 · [27:12] 部件号 · [11:1] 厂商号（JEDEC）</b>。
+    </p>
+  </div>
+</section>
+
+<!-- ================= §05 扫描链 ================= -->
+<section id="s5">
+  <div class="sec-head reveal"><span class="no">05</span><h2>扫描链原理 · IR 链、DR 链与菊花链</h2><span class="en">Scan Chain</span></div>
+  <p class="sec-sub reveal">
+    每颗芯片都有一个 <b>IR（指令寄存器）</b>和一组 <b>DR（数据寄存器）</b>：IR 决定 DR 位置接的是谁（IDCODE / 边界链 / BYPASS…）。
+    多颗芯片串联时，所有 IR 串成一条长链、所有 DR 串成一条长链——<b>指令和数据都要「穿过」前面的芯片</b>。
+  </p>
+  <div class="ms-grid">
+    <div class="ms-diagram reveal" id="chainDiagram"></div>
+    <div class="reveal">
+      <div class="lab">
+        <div class="lab-bar">
+          <div class="ctrl"><label>指令穿链演示（两颗 · IR 各 4 bit）</label></div>
+          <div class="ctrl">
+            <button class="icon-btn play on" id="chStep">▶ 移一拍</button>
+            <button class="icon-btn" id="chAuto">⏩ 自动</button>
+            <button class="icon-btn" id="chReset">↺</button>
+          </div>
+        </div>
+        <div class="chwrap">
+          <div class="ch-lab">TDI ▶</div>
+          <div class="ch-dev"><div class="n">器件 A（近 TDI）</div><div class="ch-cells" id="chA"></div></div>
+          <div class="ch-dev"><div class="n">器件 B（近 TDO）</div><div class="ch-cells" id="chB"></div></div>
+          <div class="ch-lab">▶ TDO</div>
+        </div>
+        <div class="ch-io">
+          <span>目标：两颗都装载 IDCODE 指令 0b1110</span>
+          <span class="seq" id="chIn"></span>
+          <span>已移出 TDO：<span id="chOut" style="color:var(--cyan)">—</span></span>
+        </div>
+        <div class="ch-banner" id="chBanner">每拍：TDI 的新位进入 A0，全部右移一格，最右位从 TDO 吐出。点击「移一拍」观察。</div>
+      </div>
+      <p class="sec-sub reveal" style="margin:18px 0 0;font-size:13px">
+        <b>规律</b>：靠近 TDO 的器件（B）的指令位<b>先移入</b>、其数据也<b>先移出</b>——OpenOCD 的链描述顺序与物理连线顺序必须一致，配反了指令就进错芯片。
+      </p>
+    </div>
+  </div>
+  <table class="cmp-table reveal" style="margin-top:34px">
+    <tr><th>指令</th><th>典型编码</th><th>DR 长度</th><th>Capture 装载</th><th>作用</th></tr>
+    <tr><td>BYPASS</td><td>全 1（0xF / 0xFF…）</td><td>1 bit</td><td>0</td><td>直通：不参与的器件只占 1 拍，把链让给别人——菊花链的默认态</td></tr>
+    <tr><td>IDCODE</td><td>厂商定义（STM32 0xE · Xilinx 0010）</td><td>32 bit</td><td>器件身份证</td><td>枚举扫描链：版本 / 部件号 / 厂商号（04 节动画）</td></tr>
+    <tr><td>SAMPLE / PRELOAD</td><td>厂商定义</td><td>= 引脚数</td><td>引脚当前电平</td><td>不打扰内核快照输入电平；PRELOAD 预装输出值给 EXTEST 用</td></tr>
+    <tr><td>EXTEST</td><td>全 0（0x0）</td><td>= 引脚数</td><td>引脚电平</td><td>边界单元接管引脚：测芯片间连通性 / 簇测试（06 节）</td></tr>
+    <tr><td>INTEST</td><td>可选</td><td>= 引脚数</td><td>引脚电平</td><td>与 EXTEST 反向：从引脚侧「测内核」，少用</td></tr>
+  </table>
+  <div class="calc reveal" style="margin-top:34px">
+    <div class="inputs">
+      <h5>INPUT · 扫描链构成</h5>
+      <div class="field"><label>器件 A（近 TDI）</label>
+        <select id="cIrA">
+          <option value="4" selected>MCU（Cortex-M）· IR 4 bit</option>
+          <option value="6">FPGA（7-Series）· IR 6 bit</option>
+          <option value="8">CPLD（MAX II 类）· IR 8 bit</option>
+          <option value="0">只有一颗器件</option>
+        </select>
+      </div>
+      <div class="field"><label>器件 B（近 TDO）</label>
+        <select id="cIrB">
+          <option value="4">MCU（Cortex-M）· IR 4 bit</option>
+          <option value="6" selected>FPGA（7-Series）· IR 6 bit</option>
+          <option value="8">CPLD（MAX II 类）· IR 8 bit</option>
+          <option value="0">无第二颗</option>
+        </select>
+      </div>
+      <div class="field"><label>TCK 频率</label>
+        <select id="cTck">
+          <option value="100">100 kHz · 排查长线</option>
+          <option value="1000">1 MHz</option>
+          <option value="2000" selected>2 MHz · 保守默认</option>
+          <option value="10000">10 MHz</option>
+          <option value="30000">30 MHz · 短线 J-Link</option>
+        </select>
+      </div>
+    </div>
+    <div class="outputs">
+      <h5>OUTPUT · 枚举整条链</h5>
+      <div class="out-row"><span class="ok">IR 链总长<small>Σ IR · 装指令要移的位数</small></span><span class="ov" id="oIr">10<small>bit</small></span></div>
+      <div class="out-row"><span class="ok">读回全部 IDCODE<small>32 × 器件数</small></span><span class="ov" id="oDr">64<small>bit</small></span></div>
+      <div class="out-row"><span class="ok">总时钟数（含走位开销）<small>≈ ΣIR + 32n + 19</small></span><span class="ov" id="oCyc">93<small>TCK</small></span></div>
+      <div class="out-row big"><span class="ok">耗时<small>ENUMERATE TIME</small></span><span class="ov" id="oTime">46.5<small>µs</small></span></div>
+    </div>
+    <div class="calc-formula">枚举 = 走位 4 + 指令 <b id="fIr">10</b> + 更新/走位 7 + IDCODE <b id="fDr">64</b> + 收尾 6 ≈ <b id="fCyc">93</b> 拍 → <b id="fTime">@2 MHz = 46.5 µs</b>（这就是调试器「秒识别」板子的原因）</div>
+  </div>
+</section>
+
+<!-- ================= §06 边界扫描 ================= -->
+<section id="s6">
+  <div class="sec-head reveal"><span class="no">06</span><h2>边界扫描 · EXTEST 连通性测试</h2><span class="en">Boundary Scan</span></div>
+  <p class="sec-sub reveal">
+    边界单元藏在引脚与内核之间：<b>SAMPLE</b> 捕获引脚电平、<b>Update 锁存</b>驱动引脚电平。
+    于是「芯片 A 驱动、芯片 B 采样」就能在不上电运行任何固件的情况下测出 PCB 每根走线的通断。点「运行 EXTEST」看走线为 1 的巡检：
+  </p>
+  <div class="lab reveal">
+    <div class="lab-bar">
+      <div class="ctrl"><label>EXTEST 演示 · walk-1 巡检</label>
+        <button class="icon-btn play on" id="xtRun">▶ 运行 EXTEST</button>
+        <button class="icon-btn" id="xtReset">↺ 重置</button>
+      </div>
+      <div class="ctrl"><label>结果</label><span class="r-note" style="margin:0" id="xtVerdict">尚未测试 — 芯片 A 将逐个驱动 4 根网络为 1，芯片 B 同步采样</span></div>
+    </div>
+    <div class="scope-main" style="padding:16px 10px 6px"><svg id="xtSvg" viewBox="0 0 940 300" xmlns="http://www.w3.org/2000/svg"></svg></div>
+    <table class="xt-table" id="xtTable">
+      <tr><th>网络</th><th>驱动为 1 的次数</th><th>捕获到 1 的次数</th><th>判定</th></tr>
+    </table>
+    <div class="lab-foot">
+      <div class="legend">断路：驱动 1、捕获恒 0（捕获端下拉）</div>
+      <div class="legend">短路：驱动单根为 1，另一根也变 1</div>
+      <div class="legend">与电源/地短路：电平卡死不随驱动变化</div>
+      <div class="legend">注意：EXTEST 会真实翻转引脚 —— 外接器件先隔离</div>
+    </div>
+  </div>
+  <div class="fact-grid reveal">
+    <div class="fact"><div class="f-no">CELL / IN</div><h4>输入单元 <code>SAMPLE</code></h4><p>引脚电平经捕获触发器进入扫描链——内核运行时也能「偷看」每个引脚，是硬件级调试利器。</p></div>
+    <div class="fact"><div class="f-no">CELL / OUT</div><h4>输出单元 <code>Update 锁存</code></h4><p>移完位在 Update-DR 态<b>并行锁存</b>：所有输出引脚同一拍同时生效——这正是 05 节 UpdDR 描述的意义。</p></div>
+    <div class="fact"><div class="f-no">FLOW</div><h4>标准流程 <code>PRELOAD → EXTEST</code></h4><p>先 SAMPLE/PRELOAD 装初值，再切 EXTEST 接管引脚，然后成对驱动/捕获比较——BSDL 文件描述每颗芯片的引脚映射。</p></div>
+    <div class="fact"><div class="f-no">LIMIT</div><h4>测不到的地方 <code>边界之外</code></h4><p>边界扫描只覆盖「边界单元到边界单元」的路径；引脚到器件焊盘的物理层（虚焊在单元外侧）、模拟器件仍要靠 ICT/X-Ray。</p></div>
+  </div>
+</section>
+
+<!-- ================= §07 SWD ================= -->
+<section id="s7">
+  <div class="sec-head reveal"><span class="no">07</span><h2>SWD · 两线调试接口与事务包</h2><span class="en">SWD &amp; Compare</span></div>
+  <p class="sec-sub reveal">
+    ARM 用 <b>SWCLK + SWDIO</b> 两根线（单方向各一：时钟单向、数据双向）复刻了 JTAG 的调试能力：SWDIO 半双工、按「事务包」对话。
+    下面把一次完整事务逐字段展开：<b>请求（8 bit）→ 应答 ACK → 32 位数据 + 奇偶</b>。试试切换读写 / DP·AP / ACK 结果。
+  </p>
+  <div class="lab reveal">
+    <div class="lab-bar">
+      <div class="ctrl"><label>事务</label>
+        <div class="seg" id="swMode"><button data-v="read" class="on">读寄存器</button><button data-v="write">写寄存器</button></div>
+      </div>
+      <div class="ctrl"><label>目标</label>
+        <div class="seg" id="swTgt"><button data-v="dp" class="on">DP · 调试口</button><button data-v="ap">MEM-AP · 内存</button></div>
+      </div>
+      <div class="ctrl"><label>ACK 演示</label>
+        <div class="seg" id="swAck"><button data-v="ok" class="on">OK 001</button><button data-v="wait">WAIT 010</button><button data-v="fault">FAULT 100</button></div>
+      </div>
+      <div class="ctrl">
+        <button class="icon-btn play on" id="swPlay">▶ 播放</button>
+        <button class="icon-btn" id="swStep">⏭ 单步</button>
+        <button class="icon-btn" id="swReset">↺</button>
+      </div>
+    </div>
+    <div class="swd-bar">
+      <div class="swd-row">
+        <span class="swphase">REQUEST</span>
+        <span class="swf" data-k="start"><small>Start</small><b>1</b></span>
+        <span class="swf" data-k="apn"><small>APnDP</small><b>0</b></span>
+        <span class="swf" data-k="rnw"><small>RnW</small><b>1</b></span>
+        <span class="swf" data-k="a2"><small>A[2]</small><b>0</b></span>
+        <span class="swf" data-k="a3"><small>A[3]</small><b>0</b></span>
+        <span class="swf" data-k="par"><small>PAR</small><b>0</b></span>
+        <span class="swf" data-k="stop"><small>Stop</small><b>0</b></span>
+        <span class="swf" data-k="park"><small>Park</small><b>1</b></span>
+        <span class="turn">TURN</span>
+        <span class="swphase">ACK</span>
+        <span class="swf ack" data-k="ack1"><small>b0</small><b>0</b></span>
+        <span class="swf ack" data-k="ack2"><small>b1</small><b>0</b></span>
+        <span class="swf ack" data-k="ack3"><small>b2</small><b>1</b></span>
+        <span class="turn">TURN</span>
+        <span class="swphase">DATA</span>
+        <span class="swf wide" data-k="data"><small>DATA · LSB first</small><b id="swDataHex">0x2BA01477</b></span>
+        <span class="swf" data-k="dpar"><small>PAR</small><b>1</b></span>
+      </div>
+      <div class="databits" id="swDataBits"></div>
+    </div>
+    <div id="swdNarr"></div>
+    <div class="lab-foot">
+      <div class="legend">请求 8 bit = 1 · APnDP · RnW · A[2:3] · 奇偶 · 0 · 1（读 DP IDCODE 恰为 0xA5）</div>
+      <div class="legend">ACK：OK=001 · WAIT=010 · FAULT=100（目标驱动，主机可重试）</div>
+      <div class="legend">数据 32 bit LSB 先行 + 奇偶；SWCLK 数 MHz</div>
+    </div>
+  </div>
+  <div class="ms-grid" style="margin-top:34px">
+    <div class="ms-diagram reveal" id="apDiagram"></div>
+    <div class="reveal">
+      <table class="cmp-table">
+        <tr><th></th><th>JTAG</th><th>SWD</th></tr>
+        <tr><td>信号线</td><td>TCK·TMS·TDI·TDO（+TRST）</td><td class="yes">SWCLK·SWDIO</td></tr>
+        <tr><td>引脚占用</td><td>4–5</td><td class="yes">2（省下的当 GPIO）</td></tr>
+        <tr><td>典型时钟</td><td class="yes">1–50 MHz</td><td>100 kHz–10 MHz（高可达数十）</td></tr>
+        <tr><td>烧录 + 断点调试</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+        <tr><td>边界扫描 / EXTEST</td><td class="yes">✓ 独有</td><td class="no">✗</td></tr>
+        <tr><td>多器件</td><td class="yes">菊花链天然支持</td><td>单目标（multidrop 需 TARGETSEL）</td></tr>
+        <tr><td>跟踪输出</td><td>ETM 并行 trace 口</td><td class="yes">SWO 单线跟踪（复用 UART/曼彻斯特）</td></tr>
+        <tr><td>数据链路</td><td>无握手，状态机主导</td><td>带 ACK 应答与奇偶校验</td></tr>
+        <tr><td>适用场景</td><td>产测·FPGA·多芯片链</td><td>引脚紧张的单 MCU</td></tr>
+      </table>
+      <p class="sec-sub" style="margin:18px 0 0;font-size:13px">
+        <b>SWO 一句话</b>：SWD 之外的第三根线，内核单向往外吐 printf/PC 采样（UART 或曼彻斯特编码），是 Cortex-M 上最便宜的「带时间戳的打印」——比 <a href="uart.html" style="color:var(--green)">UART 打印</a>强在走调试通道、不占外设。
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= §08 实战 ================= -->
+<section id="s8">
+  <div class="sec-head reveal"><span class="no">08</span><h2>实战 · OpenOCD 与三只调试器</h2><span class="en">In The Field</span></div>
+  <p class="sec-sub reveal">
+    PC 侧的事实标准是 <b>OpenOCD</b>：一份配置 + 一条 USB 线，把 GDB / telnet / 脚本接到你的板子。<b>点击任意命令行即可复制。</b>
+  </p>
+  <div class="fact-grid reveal">
+    <div class="fact"><div class="f-no">PROBE / 01</div><h4>J-Link <code>SEGGER</code></h4><p>商业全能王：覆盖几乎所有内核、TCK 上探 50 MHz、 Unlimited flash loader——业界标杆，价格也「标杆」。</p></div>
+    <div class="fact"><div class="f-no">PROBE / 02</div><h4>ST-Link <code>ST</code></h4><p>ST 官方探针，Nucleo/Discovery 板载那位：仅支持 ST 系芯片，胜在便宜量足、还带 VCP 串口。</p></div>
+    <div class="fact"><div class="f-no">PROBE / 03</div><h4>DAPLink / CMSIS-DAP <code>ARM 开源</code></h4><p>ARM 定义的开放标准：拖拽烧录 + USB 虚拟串口，十几块钱 DIY 一只，OpenOCD 原生支持。</p></div>
+    <div class="fact"><div class="f-no">PROBE / 04</div><h4>FTDI 家族 <code>FT232H 等</code></h4><p>通用 USB→MPSSE 桥，OpenOCD bitbang 驱动：便宜、慢一点，工程师抽屉里的应急方案。</p></div>
+  </div>
+  <div class="term-grid" style="margin-top:26px">
+    <div class="term reveal">
+      <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span>openocd.cfg — 配置三要素</span></div>
+      <div class="term-body">
+        <div class="t-cmt"># 探针（interface） + 目标（target） + 速度</div>
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="cat openocd.cfg">cat openocd.cfg</code></div>
+        <div class="t-tag">source [find interface/stlink.cfg]</div>
+        <div class="t-out"><span class="t-hl">transport select hla_swd</span>   <span class="t-cmt"># 或 jtag</span></div>
+        <div class="t-out"><span class="t-hl">adapter speed 2000</span>         <span class="t-cmt"># kHz，链路不稳先降它</span></div>
+        <div class="t-tag">source [find target/stm32f4x.cfg]</div>
+        <div class="t-out">reset_config srst_only srst_nogate</div>
+      </div>
+    </div>
+    <div class="term reveal">
+      <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span>init — 探测扫描链（04 节动画的现实版）</span></div>
+      <div class="term-body">
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="openocd -f openocd.cfg -c 'init; shutdown'">openocd -f openocd.cfg -c 'init; shutdown'</code></div>
+        <div class="t-out">Info : clock speed 2000 kHz</div>
+        <div class="t-out">Info : JTAG tap: <span class="t-hl">stm32f4x.cpu</span> tap/device found: <span class="t-hl">0x2ba01477</span></div>
+        <div class="t-out">Info :   mfg 0x23b, part 0xba01</div>
+        <div class="t-cmt"># 这一行就是 IDCODE 解码结果 —— 与 04 节逐位动画一致</div>
+        <div class="t-cmt"># unexpected idcode / all ones → 09 节症状表</div>
+      </div>
+    </div>
+    <div class="term reveal">
+      <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span>telnet 4444 — 停核 / 读寄存器 / 烧录</span></div>
+      <div class="term-body">
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="telnet 127.0.0.1 4444">telnet 127.0.0.1 4444</code></div>
+        <div><span class="t-ps">&gt; </span><code class="t-cmd" data-copy="targets">targets</code><span class="t-cmt">   # 看到目标即链路 OK</span></div>
+        <div><span class="t-ps">&gt; </span><code class="t-cmd" data-copy="halt">halt</code></div>
+        <div class="t-out">target halted due to debug-request, pc: 0x08000a3e</div>
+        <div><span class="t-ps">&gt; </span><code class="t-cmd" data-copy="reg pc; reg sp">reg pc; reg sp</code></div>
+        <div><span class="t-ps">&gt; </span><code class="t-cmd" data-copy="resume">resume</code><span class="t-cmt">  # 放行</span></div>
+      </div>
+    </div>
+    <div class="term reveal">
+      <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span>GDB — 一条龙调试</span></div>
+      <div class="term-body">
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="arm-none-eabi-gdb fw.elf">arm-none-eabi-gdb fw.elf</code></div>
+        <div><span class="t-ps">(gdb) </span><code class="t-cmd" data-copy="target extended-remote localhost:3333">target extended-remote localhost:3333</code></div>
+        <div><span class="t-ps">(gdb) </span><code class="t-cmd" data-copy="monitor reset halt">monitor reset halt</code></div>
+        <div><span class="t-ps">(gdb) </span><code class="t-cmd" data-copy="break main &amp;&amp; continue">break main &amp;&amp; continue</code></div>
+        <div class="t-cmt"># 断点/单步/变量都在这 —— 远程调试与本地无异</div>
+      </div>
+    </div>
+    <div class="term wide reveal">
+      <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span>量产 / factory — 一条命令烧一台</span></div>
+      <div class="term-body">
+        <div class="t-cmt"># 工装夹具压到 6 个测试点：TCK TMS TDI TDO + nRST + GND（SWD 则 2+2）</div>
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="openocd -f openocd.cfg -c 'init; halt; program fw.bin 0x08000000 verify; reset run; shutdown'">openocd -f openocd.cfg -c 'init; halt; program fw.bin 0x08000000 verify; reset run; shutdown'</code></div>
+        <div class="t-out">** Programming Started ** ✐ verified OK ✓</div>
+        <div class="t-cmt"># 产线节拍：校验 IDCODE（防错料）→ 烧录 → 写 SN/校准 → 功能测试 → <span class="t-hl">锁定调试口</span></div>
+        <div class="t-cmt"># 收尾常用 RDP 读保护（保留 mass erase 解锁路径！否则返修就是砖</div>
+      </div>
+    </div>
+  </div>
+  <div class="lnx-note reveal">
+    <b>两条经验：</b>① <code>adapter speed</code> 是第一个该动的旋钮——产线长线缆、工装转接都会吃掉余量，二分法降到稳定为止；
+    ② <code>program … verify</code> 一步到位，别在产线脚本里手工 halt/烧/复位三段拼，出错无法回滚。
+  </div>
+</section>
+
+<!-- ================= §09 踩坑 + 速查 ================= -->
+<section id="s9">
+  <div class="sec-head reveal"><span class="no">09</span><h2>踩坑指南 · 症状 → 病因</h2><span class="en">Troubleshooting</span></div>
+  <p class="sec-sub reveal">调 JTAG/SWD 的时间几乎都花在下面这些地方。按症状对号入座——大部分问题在<b>硬件与连线</b>，而不是工具链。</p>
+  <div class="pit-list reveal">
+    <div class="pit"><div class="symptom">IDCODE<br>全 1</div><div class="fix"><b>0xFFFFFFFF · TDO 没人驱动</b><p>TDO 高阻被上拉成全 1：<code>器件没上电</code>（最常见）、内核 held in reset（nRST 被拉低）、TDO 断线。先量 VDD 与 nRST，再查第 4 脚连线。</p></div></div>
+    <div class="pit"><div class="symptom">IDCODE<br>全 0</div><div class="fix"><b>0x00000000 · 线序接反</b><p>TDO 恒低或多半是 <code>TDI/TDO 交换</code>、<code>TCK/TMS 交换</code>。20 脚排线做延长的板子尤其高发——示波器看 TCK 是否真的到芯片脚。</p></div></div>
+    <div class="pit"><div class="symptom">偶连<br>偶断</div><div class="fix"><b>TCK 过快 · 信号完整性</b><p>降 <code>adapter speed</code> 一半复测：好了就是走线/线缆/地回路的带宽问题。老 ARM9/7 还有 <code>rtck</code> 自适应时钟可用。杜邦线超过 20cm 就别指望 10 MHz。</p></div></div>
+    <div class="pit"><div class="symptom">链上<br>少器件</div><div class="fix"><b>扫描链配置错 · IR 长度不符</b><p>多器件链必须按物理顺序声明每颗的 IR 长度（OpenOCD <code>jtag newtap</code> / <code>-expected-id</code>）。配错一颗，指令全体错位，症状是「unexpected idcode」或烧录到错误的芯片。</p></div></div>
+    <div class="pit"><div class="symptom">状态<br>机跑飞</div><div class="fix"><b>TMS 死锁在错误状态</b><p>自己写驱动时在错误状态开始移位、或时序毛刺让 TAP 漂移。恢复手法永远有效：<code>连发 ≥5 个 TMS=1</code> 必回 Test-Logic-Reset，重新对齐再继续（03 节可演练）。</p></div></div>
+    <div class="pit"><div class="symptom">SWD<br>连不上</div><div class="fix"><b>SWDIO 上拉缺失</b><p>SWDIO 半双工，空闲必须被上拉：目标断电后量 SWDIO 应≈VDD。板上没有内部上拉就加 <code>100 kΩ</code> 外部；还有经典的「目标没接 GND」「接的是 SWO 不是 SWDIO」。</p></div></div>
+    <div class="pit"><div class="symptom">烧完<br>失联</div><div class="fix"><b>读保护 / 引脚复用被固件改掉</b><p>固件一上电把 SWD 引脚重映射成 GPIO、或进了低功耗关调试域、或量产开了 RDP——用 <code>connect under reset</code>（复位中连接）与 mass erase 抢救。</p></div></div>
+  </div>
+
+  <div class="sec-head reveal" style="margin-top:70px"><span class="no">+</span><h2>速查表</h2><span class="en">Cheat Sheet</span></div>
+  <div class="lab reveal" style="padding:28px 26px">
+    <div class="notation">
+      <div class="n-item"><div class="nv">16</div><small>TAP 状态数</small></div>
+      <div class="n-item"><div class="nv a">5×1</div><small>TMS=1 ×5 → TLR</small></div>
+      <div class="n-item"><div class="nv c">↑</div><small>TMS/TDI 上升沿采样</small></div>
+      <div class="n-item"><div class="nv c">↓</div><small>TDO 下降沿更新</small></div>
+      <div class="n-item"><div class="nv">32</div><small>IDCODE 位数 · bit0≡1</small></div>
+    </div>
+    <ul class="rules">
+      <li><span class="no">1</span><span><b>任何状态连拍 5 个 TMS=1 必回 TLR</b>——救场万能键，每次会话开头也这么干</span></li>
+      <li><span class="no">2</span><span><b>主路径</b>：TLR → RTI → Select-DR → Select-IR → Capture-IR → Shift-IR → Update-IR，再进 DR 列读写</span></li>
+      <li><span class="no">3</span><span><b>TDO 只在 Shift 态驱动</b>，其余时间高阻 Z——逻辑分析仪上先找「被驱动的段」</span></li>
+      <li><span class="no">4</span><span><b>移位永远 LSB 先行</b>；菊花链中靠近 TDO 的器件先出数据、指令位后进</span></li>
+      <li><span class="no">5</span><span><b>BYPASS = 全 1</b>（空闲 TDI 上拉恰好选中它，1 bit 直通）；<b>EXTEST = 全 0</b></span></li>
+      <li><span class="no">6</span><span><b>EXTEST 会真实翻转引脚</b>——外接器件先隔离，再上电巡检</span></li>
+    </ul>
+    <div class="two-col" style="margin-top:26px;gap:26px">
+      <div>
+        <h5 style="font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.22em;margin-bottom:10px">ARM 10-PIN 调试座（2×5 · 1.27mm）</h5>
+        <table class="cmp-table">
+          <tr><th>Pin</th><th>信号</th><th>Pin</th><th>信号</th></tr>
+          <tr><td>1</td><td>VTref（电平参考）</td><td>2</td><td>SWDIO / TMS</td></tr>
+          <tr><td>3</td><td>GND</td><td>4</td><td>SWCLK / TCK</td></tr>
+          <tr><td>5</td><td>GND</td><td>6</td><td>SWO / TDO</td></tr>
+          <tr><td>7</td><td>KEY（防反插）</td><td>8</td><td>NC / TDI</td></tr>
+          <tr><td>9</td><td>GNDDetect</td><td>10</td><td>nRESET</td></tr>
+        </table>
+      </div>
+      <div>
+        <h5 style="font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.22em;margin-bottom:10px">常见 IDCODE 速查（示例）</h5>
+        <table class="cmp-table">
+          <tr><th>IDCODE</th><th>解码</th></tr>
+          <tr><td>0x2BA01477</td><td>Cortex-M4 SW-DP/JTAG-DP（STM32F4 类）</td></tr>
+          <tr><td>0x1BA01477</td><td>Cortex-M3 DP（STM32F1 类）</td></tr>
+          <tr><td>0x4BA00477</td><td>Cortex-M4 r0 DP</td></tr>
+          <tr><td>0x03631093</td><td>Xilinx 7-Series FPGA</td></tr>
+          <tr><td>0x0FFFFFFF 等</td><td>全 1/全 0 → 链路故障，不是真实器件</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="f-l">
+    <b>参考</b> · IEEE Std 1149.1（Test Access Port and Boundary-Scan Architecture） · ARM IHI0031 ADIv5（SWD/SW-DP/MEM-AP） ·<br>
+    OpenOCD User Guide · SEGGER J-Link 文档 · 各厂商 BSDL 与芯片手册 · 本页为单文件交互式图解，可离线打开 · 波形由浏览器实时渲染<br>
+    HW-PROTOCOLS · MAINTAINED WITH ♥ FOR EMBEDDED ENGINEERS
+  </div>
+  <div class="f-r">JTAG·LAB</div>
+</footer>
+</main>
+
+<script>
+(function(){ "use strict"; /* ================================================================
+   JTAG·LAB 交互引擎
+   ================================================================ */
+const $=s=>document.querySelector(s); const $$=s=>Array.from(document.querySelectorAll(s)); const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const mod=(a,m)=>((a%m)+m)%m; const MONO='"IBM Plex Mono",monospace'; const C={green:'#34e08a',amber:'#ffb02e',cyan:'#57d8f2',red:'#ff6478', dim:'#8aa294',faint:'#5c7264',ink:'#dcebe1',
+grid:'rgba(52,224,138,.07)',grid2:'rgba(52,224,138,.16)'}; const escHtml=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+.replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); function fitCanvas(cv,h){ const w=cv.parentElement.getBoundingClientRect().width||600;
+const dpr=Math.min(2,window.devicePixelRatio||1);
+cv.width=w*dpr;cv.height=h*dpr; cv.style.width=w+'px';cv.style.height=h+'px'; const ctx=cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0); return {ctx,w,h}; }
+function watchVisible(elm,obj){ const v=new IntersectionObserver(es=>es.forEach(e=>obj.visible=e.isIntersecting),{rootMargin:'80px'}); v.observe(elm); }
+
+/* ============ TAP 状态机数据（§03 与 §04 共用） ============ */
+const TX={ TLR:['RTI','TLR'], RTI:['RTI','SelDR'], SelDR:['CapDR','SelIR'], CapDR:['ShiftDR','E1DR'], ShiftDR:['ShiftDR','E1DR'],
+  E1DR:['PauseDR','UpdDR'], PauseDR:['PauseDR','E2DR'], E2DR:['ShiftDR','UpdDR'], UpdDR:['RTI','SelDR'],
+  SelIR:['CapIR','TLR'], CapIR:['ShiftIR','E1IR'], ShiftIR:['ShiftIR','E1IR'],
+  E1IR:['PauseIR','UpdIR'], PauseIR:['PauseIR','E2IR'], E2IR:['ShiftIR','UpdIR'], UpdIR:['RTI','SelDR']
+}; const STNAME={TLR:'Test-Logic-Reset',RTI:'Run-Test/Idle',SelDR:'Select-DR',CapDR:'Capture-DR',
+  ShiftDR:'Shift-DR',E1DR:'Exit1-DR',PauseDR:'Pause-DR',E2DR:'Exit2-DR',UpdDR:'Update-DR',
+  SelIR:'Select-IR',CapIR:'Capture-IR',ShiftIR:'Shift-IR',E1IR:'Exit1-IR',PauseIR:'Pause-IR',
+E2IR:'Exit2-IR',UpdIR:'Update-IR'}; function bfsPath(from,to){ if(from===to)return []; const prev={},seen={};seen[from]=1;const q=[from]; while(q.length){ const s=q.shift();
+for(const t of [0,1]){
+const n=TX[s][t]; if(!seen[n]){seen[n]=1;prev[n]=[s,t];q.push(n); if(n===to){const bits=[];let c=n;while(c!==from){const p=prev[c];bits.unshift(p[1]);c=p[0];}return bits;} } } }
+return null; }
+
+/* ============ §03 TAP 状态机模拟器 ============ */
+const TAPN={ TLR:{x:880,y:60,cls:'nc',zh:'测试逻辑复位',d:'TMS 连续 5 拍为 1 必达此处。复位指令逻辑、把 IDCODE 装入 DR——扫描链的「总闸」，任何会话都从这里开始。'},
+  RTI:{x:880,y:185,cls:'nr',zh:'运行/空闲',d:'空闲态：TMS=0 原地停留。FLASH 烧写等长操作常在此态轮询完成标志。'},
+  SelDR:{x:760,y:115,cls:'nd',zh:'选择 DR',d:'路口：TMS=0 进入 DR 列（读写数据），TMS=1 继续去 IR 列。'},
+  CapDR:{x:620,y:115,cls:'nd',zh:'捕获 DR',d:'把 IR 当前选中的寄存器值并行装载进移位链——IDCODE 指令时，32 位身份证在这里就位。'},
+  ShiftDR:{x:220,y:270,cls:'nd',zh:'移位 DR',d:'每拍：TDI 进一位、TDO 出一位。读 IDCODE、读写边界寄存器、访问内核调试口都在这里发生。'},
+  E1DR:{x:430,y:270,cls:'nd',zh:'出口 1',d:'移位结束的第一出口：TMS=0 去暂停，TMS=1 去更新（锁存）。'},
+  PauseDR:{x:220,y:415,cls:'nd',zh:'暂停 DR',d:'暂停移位：主机喘口气（慢速取数、腾出总线）。TMS=0 原地等待，TMS=1 经出口 2 继续。'},
+  E2DR:{x:430,y:415,cls:'nd',zh:'出口 2',d:'从暂停回来：TMS=0 回 Shift 继续移位，TMS=1 去 Update。'},
+  UpdDR:{x:620,y:270,cls:'nd',zh:'更新 DR',d:'移位结果并行锁存输出——对边界寄存器意味着所有引脚同一拍同时生效（06 节）。'},
+  SelIR:{x:760,y:530,cls:'ni',zh:'选择 IR',d:'IR 列入口：注意 TMS=1 再走一步就回 TLR——走位时千万别多数一个 1。'},
+  CapIR:{x:620,y:530,cls:'ni',zh:'捕获 IR',d:'装载固定图案（最低两位 01）到 IR 移位链——主机靠它校验扫描链位数是否正确。'},
+  ShiftIR:{x:220,y:685,cls:'ni',zh:'移位 IR',d:'把指令码移进 IR：每一位经 TDI 进入，同时旧指令图案从 TDO 吐出可校验。'},
+  E1IR:{x:430,y:685,cls:'ni',zh:'出口 1',d:'IR 移位的第一出口：暂停或更新。'},
+  PauseIR:{x:220,y:830,cls:'ni',zh:'暂停 IR',d:'IR 版的暂停态：TMS=0 原地等待。'},
+  E2IR:{x:430,y:830,cls:'ni',zh:'出口 2',d:'回 Shift-IR 或去 Update-IR。'},
+  UpdIR:{x:620,y:685,cls:'ni',zh:'更新 IR',d:'指令在此生效！此后进入 DR 列读写的就是这条指令选中的寄存器。'}
+}; const TAPEDGES=[
+  ['TLR','RTI',0,'M 880,80 L 880,150',888,120],
+  ['TLR','TLR',1,'M 925,48 Q 880,4 835,48',880,18],
+  ['RTI','RTI',0,'M 933,195 Q 968,185 933,172',952,210],
+  ['RTI','SelDR',1,'M 814,172 L 818,137',846,155],
+  ['SelDR','CapDR',0,'M 700,115 L 682,115',690,102],
+  ['SelDR','SelIR',1,'M 760,135 L 760,510',778,322],
+  ['CapDR','ShiftDR',0,'M 560,113 C 420,113 258,168 226,246',318,118],
+  ['CapDR','E1DR',1,'M 578,135 C 526,168 484,200 448,246',522,178],
+  ['ShiftDR','ShiftDR',0,'M 160,258 Q 118,270 160,284',110,270],
+  ['ShiftDR','E1DR',1,'M 280,270 L 368,270',324,258],
+  ['E1DR','PauseDR',0,'M 386,290 C 330,328 300,360 276,393',330,362],
+  ['E1DR','UpdDR',1,'M 490,270 L 558,270',524,258],
+  ['PauseDR','PauseDR',0,'M 186,425 Q 220,456 254,425',220,470],
+  ['PauseDR','E2DR',1,'M 280,415 L 368,415',324,403],
+  ['E2DR','ShiftDR',0,'M 402,393 C 342,360 284,318 244,292',282,330],
+  ['E2DR','UpdDR',1,'M 468,393 C 520,360 570,328 606,292',566,344],
+  ['UpdDR','RTI',0,'M 690,260 C 782,252 852,228 874,197',792,238],
+  ['UpdDR','SelDR',1,'M 652,250 C 700,222 732,180 754,137',714,192],
+  ['SelIR','CapIR',0,'M 700,530 L 682,530',690,517],
+  ['SelIR','TLR',1,'M 820,530 L 960,530 L 960,120 L 928,87',900,517],
+  ['CapIR','ShiftIR',0,'M 560,528 C 420,528 258,583 226,661',318,533],
+  ['CapIR','E1IR',1,'M 578,550 C 526,583 484,615 448,661',522,593],
+  ['ShiftIR','ShiftIR',0,'M 160,673 Q 118,685 160,699',110,685],
+  ['ShiftIR','E1IR',1,'M 280,685 L 368,685',324,673],
+  ['E1IR','PauseIR',0,'M 386,705 C 330,743 300,775 276,808',330,777],
+  ['E1IR','UpdIR',1,'M 490,685 L 558,685',524,673],
+  ['PauseIR','PauseIR',0,'M 186,840 Q 220,871 254,840',220,885],
+  ['PauseIR','E2IR',1,'M 280,830 L 368,830',324,818],
+  ['E2IR','ShiftIR',0,'M 402,808 C 342,775 284,733 244,707',282,745],
+  ['E2IR','UpdIR',1,'M 468,808 C 520,775 570,743 606,707',566,759],
+  ['UpdIR','RTI',0,'M 742,668 C 828,610 862,382 876,208',848,420],
+  ['UpdIR','SelDR',1,'M 662,665 C 706,590 740,420 756,138',714,470]
+]; const MAINPATH=new Set(['TLR>RTI','RTI>SelDR','SelDR>SelIR','SelIR>CapIR','CapIR>ShiftIR', 'ShiftIR>E1IR','E1IR>UpdIR','UpdIR>RTI','SelDR>CapDR','CapDR>ShiftDR','ShiftDR>E1DR',
+'E1DR>UpdDR','UpdDR>RTI','ShiftDR>ShiftDR','ShiftIR>ShiftIR']);
+
+const tap={cur:'TLR',clk:0,hist:[],auto:null,edgeEl:{},nodeEl:{}}; (function tapInit(){ const NS='http://www.w3.org/2000/svg'; const svg=document.createElementNS(NS,'svg');
+svg.setAttribute('id','tapSvg');
+svg.setAttribute('viewBox','0 0 1000 900'); const mk=(t,a)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}; const defs=mk('defs',{});
+  defs.innerHTML='<marker id="tapArr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="context-stroke"/></marker>';
+svg.appendChild(defs); const lb1=mk('text',{x:66,y:196,'class':'tapband'});lb1.textContent='DR 扫描列';svg.appendChild(lb1);
+const lb2=mk('text',{x:66,y:611,'class':'tapband'});lb2.textContent='IR 扫描列';svg.appendChild(lb2);
+const lb3=mk('text',{x:66,y:32,'class':'tapband'});lb3.textContent='TMS=0 绿 · TMS=1 琥珀';svg.appendChild(lb3); for(const [a,b,t,d,lx,ly] of TAPEDGES){
+const p=mk('path',{d,'class':'tapedge t'+t,'data-e':a+'>'+b,'marker-end':'url(#tapArr)'});
+if(MAINPATH.has(a+'>'+b))p.classList.add('mp'); svg.appendChild(p); tap.edgeEl[a+'>'+b]=p; const lt=mk('text',{x:lx,y:ly,'class':'taplbl t'+t});lt.textContent=t; svg.appendChild(lt); }
+for(const k in TAPN){ const n=TAPN[k]; const g=mk('g',{'class':'tapn '+n.cls,'data-s':k}); g.appendChild(mk('rect',{x:n.x-62,y:n.y-20,width:124,height:40,rx:8}));
+const t=mk('text',{x:n.x,y:n.y+4});t.textContent=STNAME[k];g.appendChild(t);
+const ti=mk('title',{});ti.textContent=STNAME[k]+' · '+n.zh;g.appendChild(ti); g.addEventListener('click',()=>tapInfo(k)); svg.appendChild(g); tap.nodeEl[k]=g; }
+document.getElementById('tapHost').appendChild(svg);
+tapRender(); })(); function tapInfo(k){ const n=TAPN[k]; const nx0=TX[k][0],nx1=TX[k][1]; document.getElementById('tapDesc').innerHTML=
+    '<b>'+STNAME[k]+'</b> · '+n.zh+'<br>'+n.d+
+'<span class="nx"><i>TMS=0 →</i> '+STNAME[nx0]+' &nbsp;·&nbsp; <i>TMS=1 →</i> '+STNAME[nx1]+'</span>'; } function tapGo(bit){ const from=tap.cur,to=TX[from][bit];
+tap.hist.push({from,bit,to});
+if(tap.hist.length>40)tap.hist.shift(); tap.cur=to;tap.clk++; tapRender(); } function tapStopAuto(){ if(tap.auto){clearInterval(tap.auto);tap.auto=null;} } function tapReset(){
+tapStopAuto(); tap.cur='TLR';tap.clk=0;tap.hist=[]; tapRender(); } function tapRender(){ for(const k in tap.nodeEl)tap.nodeEl[k].classList.toggle('cur',k===tap.cur);
+for(const e in tap.edgeEl)tap.edgeEl[e].classList.remove('hot');
+const h=tap.hist; if(h.length){ const last=h[h.length-1]; tap.edgeEl[last.from+'>'+last.to].classList.add('hot'); } document.getElementById('tapCur').textContent=STNAME[tap.cur];
+document.getElementById('tapClk').textContent=tap.clk; const h1=bfsPath(tap.cur,'ShiftIR'),h2=bfsPath(tap.cur,'ShiftDR');
+  document.getElementById('tapH1').textContent=h1&&h1.length?'TMS = '+h1.join(''):(tap.cur==='ShiftIR'?'已在此状态':'TMS = 无');
+  document.getElementById('tapH2').textContent=h2&&h2.length?'TMS = '+h2.join(''):(tap.cur==='ShiftDR'?'已在此状态':'TMS = 无');
+  document.getElementById('tapHist').innerHTML=h.slice(-9).map((e,i,arr)=>
+    '<span class="hb'+(i===arr.length-1?' cur':'')+'">'+STNAME[e.to]+'</span>'+
+    '<span class="ht b'+e.bit+'">'+e.bit+'</span>').join('')
+||'<span style="color:var(--faint)">—</span>'; tapInfo(tap.cur); } document.getElementById('tms0').addEventListener('click',()=>{tapStopAuto();tapGo(0);});
+document.getElementById('tms1').addEventListener('click',()=>{tapStopAuto();tapGo(1);});
+document.getElementById('tapReset').addEventListener('click',tapReset); document.getElementById('toTLR').addEventListener('click',()=>{ tapStopAuto();
+const p=bfsPath(tap.cur,'TLR')||[]; const seq=p.concat([1,1,1,1,1]); tapAutoRun(seq,110); }); document.getElementById('seqIR').addEventListener('click',()=>{ tapStopAuto();tapReset();
+tapAutoRun(bfsPath('TLR','ShiftIR'),170); }); document.getElementById('seqDR').addEventListener('click',()=>{ tapStopAuto();tapReset(); tapAutoRun(bfsPath('TLR','ShiftDR'),170); });
+document.getElementById('seqFull').addEventListener('click',()=>{
+tapStopAuto();tapReset(); const seq=[0,1,1,0,0].concat([0,0,0,1],[1,0],[1,0,0], Array(31).fill(0).concat([1]),[1,0]); tapAutoRun(seq,90); }); function tapAutoRun(bits,ms){ let i=0;
+tap.auto=setInterval(()=>{ if(i>=bits.length){tapStopAuto();return;}
+tapGo(bits[i++]); },ms); } document.getElementById('tapMain').addEventListener('click',e=>{ const svg=document.getElementById('tapSvg'); svg.classList.toggle('mp');
+e.target.classList.toggle('on',svg.classList.contains('mp'));
+}); document.addEventListener('keydown',e=>{ if(/INPUT|SELECT|BUTTON|TEXTAREA/.test(document.activeElement.tagName))return; if(e.key==='0'||e.key==='1'){tapStopAuto();tapGo(+e.key);}
+});
+
+/* ============ §02 迷你波形 ============ */
+const MINIS=[]; const TMSBITS=[0,1,1,0,0,0,1,1,1,0,0,1,0,1,1,1,1,1]; const TDIBITS=[1,1,1,0,0,1,0,1,1,1,0,0,1,0,1,1,0,1]; function miniLevel(kind,c){ const m=mod(c,36);
+if(kind==='tck')return mod(c,1)<.5?1:0; if(kind==='tms')return TMSBITS[mod(c,TMSBITS.length)]; if(kind==='tdi')return TDIBITS[mod(c,TDIBITS.length)];
+  if(kind==='tdo')return (m>=8&&m<20)?TDIBITS[mod(c,TDIBITS.length)]:null; /* null=Z */
+if(kind==='trst')return (m>=4&&m<7)?0:1; return 1; } $$('[data-wave]').forEach(cv=>{ const kind=cv.dataset.wave; const o={cv,kind,phase:0,visible:false}; MINIS.push(o);
+watchVisible(cv.parentElement,o);
+o.fit=()=>{const f=fitCanvas(cv,84);o.ctx=f.ctx;o.w=f.w;}; o.fit(); }); function miniDraw(o,dt){ if(!reduced)o.phase+=dt*5; const c=o.ctx,w=o.w,h=84; if(!c)return; c.clearRect(0,0,w,h);
+const yMid=h/2,amp=h*0.26; const yOf=l=>l===1?yMid-amp:l===0?yMid+amp:yMid; const pb=13,x0=34; const t0=o.phase,t1=t0+w/pb; /* 淡 TCK 参考 */
+if(o.kind!=='tck'){ c.strokeStyle='rgba(52,224,138,.18)';c.lineWidth=1.2;c.beginPath(); for(let i=Math.floor(t0)-1;i<=t1+1;i++){ c.moveTo(x0+(i-t0)*pb,yMid-amp*.55);
+c.lineTo(x0+(i+.5-t0)*pb,yMid-amp*.55); c.lineTo(x0+(i+.5-t0)*pb,yMid+amp*.35); c.lineTo(x0+(i+1-t0)*pb,yMid+amp*.35); } c.stroke(); } /* 主信号 */
+const col=o.kind==='tck'?C.green:o.kind==='tms'?C.amber:C.cyan; c.lineWidth=2;c.strokeStyle=col;c.beginPath(); let prevY=null;
+const rowY=o.kind==='tck'?yMid:h*0.62, rowA=o.kind==='tck'?amp:amp*0.8;
+const yy=l=>l===1?rowY-rowA:l===0?rowY+rowA:rowY; for(let i=Math.floor(t0)-1;i<=Math.ceil(t1)+1;i++){ const l=miniLevel(o.kind,i); const y=yy(l);
+const xa=x0+(i-t0)*pb,xb=x0+(i+1-t0)*pb;
+if(prevY===null)c.moveTo(xa,y); else if(prevY!==y)c.lineTo(xa,y); c.lineTo(xb,y);prevY=y; } c.stroke(); if(o.kind==='tdo'){ c.fillStyle='rgba(87,216,242,.55)';c.font='9px '+MONO;
+c.fillText('Z',x0+6,rowY-8);
+c.fillStyle='rgba(140,162,148,.6)'; c.fillText('仅 Shift 态驱动',w-108,14); } if(o.kind==='tck'){c.fillStyle='rgba(140,162,148,.65)';c.font='9px '+MONO;c.fillText('上升沿采样 ↓',w-100,14);}
+  if(o.kind==='trst'){c.fillStyle='rgba(255,100,120,.8)';c.font='9px '+MONO;c.fillText('低有效脉冲 → 回 TLR',w-130,14);}
+  /* 标签 */
+c.fillStyle='rgba(7,11,9,.9)';c.fillRect(0,rowY-9,34,18); c.fillStyle=col;c.font='600 11px '+MONO; const NAMES={tck:'TCK',tms:'TMS',tdi:'TDI',tdo:'TDO',trst:'TRST'};
+c.fillText(NAMES[o.kind],7,rowY+4); }
+
+/* ============ §04 IDCODE 时序实验室 ============ */
+const ID_A=0x2BA01477,ID_B=0x1BA01477,IRVAL=0xE; const idc={mode:'single',phase:6,playing:!reduced,speed:14,pb:14,visible:false,
+TMS:[],TDI:[],TDO:[],ST:[],REG:[],RG:[],bits:[],lastM:-1,vals:[]};
+const idcCv=document.getElementById('idcScope'); let idcCtx,idcW; const IDC_H=330; function idcFit(){const f=fitCanvas(idcCv,IDC_H);idcCtx=f.ctx;idcW=f.w;} idcFit();
+watchVisible(idcCv.parentElement,idc);
+const BANDS={ idle:{fill:'rgba(140,162,148,.05)',col:'rgba(140,162,148,.7)',label:'RTI'}, nav:{fill:'rgba(255,176,46,.06)',col:'rgba(255,176,46,.75)',label:'走位'},
+  sir:{fill:'rgba(52,224,138,.07)',col:'rgba(52,224,138,.75)',label:'SHIFT-IR'},
+  sdr:{fill:'rgba(87,216,242,.075)',col:'rgba(87,216,242,.75)',label:'SHIFT-DR'},
+  upd:{fill:'rgba(255,100,120,.055)',col:'rgba(255,100,120,.7)',label:'UPDATE'}
+}; function idcX(t){return (t-idc.phase)*idc.pb;} function idcDraw(){ const c=idcCtx,w=idcW,h=IDC_H,N=idc.TMS.length; if(!c)return; c.clearRect(0,0,w,h);
+const top=30,bot=14,n=4,rowH=(h-top-bot)/n,amp=rowH*0.27;
+const rows=[{k:'TCK',col:C.green},{k:'TMS',col:C.amber},{k:'TDI',col:C.cyan},{k:'TDO',col:C.cyan}]; const y0=i=>top+rowH*i+rowH/2; const t0=idc.phase,t1=t0+w/idc.pb; /* 背景带 */
+for(let base=Math.floor(t0/N)*N;base<t1+N;base+=N){ for(const r of idc.REG){ const meta=BANDS[r.k]; const x1=Math.max(0,idcX(base+r.s)),x2=Math.min(w,idcX(base+r.e));
+if(x2<=0||x1>=w||x2<=x1)continue; c.fillStyle=meta.fill; c.fillRect(x1,20,x2-x1,h-20-8); if(x2-x1>44){ c.font='600 10px '+MONO;c.textAlign='center';c.fillStyle=meta.col;
+const lbl=r.k==='sir'?'SHIFT-IR ×'+(r.e-r.s):r.k==='sdr'?'SHIFT-DR ×'+(r.e-r.s):meta.label; c.fillText(lbl,(x1+x2)/2,14); } } } /* 网格 */
+if(idc.pb>=7){ for(let i=Math.ceil(t0);i<t1;i++){ const x=idcX(i); c.strokeStyle=mod(i,N)===0?C.grid2:C.grid;
+      c.lineWidth=1;c.beginPath();c.moveTo(x+.5,22);c.lineTo(x+.5,h-8);c.stroke();
+    }
+  }
+  /* 波形 */
+rows.forEach((r,idx)=>{ const yb=y0(idx); const yHi=yb-amp,yLo=yb+amp,yZ=yb; if(r.k==='TCK'){ c.strokeStyle=r.col;c.lineWidth=2;c.beginPath(); let px=null,py=null;
+for(let i=Math.floor(t0)-2;i<=Math.ceil(t1)+2;i++){
+const segs=[[i,i+.5,yHi],[i+.5,i+1,yLo]]; for(const s of segs){ const xa=idcX(s[0]),xb=idcX(s[1]); if(px===null)c.moveTo(xa,s[2]);else if(py!==s[2])c.lineTo(xa,s[2]);
+c.lineTo(xb,s[2]);px=xb;py=s[2]; } }
+c.stroke(); }else if(r.k==='TDO'){ c.lineWidth=2; let curCol=null,py=null; for(let i=Math.floor(t0)-2;i<=Math.ceil(t1)+2;i++){ const bprev=idc.TDO[mod(i-1,N)],bcur=idc.TDO[mod(i,N)];
+        /* 段 [i+.5, i+1] 用 bprev；段 [i, i+.5] 用 bprev(i-1 的高半拍)——统一：bit i 驱动 [i-.5, i+.5) */
+const lvl1=bprev===null?yZ:(bprev?yHi:yLo); const lvl2=bcur===null?yZ:(bcur?yHi:yLo); const segs=[[idcX(i),idcX(i+.5),lvl1,bprev===null],[idcX(i+.5),idcX(i+1),lvl2,bcur===null]];
+for(const s of segs){
+const col=s[3]?'rgba(87,216,242,.28)':r.col; if(col!==curCol){ if(curCol!==null)c.stroke(); c.strokeStyle=col;c.beginPath(); if(py!==null)c.moveTo(s[0],py); curCol=col; }
+c.lineTo(s[0],s[2]);c.lineTo(s[1],s[2]);py=s[2]; } }
+c.stroke(); }else{ const arr=r.k==='TMS'?idc.TMS:idc.TDI; c.strokeStyle=r.col;c.lineWidth=2;c.beginPath(); let py=null; for(let i=Math.floor(t0)-2;i<=Math.ceil(t1)+2;i++){
+const v=arr[mod(i,N)]; const y=v?yHi:yLo; const xa=idcX(i),xb=idcX(i+1); if(py===null)c.moveTo(xa,y);else if(py!==y)c.lineTo(xa,y); c.lineTo(xb,y);py=y; } c.stroke(); } /* 左标签 */
+c.fillStyle='rgba(7,11,9,.88)';c.fillRect(0,yb-9,52,18); c.font='600 11px '+MONO;c.textAlign='left';c.fillStyle=r.col; c.fillText(r.k,8,yb+4); }); /* 探针 */
+const xp=w*0.62,cIdx=Math.round(t0+xp/idc.pb); const xe=idcX(cIdx); c.strokeStyle=C.red;c.lineWidth=1;c.setLineDash([5,4]);
+c.beginPath();c.moveTo(xe+.5,20);c.lineTo(xe+.5,h-6);c.stroke();c.setLineDash([]);
+c.fillStyle=C.red;c.font='600 9px '+MONO;c.textAlign='left'; c.fillText('PROBE ↑',xe+6,30); for(const r of rows){ const yb=y0(r.k==='TCK'?0:r.k==='TMS'?1:r.k==='TDI'?2:3);
+const amp2=amp; let y; if(r.k==='TCK')y=yb-amp2; else if(r.k==='TDO'){const b=idc.TDO[mod(cIdx-1,N)];y=b===null?yb:(b?yb-amp2:yb+amp2);}
+    else{const arr=r.k==='TMS'?idc.TMS:idc.TDI;y=arr[mod(cIdx,N)]?yb-amp2:yb+amp2;}
+c.beginPath();c.arc(xe,y,3.2,0,7);c.fillStyle=C.red;c.fill(); } idcReadout(mod(cIdx,N)); } /* 解码面板 */
+const decRow=document.getElementById('decRow'); (function decInit(){ let html=''; for(let i=0;i<32;i++){ const cls=i===0?'c0':i<12?'cm':i<28?'cp':'cv';
+const name=i===0?'bit0 ≡ 1':i<12?'厂商 [11:1] · bit'+i:i<28?'部件号 [27:12] · bit'+i:'版本 [31:28] · bit'+i;
+html+='<span class="dcell '+cls+'" data-i="'+i+'" title="'+name+'"></span>'; } decRow.innerHTML=html; })(); function fmtIdc(v){
+const ver=(v>>>28)&0xF,part=(v>>12)&0xFFFF,mfr=(v>>1)&0x7FF;
+const who=mfr===0x23B?'= ARM':mfr===0x049?'= Xilinx':mfr===0x020?'= ST':''; return '0x'+v.toString(16).toUpperCase().padStart(8,'0')+
+    ' → 版本 '+ver+' · 部件 0x'+part.toString(16).toUpperCase().padStart(4,'0')+
+' · 厂商 0x'+mfr.toString(16).toUpperCase().padStart(3,'0')+' '+who; } function idcReadout(m){ const N=idc.N,RG=idc.RG,REG=idc.REG; const r=REG[RG[m]];
+const set=(id,v)=>{document.getElementById(id).textContent=v;}; if(m<idc.lastM)idcResetCells(false);   /* 回绕：清位格，保留已读出的结果 */
+idc.lastM=m; const PH={idle:'IDLE · Run-Test/Idle',nav:'走位（TMS 驾驶）',sir:'SHIFT-IR · 移指令', upd:'UPDATE · 锁存生效',sdr:'SHIFT-DR · 移数据'}; set('rPhase',PH[r.k]||r.k); set('rState',idc.ST[m]);
+set('rBits','TMS='+idc.TMS[m]+' · TDI='+idc.TDI[m]);
+const tdoB=idc.TDO[mod(m-1,N)]; set('rTdo',tdoB===null?'Z（高阻）':String(tdoB)); const cells=decRow.children; let progressHtml=''; if(r.k==='sdr'){ const off=m-r.s,total=r.e-r.s;
+const daisy=total>32;
+const dev=daisy?(off<32?'B（近 TDO）':'A（近 TDI）'):'单器件'; set('rBit','bit '+(daisy?(off%32)+1:off+1)+' / 32 · '+dev+(daisy?' · 总 '+total:'')); const base=daisy&&off>=32?32:0;
+const nLoc=Math.min(off+1-base,32);
+for(let i=0;i<32;i++){ const gi=base+i; const cell=cells[i]; if(i<nLoc){ cell.classList.add('on'); cell.textContent=idc.bits[gi]; }else{ cell.classList.remove('on');
+cell.textContent=''; } } let pv=0; for(let i=0;i<nLoc;i++)pv|=idc.bits[base+i]<<i; pv>>>=0; progressHtml='<span>正在组装 '+(idc.mode==='daisy'?dev:'IDCODE')+'：<b>0x'+
+pv.toString(16).toUpperCase().padStart(8,'0')+'</b>（'+nLoc+' / 32 bit）</span><br>'; const doneCount=off+1; if(doneCount>=32){ const v=accum(0);
+if(!idc.vals.includes(v))idc.vals.push(v); } if(daisy&&doneCount>=64){ const v2=accum(32); if(!idc.vals.includes(v2))idc.vals.push(v2); } }else{ set('rBit','—');
+    for(let i=0;i<32;i++){cells[i].classList.remove('on');cells[i].textContent='';}
+  }
+const res=document.getElementById('decRes'); if(idc.vals.length){ res.innerHTML=progressHtml+idc.vals.map((v,i)=>
+      '<span class="ok">✓ '+(idc.mode==='daisy'?(i===0?'B（近 TDO）':'A（近 TDI）'):'IDCODE')+'</span><b>'+fmtIdc(v)+'</b>').join('<br>');
+}else if(progressHtml){ res.innerHTML=progressHtml+'<span style="color:var(--faint)">位色：红 bit0=1 · 琥珀 厂商[11:1] · 绿 部件[27:12] · 青 版本[31:28]</span>'; }else{
+    res.innerHTML='<span>等待 Shift-DR…<span style="color:var(--faint)">位色：红 bit0=1 · 琥珀 厂商[11:1] · 绿 部件[27:12] · 青 版本[31:28]</span></span>';
+  }
+}
+function accum(base){ let v=0; for(let i=0;i<32;i++)v|=idc.bits[base+i]<<i; return v>>>0; } function idcResetCells(clearVals){
+  for(const cell of decRow.children){cell.classList.remove('on');cell.textContent='';}
+if(clearVals!==false)idc.vals=[]; } /* 控件 */
+document.getElementById('idcSpeed').addEventListener('input',e=>{idc.speed=+e.target.value;}); function idcSetPlay(p){ idc.playing=p; const b=document.getElementById('idcPlay');
+b.textContent=p?'❚❚':'▶'; b.classList.toggle('on',p); } document.getElementById('idcPlay').addEventListener('click',()=>idcSetPlay(!idc.playing));
+document.getElementById('idcStep').addEventListener('click',()=>{
+idcSetPlay(false); idc.phase=Math.floor(idc.phase)+1; idcDraw(); }); document.getElementById('idcZoomIn').addEventListener('click',()=>{idc.pb=Math.min(28,idc.pb+2);});
+document.getElementById('idcZoomOut').addEventListener('click',()=>{idc.pb=Math.max(6,idc.pb-2);});
+document.getElementById('modeSeg').addEventListener('click',e=>{ const b=e.target.closest('button');if(!b)return; $$('#modeSeg button').forEach(x=>x.classList.remove('on'));
+b.classList.add('on');
+const wasDaisy=idc.mode==='daisy'; const toDaisy=b.dataset.mode==='daisy'; if(wasDaisy!==toDaisy){ idc.mode=b.dataset.mode; idcRebuild(); idcResetCells(); idc.lastM=-1;
+document.getElementById('rMode').textContent=toDaisy?'两颗 · IR=4+4':'单器件'; } }); function idcRebuild(){ const M=idc.mode; const tms=[],tdi=[],tdo=[],st=[]; let cur='TLR'; const REG=[];
+  const push=(m,di,do_)=>{tms.push(m);tdi.push(di);tdo.push(do_===undefined?null:do_);cur=TX[cur][m];st.push(cur);};
+const reg=k=>REG.push({s:tms.length,k}); reg('idle');for(let i=0;i<4;i++)push(0,1); reg('nav');push(1,1);push(1,1);push(0,1);push(0,1);
+const irTDI=M==='single'?[0,1,1,1]:[0,1,1,1,0,1,1,1];
+const irTDO=M==='single'?[1,0,0,0]:[1,0,0,0,1,0,0,0]; reg('sir');irTDI.forEach((b,i)=>push(i===irTDI.length-1?1:0,b,irTDO[i])); reg('upd');push(1,1);push(0,1);
+reg('nav');push(1,1);push(0,1);push(0,1);
+const dr=[]; if(M==='single'){for(let i=0;i<32;i++)dr.push((ID_A>>>i)&1);} else{for(let i=0;i<32;i++)dr.push((ID_B>>>i)&1);for(let i=0;i<32;i++)dr.push((ID_A>>>i)&1);}
+reg('sdr');dr.forEach((b,i)=>push(i===dr.length-1?1:0,0,b));
+reg('upd');push(1,1);push(0,1); reg('idle');for(let i=0;i<4;i++)push(0,1); REG.forEach((r,i)=>{r.e=i+1<REG.length?REG[i+1].s:tms.length;}); const RG=new Array(tms.length);
+REG.forEach((r,idx)=>{for(let i=r.s;i<r.e;i++)RG[i]=idx;});
+idc.TMS=tms;idc.TDI=tdi;idc.TDO=tdo;idc.ST=st;idc.REG=REG;idc.RG=RG;idc.bits=dr; } idcRebuild();   /* 首次构建时间轴（单器件 55 拍 / 菊花链 91 拍） */
+document.addEventListener('keydown',e=>{ if(e.code==='Space'&&!/INPUT|SELECT|BUTTON/.test(document.activeElement.tagName)){ e.preventDefault();idcSetPlay(!idc.playing); } });
+if(reduced)idcSetPlay(false);
+
+/* ============ §05 菊花链移位演示 ============ */
+const ch={cells:[0,1,0,0,1,0,0,0],inSeq:[0,1,1,1,0,1,1,1],inPos:0,out:[],auto:null}; function chRender(){ const A=document.getElementById('chA'),B=document.getElementById('chB');
+const mk=(host,arr,cls,off)=>{ host.innerHTML=''; arr.forEach((b,i)=>{ const d=document.createElement('div'); d.className='ch-cell '+cls+(b?' hot':'');
+d.innerHTML='<span class="b">'+b+'</span><small>'+(cls==='devA'?'A':'B')+i+'</small>';
+host.appendChild(d); }); }; mk(A,ch.cells.slice(0,4),'devA'); mk(B,ch.cells.slice(4),'devB'); const seq=document.getElementById('chIn'); seq.innerHTML='移入序列：'+ch.inSeq.map((b,i)=>{
+let cls=''; if(i<ch.inPos)cls='used'; if(i===ch.inPos)cls='next'; return '<span class="'+cls+'">'+b+'</span>'; }).join('')+'';
+document.getElementById('chOut').textContent=ch.out.length?ch.out.join(' '):'—'; const bn=document.getElementById('chBanner'); if(ch.inPos>=8){ bn.className='ch-banner ok';
+    bn.textContent='✓ 8 拍移完：A = 1110 · B = 1110 —— 两颗芯片的 IR 都装载了 IDCODE 指令（0xE），接下来 Shift-DR 将先吐出 B 的 32 位，再吐出 A 的。';
+}else{ bn.className='ch-banner'; bn.textContent='已移 '+ch.inPos+' / 8 拍 —— 注意「靠近 TDO 的 B」的指令位先进入（它们要一路穿到链尾）。'; } } function chShift(){ if(ch.inPos>=8)return;
+const inBit=ch.inSeq[ch.inPos];
+const out=ch.cells[ch.cells.length-1]; for(let i=ch.cells.length-1;i>0;i--)ch.cells[i]=ch.cells[i-1]; ch.cells[0]=inBit; ch.out.push(out); ch.inPos++; chRender(); }
+document.getElementById('chStep').addEventListener('click',chShift);
+document.getElementById('chAuto').addEventListener('click',e=>{ if(ch.auto){clearInterval(ch.auto);ch.auto=null;e.target.textContent='⏩ 自动';return;} e.target.textContent='⏸ 停止';
+ch.auto=setInterval(()=>{ chShift(); if(ch.inPos>=8){clearInterval(ch.auto);ch.auto=null;document.getElementById('chAuto').textContent='⏩ 自动';} },450); });
+document.getElementById('chReset').addEventListener('click',()=>{ if(ch.auto){clearInterval(ch.auto);ch.auto=null;document.getElementById('chAuto').textContent='⏩ 自动';}
+ch.cells=[0,1,0,0,1,0,0,0];ch.inPos=0;ch.out=[]; chRender(); }); chRender();
+
+/* §5 链结构图 */
+document.getElementById('chainDiagram').innerHTML=`
+  <svg viewBox="0 0 640 300" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono,monospace"> <defs><marker id="arC" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"> <path d="M0,0 L10,5 L0,10 z" fill="context-stroke"/></marker></defs> <text x="10" y="20" fill="rgba(140,162,148,.7)" font-size="10">一条链 · 两条寄存器轨道：IR 串成一条，DR 串成一条</text>
+  <line x1="96" y1="52" x2="150" y2="52" stroke="rgba(255,176,46,.7)" stroke-width="1.6" marker-end="url(#arC)"/> <path d="M96,60 C 130,70 160,110 182,132" stroke="rgba(255,176,46,.5)" stroke-width="1.4" fill="none" marker-end="url(#arC)"/> <path d="M96,60 C 200,110 340,110 392,132" stroke="rgba(255,176,46,.35)" stroke-width="1.4" fill="none" stroke-dasharray="4 4" marker-end="url(#arC)"/> <text x="20" y="46" fill="rgba(255,176,46,.9)" font-size="9.5">TCK·TMS 广播</text>
+  <rect x="20" y="60" width="76" height="34" rx="6" fill="rgba(52,224,138,.06)" stroke="rgba(52,224,138,.45)"/> <text x="58" y="81" text-anchor="middle" fill="#dcebe1" font-size="10.5">调试器</text>
+  ${[0,1].map(k=>{
+    const x=182+k*210;
+    return `
+  <rect x="${x}" y="92" width="188" height="176" rx="8" fill="rgba(13,21,16,.9)" stroke="#27392d"/> <text x="${x+94}" y="86" text-anchor="middle" fill="${k===0?'#34e08a':'#ffb02e'}" font-size="11" font-weight="600">器件 ${k===0?'A（近 TDI）':'B（近 TDO）'}</text> <text x="${x+12}" y="112" fill="rgba(140,162,148,.8)" font-size="9">IR 轨：</text>
+    ${[0,1,2,3,4,5].map(i=>`<rect x="${x+50+i*22}" y="100" width="18" height="18" fill="rgba(255,176,46,.07)" stroke="rgba(255,176,46,.45)"/>`).join('')}
+  <text x="${x+12}" y="150" fill="rgba(140,162,148,.8)" font-size="9">DR 轨：</text>
+    ${[0,1,2,3,4,5,6,7].map(i=>`<rect x="${x+50+i*17}" y="138" width="13" height="18" fill="rgba(87,216,242,.07)" stroke="rgba(87,216,242,.45)"/>`).join('')}
+  <text x="${x+94}" y="180" text-anchor="middle" fill="rgba(87,216,242,.8)" font-size="9">DR = IDCODE ×32 / BYPASS ×1 / 边界链 ×N</text> <text x="${x+94}" y="200" text-anchor="middle" fill="rgba(140,162,148,.55)" font-size="9">由 IR 当前指令决定接入哪条 DR</text> <text x="${x+94}" y="226" text-anchor="middle" fill="rgba(52,224,138,.7)" font-size="9">Shift 时：IR 全链串行 / DR 全链串行</text> <text x="${x+94}" y="248" text-anchor="middle" fill="rgba(140,162,148,.5)" font-size="8.5">指令位数 ΣIR · 数据位数 = Σ(各 DR 长度)</text>`;
+  }).join('')}
+  <line x1="150" y1="132" x2="182" y2="132" stroke="rgba(52,224,138,.7)" stroke-width="1.6" marker-end="url(#arC)"/> <line x1="370" y1="132" x2="392" y2="132" stroke="rgba(52,224,138,.7)" stroke-width="1.6" marker-end="url(#arC)"/> <path d="M580,132 L612,132" stroke="rgba(87,216,242,.7)" stroke-width="1.6" fill="none" marker-end="url(#arC)"/> <text x="596" y="120" text-anchor="middle" fill="rgba(87,216,242,.9)" font-size="9.5">TDO →</text>
+  <text x="10" y="290" fill="rgba(140,162,148,.55)" font-size="9">读两颗 IDCODE：IR 移 ΣIR 位（都装 IDCODE）→ DR 移 64 位：B 的 32 位先出、A 的 32 位后出</text>
+</svg>`;
+
+/* §5 计算器 */
+function calcChain(){ const a=+document.getElementById('cIrA').value; const b=+document.getElementById('cIrB').value; const f=+document.getElementById('cTck').value;
+const list=[a,b].filter(v=>v>0);
+const n=list.length; const irSum=a+b,drBits=32*n; const cyc=irSum+drBits+19; const us=cyc*1000/f; document.getElementById('oIr').innerHTML=irSum+'<small>bit</small>';
+document.getElementById('oDr').innerHTML=drBits+'<small>bit</small>'; document.getElementById('oCyc').innerHTML=cyc+'<small>TCK</small>';
+  document.getElementById('oTime').innerHTML=(us>=1000?(us/1000).toFixed(2)+'<small>ms</small>':us.toFixed(1)+'<small>µs</small>');
+document.getElementById('fIr').textContent=irSum; document.getElementById('fDr').textContent=drBits; document.getElementById('fCyc').textContent=cyc;
+  document.getElementById('fTime').textContent='@'+(f>=1000?f/1000+' MHz':f+' kHz')+' = '+(us>=1000?(us/1000).toFixed(2)+' ms':us.toFixed(1)+' µs');
+}
+['cIrA','cIrB','cTck'].forEach(id=>document.getElementById(id).addEventListener('change',calcChain)); calcChain();
+
+/* ============ §06 EXTEST 演示 ============ */
+const xt={timer:null,step:0,driveCnt:[0,0,0,0],capCnt:[0,0,0,0]}; (function xtInit(){ const svg=document.getElementById('xtSvg'); let s='';
+s+='<text x="60" y="30" class="lab b">芯片 A · Update 锁存驱动</text>';
+s+='<text x="640" y="30" class="lab b">芯片 B · Capture 采样</text>'; s+='<rect x="30" y="42" width="200" height="216" rx="8" class="chip-ic"/>';
+s+='<rect x="710" y="42" width="200" height="216" rx="8" class="chip-ic"/>';
+for(let i=0;i<4;i++){ const y=80+i*52; s+='<g class="cell" id="drv'+i+'"><rect x="196" y="'+(y-16)+'" width="34" height="32" rx="4"/><text x="213" y="'+(y+5)+'">0</text></g>';
+const gap=i===2; if(gap){ s+='<g class="net brk" id="net'+i+'"><path d="M232,'+y+' L420,'+y+'"/><path d="M470,'+y+' L710,'+y+'"/></g>';
+      s+='<text x="445" y="'+(y-8)+'" fill="rgba(255,100,120,.9)" font-size="13" text-anchor="middle" font-family="IBM Plex Mono,monospace">✕</text>';
+      s+='<text x="445" y="'+(y+16)+'" fill="rgba(255,100,120,.7)" font-size="9" text-anchor="middle" font-family="IBM Plex Mono,monospace">断路</text>';
+}else{ s+='<g class="net" id="net'+i+'"><path d="M232,'+y+' L710,'+y+'"/></g>'; } s+='<text x="250" y="'+(y-12)+'" class="lab">NET_P'+i+'</text>';
+    s+='<g class="cell" id="cap'+i+'"><rect x="710" y="'+(y-16)+'" width="34" height="32" rx="4"/><text x="727" y="'+(y+5)+'">·</text></g>';
+s+='<text x="754" y="'+(y+4)+'" class="lab">边界单元 → 内核</text>'; } s+='<text x="60" y="284" class="lab">EXTEST：移位把 1/0 写进 A 的 Update 锁存 → 引脚真实翻转 → B 的输入单元捕获</text>'; svg.innerHTML=s;
+})(); function xtSetCell(id,v,miss){ const g=document.getElementById(id); g.classList.toggle('on',v===1); g.classList.toggle('miss',!!miss);
+g.querySelector('text').textContent=v===1?'1':(miss?'✕':'0'); }
+function xtReset(){ if(xt.timer){clearInterval(xt.timer);xt.timer=null;} xt.step=0;xt.driveCnt=[0,0,0,0];xt.capCnt=[0,0,0,0]; for(let i=0;i<4;i++){
+xtSetCell('drv'+i,0,false);xtSetCell('cap'+i,0,false);
+document.getElementById('net'+i).classList.remove('on'); } const tb=document.getElementById('xtTable'); while(tb.rows.length>1)tb.deleteRow(1);
+document.getElementById('xtVerdict').textContent='尚未测试 — 芯片 A 将逐个驱动 4 根网络为 1，芯片 B 同步采样'; }
+function xtRow(i){ const tb=document.getElementById('xtTable'); const ok=i!==2; const verdict=xt.driveCnt[i]>0&&xt.capCnt[i]===0?'<span class="bad">✗ 断路（恒 0）</span>'
+:xt.capCnt[i]>0?'<span class="good">✓ 正常</span>':'—'; if(tb.rows[i+1])tb.rows[i+1].remove(); const tr=document.createElement('tr');
+tr.innerHTML='<td>NET_P'+i+'</td><td>'+xt.driveCnt[i]+'</td><td>'+xt.capCnt[i]+'</td><td>'+verdict+'</td>';
+tb.appendChild(tr); } function xtRun(){ xtReset(); document.getElementById('xtVerdict').textContent='EXTEST 巡检中（walk-1）…'; xt.timer=setInterval(()=>{ const v=xt.step; if(v>=4){
+clearInterval(xt.timer);xt.timer=null; document.getElementById('xtVerdict').innerHTML='<span style="color:var(--red)">NET_P2：驱动 1 次、捕获 0 次 → <b>断路</b>。其余正常。这就是「不上固件测 PCB」。</span>';
+return; } for(let i=0;i<4;i++){ const drive=(i===v)?1:0; xtSetCell('drv'+i,drive,false); const ok=i!==2; const cap=drive&&ok?1:0; xtSetCell('cap'+i,cap,!ok);
+document.getElementById('net'+i).classList.toggle('on',!!(drive&&ok));
+if(drive)xt.driveCnt[i]++; if(cap)xt.capCnt[i]++; xtRow(i); } xt.step++; },850); } document.getElementById('xtRun').addEventListener('click',xtRun);
+document.getElementById('xtReset').addEventListener('click',xtReset);
+
+/* ============ §07 SWD 事务动画 ============ */
+const swd={mode:'read',tgt:'dp',ack:'ok',idx:0,playing:false,timer:null,steps:[]}; const swdDataBits=document.getElementById('swDataBits'); (function(){ let h='';
+for(let i=0;i<32;i++)h+='<i></i>';
+swdDataBits.innerHTML=h; })(); function swPar(ones){return ones%2;} function swdBuild(){ const read=swd.mode==='read',ap=swd.tgt==='ap'; const apn=ap?1:0,rnw=read?1:0;
+const a2=ap?1:0,a3=ap?1:0; const onesReq=apn+rnw+a2+a3; const par=swPar(onesReq); const dataVal=read?(ap?0x55AA55AA:0x2BA01477):0x000000F0;
+const ones=(function(){let k=0;for(let i=0;i<32;i++)k+=(dataVal>>>i)&1;return k;})();
+const dpar=ones%2===0?1:0; const reqByte=parseInt(''+[1,apn,rnw,a2,a3,par,0,1].join(''),2); swd.dataVal=dataVal; const regName=ap?'MEM-AP · DRW（0xC）':'SW-DP · IDCODE（0x0）';
+  const steps=[
+    {k:'start',t:'Start=1：主机把 SWDIO 拉低一拍，宣告请求开始'},
+    {k:'apn',v:apn,t:'APnDP='+apn+' → '+(ap?'访问 MEM-AP（经调试口去碰系统内存）':'访问 SW-DP（调试端口自身寄存器）')},
+    {k:'rnw',v:rnw,t:'RnW='+rnw+' → '+(read?'读：数据将由目标驱动（32bit + 奇偶）':'写：主机继续驱动数据')},
+    {k:'a2',v:a2,t:'A[2]='+a2+' · A[3]='+a3+' → 寄存器地址 '+(ap?'0b11 → 0x0C':'0b00 → 0x00')+' = '+regName},
+    {k:'a3',v:a3,t:'请求有效字段（APnDP+RnW+A[2:3]）中 1 的个数 = '+onesReq},
+    {k:'par',v:par,t:'PAR='+par+'：使 Start~PAR 六位中 1 的总数为奇数；Stop=0、Park=1 收尾 → 整个请求 = 0x'+reqByte.toString(16).toUpperCase().padStart(2,'0')+(!ap&&read?'（正是著名的 0xA5）':'')},
+    {k:'park',t:'请求发完，总线换手（Turnaround）：主机松开 SWDIO，目标接管'},
+    {k:'ack1',t:'ACK 第一拍…'}
+]; if(swd.ack==='ok'){ steps.push({k:'ack2',t:'ACK=001（OK）：目标就绪'+(read?'，马上驱动数据':'，等主机写数据')});
+    steps.push({k:'ack3',t:'读出 0x'+dataVal.toString(16).toUpperCase()+'（本例 '+(read?(ap?'上次 AP 访问的数据':'= 04 节那颗 DP 的 IDCODE'):'要写入 DP·SELECT：选中 MEM-AP #0')+'）'});
+}else if(swd.ack==='wait'){ steps.push({k:'ack2',t:'ACK=010（WAIT）：目标忙——上次事务还没完成'}); steps.push({k:'ack3',t:'主机不改变请求，稍后原样重发（演示将自动循环）',err:false}); }else{
+steps.push({k:'ack2',t:'ACK=100（FAULT）：错误挂起——访问非法或 MEM-AP 出错'});
+steps.push({k:'ack3',t:'必须先读 DP CTRL/STAT 里的 sticky error 位并清除，事务才能继续',err:true}); } if(swd.ack==='ok'){ for(let q=0;q<4;q++){
+steps.push({k:'data',t:'数据 byte['+(q*8)+'…'+(q*8+7)+'] 移出（LSB 先行，共 32 bit 分四步看）'}); }
+steps.push({k:'dpar',t:'数据奇偶：32 bit 中 1 的个数 = '+ones+' → PAR='+dpar+' ✓ 校验通过，事务完成'}); } /* 更新字段显示值 */
+  const setF=(k,v)=>{const el=document.querySelector('.swf[data-k="'+k+'"] b');if(el&&v!==undefined)el.textContent=v;};
+setF('apn',apn);setF('rnw',rnw);setF('a2',a2);setF('a3',a3);setF('par',par);setF('dpar',dpar); const ackBits=swd.ack==='ok'?['0','0','1']:swd.ack==='wait'?['0','1','0']:['1','0','0'];
+setF('ack1',ackBits[0]);setF('ack2',ackBits[1]);setF('ack3',ackBits[2]);
+document.getElementById('swDataHex').textContent='0x'+dataVal.toString(16).toUpperCase().padStart(8,'0'); swd.steps=steps; } function swdApply(){
+$$('.swf').forEach(f=>f.classList.remove('on')); const narr=document.getElementById('swdNarr'); for(let i=0;i<swd.idx&&i<swd.steps.length;i++){ const st=swd.steps[i];
+if(st.k)$$('.swf[data-k="'+st.k+'"]').forEach(f=>{f.classList.add('on');if(st.err)f.classList.add('err');});
+if(st.k==='data'){ const bits=swdDataBits.children; const upto=(i-8)*8; for(let b=0;b<Math.min(upto,32);b++)bits[b].classList.add('on'); } }
+const last=swd.steps[Math.min(swd.idx,swd.steps.length)-1];
+const shown=swd.steps.slice(Math.max(0,swd.idx-3),swd.idx); narr.innerHTML=shown.map((st,i,arr)=>{ const isLast=i===arr.length-1;
+return '<div class="'+(isLast?(st.err?'last err':'last'):'old')+'">▸ '+st.t+'</div>';
+}).join('')||'<div class="old">选择参数后按「播放」…</div>'; } function swdStop(){ if(swd.timer){clearInterval(swd.timer);swd.timer=null;} swd.playing=false;
+const b=document.getElementById('swPlay');
+b.textContent='▶ 播放';b.classList.add('on'); } function swdNext(){ if(swd.idx>=swd.steps.length){ if(swd.ack==='wait'&&swd.playing){swd.idx=0;swdApply();return;} swdStop();return; }
+swd.idx++; swdApply(); } function swdStart(){ swdStop(); swd.playing=true; const b=document.getElementById('swPlay'); b.textContent='❚❚ 暂停'; swd.timer=setInterval(swdNext,720); }
+document.getElementById('swPlay').addEventListener('click',()=>{
+if(swd.playing)swdStop();else swdStart(); }); document.getElementById('swStep').addEventListener('click',()=>{swdStop();swdNext();});
+document.getElementById('swReset').addEventListener('click',()=>{swdStop();swd.idx=0;swdApply();});
+function bindSeg(id,prop){ document.getElementById(id).addEventListener('click',e=>{ const b=e.target.closest('button');if(!b)return;
+$$('#'+id+' button').forEach(x=>x.classList.remove('on'));
+b.classList.add('on'); swd[prop]=b.dataset.v; swd.idx=0;swdBuild();swdApply(); }); } bindSeg('swMode','mode');bindSeg('swTgt','tgt');bindSeg('swAck','ack'); swdBuild();swdApply();
+
+/* §7 DP/AP 结构图 */
+document.getElementById('apDiagram').innerHTML=`
+  <svg viewBox="0 0 544 300" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono,monospace"> <defs><marker id="arA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"> <path d="M0,0 L10,5 L0,10 z" fill="context-stroke"/></marker></defs> <rect x="10" y="34" width="86" height="52" rx="6" fill="rgba(52,224,138,.06)" stroke="rgba(52,224,138,.45)"/>
+  <text x="53" y="55" text-anchor="middle" fill="#dcebe1" font-size="10.5">PC + GDB</text> <text x="53" y="70" text-anchor="middle" fill="rgba(140,162,148,.8)" font-size="8.5">OpenOCD</text> <rect x="10" y="150" width="86" height="46" rx="6" fill="rgba(52,224,138,.06)" stroke="rgba(52,224,138,.45)"/> <text x="53" y="170" text-anchor="middle" fill="#dcebe1" font-size="10.5">调试器</text>
+  <text x="53" y="184" text-anchor="middle" fill="rgba(140,162,148,.7)" font-size="8.5">USB→SWD</text> <line x1="53" y1="86" x2="53" y2="146" stroke="rgba(220,235,225,.5)" stroke-width="1.5" marker-end="url(#arA)"/> <line x1="100" y1="164" x2="164" y2="164" stroke="rgba(52,224,138,.7)" stroke-width="1.8" marker-end="url(#arA)"/> <text x="132" y="155" text-anchor="middle" fill="rgba(52,224,138,.9)" font-size="9">SWCLK+SWDIO</text>
+  <rect x="168" y="120" width="150" height="110" rx="8" fill="rgba(255,176,46,.05)" stroke="rgba(255,176,46,.45)"/> <text x="243" y="112" text-anchor="middle" fill="#ffb02e" font-size="11" font-weight="600">SW-DP · 调试端口</text>
+  ${['IDCODE/DPIDR','CTRL/STAT','SELECT','TARGETSEL'].map((r,i)=>
+    '<rect x="184" y="'+(128+i*24)+'" width="118" height="18" rx="3" fill="rgba(255,176,46,.07)" stroke="rgba(255,176,46,.4)"/><text x="243" y="'+(141+i*24)+'" text-anchor="middle" fill="#dcebe1" font-size="8.5">'+r+'</text>').join('')}
+  <line x1="322" y1="175" x2="368" y2="175" stroke="rgba(220,235,225,.5)" stroke-width="1.5" marker-end="url(#arA)"/> <text x="345" y="166" text-anchor="middle" fill="rgba(140,162,148,.8)" font-size="8.5">内部总线</text> <rect x="372" y="120" width="138" height="110" rx="8" fill="rgba(87,216,242,.05)" stroke="rgba(87,216,242,.45)"/> <text x="441" y="112" text-anchor="middle" fill="#57d8f2" font-size="11" font-weight="600">MEM-AP · 内存访问点</text>
+  ${['CSW 控制','TAR 目标地址','DRW 数据读写'].map((r,i)=>
+    '<rect x="386" y="'+(130+i*26)+'" width="110" height="18" rx="3" fill="rgba(87,216,242,.07)" stroke="rgba(87,216,242,.4)"/><text x="441" y="'+(143+i*26)+'" text-anchor="middle" fill="#dcebe1" font-size="8.5">'+r+'</text>').join('')}
+  <line x1="441" y1="230" x2="441" y2="262" stroke="rgba(220,235,225,.5)" stroke-width="1.5" marker-end="url(#arA)"/> <text x="441" y="280" text-anchor="middle" fill="rgba(140,162,148,.8)" font-size="9">AHB/APB 总线 → 内核 · 外设 · FLASH</text> <path d="M 500,60 C 470,80 460,100 452,118" stroke="rgba(87,216,242,.45)" stroke-width="1.3" fill="none" stroke-dasharray="4 4"/> <text x="360" y="52" fill="rgba(87,216,242,.75)" font-size="9">SWO 单向跟踪（第三根线，可选）</text>
+  <text x="12" y="296" fill="rgba(140,162,148,.55)" font-size="9">SW-DP 收请求；访问内存时 SELECT 选中 MEM-AP，再经 TAR+DRW 逐字读写——两层地址翻译由硬件完成</text>
+</svg>`;
+
+/* ============ Hero 动画 ============ */
+const hero={t:0,visible:false,pk:[]}; watchVisible(document.getElementById('heroSvg'),hero); (function heroInit(){ const NS='http://www.w3.org/2000/svg';
+const mkPkt=(parent,pathId,bits,color,dir)=>{
+const g=document.createElementNS(NS,'g'); g.setAttribute('opacity','0'); const r=document.createElementNS(NS,'rect'); r.setAttribute('x','-11');r.setAttribute('y','-10');
+r.setAttribute('width','22');r.setAttribute('height','19');r.setAttribute('rx','4');
+r.setAttribute('stroke',color);r.setAttribute('stroke-width','1.4'); g.appendChild(r); const t=document.createElementNS(NS,'text');
+t.setAttribute('text-anchor','middle');t.setAttribute('y','5');
+t.setAttribute('font-family','IBM Plex Mono');t.setAttribute('font-size','12'); t.setAttribute('fill',color); g.appendChild(t); document.getElementById(parent).appendChild(g);
+const path=document.getElementById(pathId);
+const o={g,t,path,bits,color,dir,len:path.getTotalLength()}; hero.pk.push(o); return o; }; const idBits=[];for(let i=0;i<32;i++)idBits.push((ID_A>>>i)&1);
+mkPkt('hpkTDI','hpTDI',[0,1,1,1,0,1,1,1],C.green,1);
+mkPkt('hpkTMS','hpTMS',[0,1,1,0,0,1,0,0],C.amber,1); mkPkt('hpkTDO','hpTDO',idBits,C.cyan,-1); mkPkt('hpkTDO','hpTDO',idBits.slice().reverse(),C.cyan,-1); /* 边界单元环 */
+const bsc=document.getElementById('heroBsc'); for(let i=0;i<8;i++){ const r1=document.createElementNS(NS,'rect'); r1.setAttribute('x',640+16+i*30);r1.setAttribute('y',56);
+r1.setAttribute('width',22);r1.setAttribute('height',9);
+r1.setAttribute('class','bcell-ic'); bsc.appendChild(r1); const r2=document.createElementNS(NS,'rect'); r2.setAttribute('x',640+16+i*30);r2.setAttribute('y',274);
+r2.setAttribute('width',22);r2.setAttribute('height',9);
+r2.setAttribute('class','bcell-ic'); bsc.appendChild(r2); } })(); const HERO_STATES=['TAP: Test-Logic-Reset（IDCODE 已装载）','TAP: Run-Test/Idle','TAP: Select-DR → Select-IR',
+  'TAP: Shift-IR · 移入指令 0b1110','TAP: Update-IR · 指令生效','TAP: Shift-DR · TDO ⇠ 移出 IDCODE 32 bit',
+'TAP: Update-DR · 完成 ✓','调试器：识别到 0x2BA01477（ARM）']; function heroDraw(dt){ if(!reduced)hero.t+=dt; const t=hero.t; /* TCK 脉冲流动 */
+const tck=document.getElementById('hwTCK'); tck.style.strokeDashoffset=String(-mod(t*26,18)); /* 数据包 */
+for(const p of hero.pk){ const npk=p.dir===1?3:2; const idx=hero.pk.indexOf(p)%npk; const u=p.dir===1?mod(t*0.10+idx/npk,1):mod(t*0.07+idx/npk,1);
+const pt=p.path.getPointAtLength((p.dir===1?u:1-u)*p.len);
+p.g.setAttribute('transform','translate('+pt.x.toFixed(1)+','+pt.y.toFixed(1)+')'); const fade=Math.min(1,Math.min(u,1-u)*8); p.g.setAttribute('opacity',String(0.92*fade));
+const bi=Math.floor(u*p.bits.length)%p.bits.length;
+p.t.textContent=p.bits[bi]; } const st=HERO_STATES[Math.floor(t/1.6)%HERO_STATES.length]; document.getElementById('heroStat').textContent=st; } if(reduced){ /* 静态摆放一帧 */
+for(const p of hero.pk){ const pt=p.path.getPointAtLength(p.len*0.5); p.g.setAttribute('transform','translate('+pt.x+','+pt.y+')'); p.g.setAttribute('opacity','0.9');
+p.t.textContent=p.bits[0]; } document.getElementById('heroStat').textContent=HERO_STATES[5]; }
+
+/* ============ 命令点击复制 ============ */
+document.addEventListener('click',async e=>{ const el=e.target.closest('.t-cmd'); if(!el)return; const txt=el.dataset.copy||el.textContent; let okFlag=false;
+  try{await navigator.clipboard.writeText(txt);okFlag=true;}
+catch{ const ta=document.createElement('textarea'); ta.value=txt;ta.style.position='fixed';ta.style.opacity='0'; document.body.appendChild(ta);ta.select();
+    try{okFlag=document.execCommand('copy');}catch(_){}
+ta.remove(); } const old=el.textContent; el.classList.add('copied'); el.textContent=okFlag?'已复制 ✓':'复制失败'; setTimeout(()=>{el.classList.remove('copied');el.textContent=old;},900); });
+
+/* ============ 滚动显现 ============ */
+const io=new IntersectionObserver(es=>es.forEach(e=>{ if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);} }),{threshold:.12});
+$$('.reveal').forEach(el=>io.observe(el));
+
+/* ============ 主循环 ============ */
+let lastT=performance.now(); function loop(now){ const dt=Math.min((now-lastT)/1000,.1);lastT=now; try{ if(hero.visible)heroDraw(dt); for(const o of MINIS)if(o.visible)miniDraw(o,dt);
+if(idc.visible){ if(idc.playing)idc.phase+=idc.speed*dt; idcDraw(); } }catch(err){ if(!window.__jtagLoopErr){window.__jtagLoopErr=String(err&&err.stack||err);console.error(err);} }
+requestAnimationFrame(loop); }
+requestAnimationFrame(loop); let rzT; window.addEventListener('resize',()=>{ clearTimeout(rzT); rzT=setTimeout(()=>{ idcFit(); for(const o of MINIS)o.fit(); },150); }); })();
+</script>
+</body>
+</html>

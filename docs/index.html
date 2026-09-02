@@ -63,7 +63,18 @@ a.card:hover{border-color:rgba(52,224,138,.5);transform:translateY(-2px);box-sha
 .card .go{
   font-family:var(--mono);font-size:13px;color:var(--green);letter-spacing:.15em;white-space:nowrap;
 }
-.card .accent{color:var(--green)} .card:nth-child(2) .accent{color:var(--cyan)} .card:nth-child(3) .accent{color:var(--amber)} .card:nth-child(4) .accent{color:#ff6257} .card:nth-child(5) .accent{color:#b98cff}
+.card .accent{color:var(--green)}
+.card:nth-child(2) .accent{color:var(--cyan)} .card:nth-child(3) .accent{color:var(--amber)}
+.card:nth-child(4) .accent{color:#ff6257} .card:nth-child(5) .accent{color:#b98cff}
+.card:nth-child(6) .accent{color:#6ea8ff}
+.card:nth-child(7) .accent{color:var(--green)} .card:nth-child(8) .accent{color:var(--cyan)}
+.card:nth-child(9) .accent{color:var(--amber)} .card:nth-child(10) .accent{color:#ff6257}
+.card:nth-child(11) .accent{color:#b98cff} .card:nth-child(12) .accent{color:#6ea8ff}
+.card:nth-child(13) .accent{color:var(--green)} .card:nth-child(14) .accent{color:var(--cyan)}
+.card:nth-child(15) .accent{color:var(--amber)} .card:nth-child(16) .accent{color:#ff6257}
+.card:nth-child(17) .accent{color:#b98cff} .card:nth-child(18) .accent{color:#6ea8ff}
+.card:nth-child(19) .accent{color:var(--green)} .card:nth-child(20) .accent{color:var(--cyan)}
+.card:nth-child(21) .accent{color:var(--amber)}
 .card .go::after{content:' →'}
 footer{
   border-top:1px solid var(--line);padding:22px 24px;text-align:center;
@@ -79,7 +90,7 @@ footer{
 <header>
   <div class="tag">HW PROTOCOL LAB</div>
   <h1>硬件协议图解<span class="en">Interactive Hardware Protocol Guides</span></h1>
-  <p class="sub">以交互式时序图、动画和示波器视角，详解常见硬件通信协议的电气特性、时序规则与实际应用。</p>
+  <p class="sub">以交互式时序图、动画和示波器视角，详解 21 种常见硬件通信协议的电气特性、时序规则与实际应用。</p>
 </header>
 <main>
   <a class="card" href="i2c.html">
@@ -90,11 +101,11 @@ footer{
     </div>
     <span class="go">ENTER</span>
   </a>
-  <a class="card" href="i2s.html">
-    <div class="wave"><svg viewBox="0 0 64 40"><path d="M4 26 v-14 h8 v14 h8 v-14 h8 v14 h8 v-14 h8 v14 h8 v-14 h8" stroke="#57d8f2" stroke-width="2.5" fill="none"/></svg></div>
+  <a class="card" href="spi.html">
+    <div class="wave"><svg viewBox="0 0 64 40"><path d="M4 26 h8 v-12 h8 v12 h8 v-12 h8 v12 h20" stroke="#57d8f2" stroke-width="2.5" fill="none"/></svg></div>
     <div>
-      <h2><span class="accent">I²S</span> 协议详解</h2>
-      <p>数字音频总线：Philips / Left-Justified / Right-Justified 三种数据格式对比、主从时钟关系与声道对齐动画。</p>
+      <h2><span class="accent">SPI</span> 协议详解</h2>
+      <p>四线全双工同步总线：CPOL/CPHA 四模式波形实验室、移位寄存器环形交换动画、QSPI 变体与 spidev 虚拟终端实战。</p>
     </div>
     <span class="go">ENTER</span>
   </a>
@@ -114,11 +125,139 @@ footer{
     </div>
     <span class="go">ENTER</span>
   </a>
+  <a class="card" href="rs485.html">
+    <div class="wave"><svg viewBox="0 0 64 40"><path d="M4 26 C16 26 20 14 32 14 S48 26 60 26 M4 14 C16 14 20 26 32 26 S48 14 60 14" stroke="#b98cff" stroke-width="2.5" fill="none"/></svg></div>
+    <div>
+      <h2><span class="accent">RS-485</span> + Modbus 协议详解</h2>
+      <p>UART 帧的工业级差分总线：A/B 长线传输与终端电阻、DE/RE 方向切换对错动画、Modbus RTU 逐字节帧动画与 CRC16 手算实验室。</p>
+    </div>
+    <span class="go">ENTER</span>
+  </a>
+  <a class="card" href="onewire.html">
+    <div class="wave"><svg viewBox="0 0 64 40"><path d="M4 20 h4 l3-14 3 14 h4 l2-7 2 7 h2 l2-7 2 7 h2 l3-14 3 14 h22" stroke="#6ea8ff" stroke-width="2.5" fill="none"/></svg></div>
+    <div>
+      <h2><span class="accent">1-Wire</span> 单总线协议详解</h2>
+      <p>一根线同时供电与通信：复位/存在脉冲微秒级波形、读写时隙对比实验室、Search ROM 二叉树枚举演示与 DS18B20 实战。</p>
+    </div>
+    <span class="go">ENTER</span>
+  </a>
+  <a class="card" href="can.html">
+    <div class="wave"><svg viewBox="0 0 64 40"><path d="M4 12 h10 l4 16 h14 l4-16 h12 l4 16 h12" stroke="#34e08a" stroke-width="2.5" fill="none"/></svg></div>
+    <div>
+      <h2><span class="accent">CAN</span> 总线协议详解</h2>
+      <p>汽车级多主差分总线：数据帧逐位示波器动画、双节点 ID 仲裁对决、位填充与错误计数状态机、CAN FD 对比与 SocketCAN 实战。</p>
+    </div>
+    <span class="go">ENTER</span>
+  </a>
+  <a class="card" href="i2s.html">
+    <div class="wave"><svg viewBox="0 0 64 40"><path d="M4 26 v-14 h8 v14 h8 v-14 h8 v14 h8 v-14 h8 v14 h8 v-14 h8" stroke="#57d8f2" stroke-width="2.5" fill="none"/></svg></div>
+    <div>
+      <h2><span class="accent">I²S</span> 协议详解</h2>
+      <p>数字音频总线：Philips / Left-Justified / Right-Justified 三种数据格式对比、主从时钟关系与声道对齐动画。</p>
+    </div>
+    <span class="go">ENTER</span>
+  </a>
   <a class="card" href="dmic.html">
-    <div class="wave"><svg viewBox="0 0 64 40"><path d="M4 22 h2 v-12 h2 v12 h3 v-12 h9 v12 h3 v-12 h9 v12 h2 v-12 h2 v12 h20" stroke="#b98cff" stroke-width="2.5" fill="none"/></svg></div>
+    <div class="wave"><svg viewBox="0 0 64 40"><path d="M4 22 h2 v-12 h2 v12 h3 v-12 h9 v12 h3 v-12 h9 v12 h2 v-12 h2 v12 h20" stroke="#ffb02e" stroke-width="2.5" fill="none"/></svg></div>
     <div>
       <h2><span class="accent">DMIC / PDM</span> 协议详解</h2>
       <p>数字 MEMS 麦克风接口：1-bit ΔΣ 密度调制、两线立体声与 L/R 时沿分离、÷64 抽取滤波动画与 Linux/Android 实战。</p>
+    </div>
+    <span class="go">ENTER</span>
+  </a>
+  <a class="card" href="tdm.html">
+    <div class="wave"><svg viewBox="0 0 64 40"><path d="M4 24 h5 v-8 h6 v8 h5 v-14 h8 v14 h5 v-8 h6 v8 h25" stroke="#ff6257" stroke-width="2.5" fill="none"/></svg></div>
+    <div>
+      <h2><span class="accent">TDM / PCM</span> 协议详解</h2>
+      <p>一条数据线切出 16 路音频时隙：三种帧同步格式对比动画、交互式时隙分配器、BCLK 计算器与 ASoC set_tdm_slot 实战。</p>
+    </div>
+    <span class="go">ENTER</span>
+  </a>
+  <a class="card" href="sdio.html">
+    <div class="wave"><svg viewBox="0 0 64 40"><path d="M4 26 h3 v-12 h4 v12 h4 v-12 h4 v12 h5 v-16 h18 v16 h10" stroke="#b98cff" stroke-width="2.5" fill="none"/></svg></div>
+    <div>
+      <h2><span class="accent">SDIO</span> 协议详解</h2>
+      <p>WiFi 模块的高速通道：CMD 线 48-bit 命令帧、CMD53 块读时序动画、CMD5→CMD3→CMD7 枚举状态机、吞吐计算器与 Linux mmc 实战。</p>
+    </div>
+    <span class="go">ENTER</span>
+  </a>
+  <a class="card" href="emmc.html">
+    <div class="wave"><svg viewBox="0 0 64 40"><path d="M4 26 h3 v-12 h5 v12 h5 v-12 h5 v12 h4 v-16 h14 v16 h10" stroke="#6ea8ff" stroke-width="2.5" fill="none"/></svg></div>
+    <div>
+      <h2><span class="accent">eMMC / UFS</span> 存储协议详解</h2>
+      <p>一颗芯片装下整个存储栈：Boot/RPMB 分区与 HMAC 防回滚动画、DS→HS200→HS400 采样波形实验室、eMMC 半双工 vs UFS 命令队列对决。</p>
+    </div>
+    <span class="go">ENTER</span>
+  </a>
+  <a class="card" href="ddr.html">
+    <div class="wave"><svg viewBox="0 0 64 40"><path d="M4 22 h4 v-8 h4 v8 h4 v-8 h4 v8 h4 v-8 h4 v8 h4 v-8 h4 v8 h4 v-8 h4 v8 h20" stroke="#34e08a" stroke-width="2.5" fill="none"/></svg></div>
+    <div>
+      <h2><span class="accent">DDR</span> 内存协议详解</h2>
+      <p>主内存的每个 bit 都住在会漏电的电容里：双沿采样示波器、Bank/Row/Column 寻址动画、tRCD/CL 时序实验室、六代演进表与带宽计算器。</p>
+    </div>
+    <span class="go">ENTER</span>
+  </a>
+  <a class="card" href="rgb.html">
+    <div class="wave"><svg viewBox="0 0 64 40"><path d="M4 30 h10 v-8 h10 v-8 h10 v-8 h26" stroke="#57d8f2" stroke-width="2.5" fill="none"/></svg></div>
+    <div>
+      <h2><span class="accent">RGB</span> 并口显示协议详解</h2>
+      <p>SoC 到屏幕最直白的通道：PCLK/DE/HSYNC/VSYNC 信号职责、640×480 逐行扫描动画、六参数 porch 实验室与 PCLK 计算器。</p>
+    </div>
+    <span class="go">ENTER</span>
+  </a>
+  <a class="card" href="lvds.html">
+    <div class="wave"><svg viewBox="0 0 64 40"><path d="M4 14 h14 c10 0 10 12 22 12 h20 M4 26 h14 c10 0 10-12 22-12 h20" stroke="#ffb02e" stroke-width="2.5" fill="none"/></svg></div>
+    <div>
+      <h2><span class="accent">LVDS</span> 协议详解</h2>
+      <p>低压差分串行化显示接口：±350mV 差分对电流动画、7:1 串行化实验室、JEIDA/VESA 位映射切换器与 V-by-One 8b/10b 演进。</p>
+    </div>
+    <span class="go">ENTER</span>
+  </a>
+  <a class="card" href="mipi-dsi.html">
+    <div class="wave"><svg viewBox="0 0 64 40"><path d="M4 20 h5 l4-14 4 14 h5 l2-5 2 5 h4 l2-5 2 5 h4 l4-14 4 14 h14" stroke="#ff6257" stroke-width="2.5" fill="none"/></svg></div>
+    <div>
+      <h2><span class="accent">MIPI DSI</span> 协议详解</h2>
+      <p>手机屏的标配通道：D-PHY LP/HS 双态换挡灵魂动画、短包/长包 ECC+CRC 校验传送带、Video/Command 模式对比与带宽分档计算器。</p>
+    </div>
+    <span class="go">ENTER</span>
+  </a>
+  <a class="card" href="csi2.html">
+    <div class="wave"><svg viewBox="0 0 64 40"><path d="M4 22 h3 v-12 h8 v12 h3 v-7 h8 v7 h3 v-12 h8 v12 h3 v-7 h8 v7 h7" stroke="#b98cff" stroke-width="2.5" fill="none"/></svg></div>
+    <div>
+      <h2><span class="accent">MIPI CSI-2</span> 协议详解</h2>
+      <p>摄像头串行接口：帧与包逐字段拆解动画、RAW10 五字节装四像素打包、4-lane 分发合并演示与 v4l2/media-ctl 实战。</p>
+    </div>
+    <span class="go">ENTER</span>
+  </a>
+  <a class="card" href="hdmi.html">
+    <div class="wave"><svg viewBox="0 0 64 40"><path d="M4 20 q6-12 12 0 t12 0 t12 0 t12 0" stroke="#6ea8ff" stroke-width="2.5" fill="none"/></svg></div>
+    <div>
+      <h2><span class="accent">HDMI / DP</span> 协议详解</h2>
+      <p>消费显示的统治接口：TMDS 8b/10b 逐级编码流水动画、扫描线里的 DE 与数据岛、4K60 带宽档位判定与 DisplayPort MST 菊花链。</p>
+    </div>
+    <span class="go">ENTER</span>
+  </a>
+  <a class="card" href="usb.html">
+    <div class="wave"><svg viewBox="0 0 64 40"><path d="M4 20 h6 l4-10 h7 l4 10 h7 l4-10 h7 l4 10 h16" stroke="#34e08a" stroke-width="2.5" fill="none"/></svg></div>
+    <div>
+      <h2><span class="accent">USB</span> 协议详解</h2>
+      <p>两根差分线连接一切：NRZI+位填充三级流水动画、控制传输三阶段剧场、枚举状态机、描述符树与 usbmon 抓包实战。</p>
+    </div>
+    <span class="go">ENTER</span>
+  </a>
+  <a class="card" href="pcie.html">
+    <div class="wave"><svg viewBox="0 0 64 40"><path d="M4 22 h8 c4-12 8-12 12 0 h8 c4-12 8-12 12 0 h16" stroke="#57d8f2" stroke-width="2.5" fill="none"/></svg></div>
+    <div>
+      <h2><span class="accent">PCIe</span> 协议详解</h2>
+      <p>从并行 PCI 到串行差分交换 fabric：TLP 逐字段流入动画、LTSSM 链路训练状态机、credit 流控对照实验与 lspci 解码实战。</p>
+    </div>
+    <span class="go">ENTER</span>
+  </a>
+  <a class="card" href="jtag.html">
+    <div class="wave"><svg viewBox="0 0 64 40"><path d="M4 14 h6 v12 h4 v-12 h4 v12 h4 v-12 h8 v12 h6 v-12 h8 v12 h8" stroke="#ffb02e" stroke-width="2.5" fill="none"/></svg></div>
+    <div>
+      <h2><span class="accent">JTAG / SWD</span> 协议详解</h2>
+      <p>芯片的调试后门：16 态 TAP 状态机点击模拟器、IDCODE 逐位移出时序动画、菊花链穿链演示、SWD 事务包动画与 OpenOCD 实战。</p>
     </div>
     <span class="go">ENTER</span>
   </a>

@@ -1,0 +1,1813 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>eMMC 与 UFS 存储协议 · 交互式图解</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%23070b09'/><rect x='4' y='6' width='10' height='8' fill='none' stroke='%2334e08a' stroke-width='2'/><rect x='18' y='6' width='10' height='8' fill='none' stroke='%2334e08a' stroke-width='2'/><rect x='4' y='18' width='10' height='8' fill='none' stroke='%2357d8f2' stroke-width='2'/><rect x='18' y='18' width='10' height='8' fill='%23ffb02e'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#070b09;
+  --bg2:#0a100c;
+  --panel:#0d1510;
+  --panel2:#101a13;
+  --line:#1d2c22;
+  --line2:#27392d;
+  --ink:#dcebe1;
+  --dim:#8aa294;
+  --faint:#5c7264;
+  --green:#34e08a;
+  --green-dim:#1d8a55;
+  --amber:#ffb02e;
+  --cyan:#57d8f2;
+  --red:#ff6478;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --disp:'Chakra Petch','Noto Sans SC',sans-serif;
+  --sans:'Noto Sans SC',-apple-system,sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--sans);
+  font-weight:300;
+  line-height:1.8;
+  letter-spacing:.01em;
+  overflow-x:hidden;
+}
+body::before{
+  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:
+    linear-gradient(rgba(52,224,138,.028) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(52,224,138,.028) 1px,transparent 1px),
+    linear-gradient(rgba(52,224,138,.014) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(52,224,138,.014) 1px,transparent 1px);
+  background-size:120px 120px,120px 120px,24px 24px,24px 24px;
+}
+body::after{
+  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(ellipse 120% 90% at 50% 0%,transparent 60%,rgba(0,0,0,.5));
+}
+main{position:relative;z-index:1}
+::selection{background:rgba(52,224,138,.3)}
+
+/* ============ 导航 ============ */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(7,11,9,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.nav-in{max-width:1560px;margin:0 auto;padding:0 20px;height:52px;display:flex;align-items:center;gap:14px}
+.brand{font-family:var(--disp);font-weight:700;font-size:17px;color:var(--green);letter-spacing:.04em;white-space:nowrap}
+.brand b{color:var(--amber)}
+.nav-links{display:flex;gap:2px;white-space:nowrap}
+.nav-links a{color:var(--dim);text-decoration:none;font-size:12px;font-family:var(--mono);letter-spacing:.04em;padding:5px 9px;border-radius:4px;transition:.2s}
+.nav-links a:hover{color:var(--green);background:rgba(52,224,138,.07)}
+.nav-x{display:flex;gap:5px;margin-left:auto;padding-left:14px;border-left:1px solid var(--line);white-space:nowrap;overflow-x:auto;scrollbar-width:none;max-width:56vw}
+.nav-x::-webkit-scrollbar{display:none}
+.nav-x a{display:inline-block;font-size:11px;letter-spacing:.06em;color:var(--dim);padding:4px 8px;border:1px solid var(--line);border-radius:3px;text-decoration:none;font-family:var(--mono);transition:.2s}
+.nav-x a:hover{color:var(--green);border-color:rgba(52,224,138,.45)}
+.live{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11px;color:var(--faint);white-space:nowrap}
+.live i{width:7px;height:7px;border-radius:50%;background:var(--green);animation:blink 1.6s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+
+/* ============ Hero ============ */
+.hero{min-height:94vh;display:flex;flex-direction:column;justify-content:center;padding:108px 6vw 40px;position:relative}
+.hero .eyebrow{font-family:var(--mono);font-size:12px;color:var(--amber);letter-spacing:.32em;margin-bottom:22px;display:flex;align-items:center;gap:14px}
+.hero .eyebrow::before{content:"";width:44px;height:1px;background:var(--amber)}
+.hero h1{font-family:var(--disp);font-weight:700;font-size:clamp(56px,11vw,148px);line-height:.95;letter-spacing:-.01em;color:var(--ink)}
+.hero h1 .zh{display:block;font-family:var(--sans);font-weight:300;font-size:clamp(18px,2.4vw,30px);color:var(--dim);letter-spacing:.42em;margin-top:18px}
+.hero p.lede{max-width:680px;margin-top:34px;font-size:16px;color:var(--dim)}
+.hero p.lede b{color:var(--ink);font-weight:500}
+.hero p.lede a{color:var(--cyan);text-decoration:none;border-bottom:1px dotted var(--cyan)}
+.hero p.lede a:hover{color:var(--green);border-color:var(--green)}
+.hero .chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:30px}
+.hero .chips span{font-family:var(--mono);font-size:11.5px;padding:5px 12px;border:1px solid var(--line2);border-radius:3px;color:var(--dim);background:rgba(13,21,16,.6)}
+.hero .chips span b{color:var(--green);font-weight:500}
+.hero-cta{display:flex;gap:14px;margin-top:30px;flex-wrap:wrap}
+.btn{font-family:var(--disp);font-weight:600;font-size:14.5px;letter-spacing:.05em;text-decoration:none;padding:11px 24px;border-radius:8px;transition:.25s;border:1px solid transparent;cursor:pointer}
+.btn.primary{color:#052013;background:var(--green);box-shadow:0 0 22px rgba(52,224,138,.3)}
+.btn.primary:hover{transform:translateY(-2px);box-shadow:0 6px 30px rgba(52,224,138,.45)}
+.btn.ghost{color:var(--ink);border-color:var(--line2);background:rgba(16,26,19,.5)}
+.btn.ghost:hover{border-color:rgba(52,224,138,.4);color:var(--green)}
+.svg-wrap{margin-top:46px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:rgba(9,14,11,.78);position:relative}
+.svg-wrap::after{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.15) 3px 4px)}
+.svg-wrap svg{display:block;width:100%;height:auto}
+.hero .scroll-hint{margin-top:36px;font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.2em;display:flex;align-items:center;gap:10px}
+.hero .scroll-hint svg{animation:bounce 1.8s infinite}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(6px)}}
+/* hero SVG 元件 */
+.hs-box{fill:rgba(13,21,16,.92);stroke:var(--line2);stroke-width:1.5;rx:12}
+.hs-sub{fill:rgba(52,224,138,.05);stroke:rgba(52,224,138,.4);stroke-width:1.2}
+.hs-lab{font-family:'IBM Plex Mono',monospace;fill:var(--dim);font-size:11px;letter-spacing:1px}
+.hs-lab.big{fill:var(--ink);font-size:15px;font-weight:600}
+.hs-lab.g{fill:var(--green)} .hs-lab.a{fill:var(--amber)} .hs-lab.c{fill:var(--cyan)} .hs-lab.r{fill:var(--red)}
+.hs-wire{stroke:var(--faint);stroke-width:1.6;fill:none}
+.hs-wire.clk{stroke:rgba(52,224,138,.8)}
+.hs-wire.cmd{stroke:rgba(255,176,46,.8);stroke-dasharray:none}
+.hs-wire.dat{stroke:rgba(87,216,242,.55)}
+.hs-wire.rst{stroke:var(--faint);stroke-dasharray:6 5}
+.hs-pkt{opacity:0}
+.hs-die rect{fill:none;stroke:rgba(87,216,242,.4);stroke-width:.8}
+
+/* ============ 通用 section ============ */
+section{padding:96px 6vw;max-width:1280px;margin:0 auto;position:relative}
+.sec-head{display:flex;align-items:baseline;gap:20px;margin-bottom:16px}
+.sec-head .no{font-family:var(--mono);font-size:13px;color:var(--green);letter-spacing:.1em;border:1px solid var(--green-dim);padding:3px 10px;border-radius:3px;white-space:nowrap}
+.sec-head h2{font-family:var(--disp);font-weight:600;font-size:clamp(26px,3.6vw,40px);letter-spacing:.01em}
+.sec-head .en{font-family:var(--mono);font-size:12px;color:var(--faint);letter-spacing:.24em;text-transform:uppercase;margin-left:auto;white-space:nowrap}
+.sec-sub{color:var(--dim);max-width:800px;margin-bottom:44px;font-size:15px}
+.sec-sub b{color:var(--ink);font-weight:500}
+.sec-sub a{color:var(--cyan);text-decoration:none;border-bottom:1px dotted var(--cyan)}
+.sec-sub a:hover{color:var(--green)}
+.reveal{opacity:0;transform:translateY(26px);transition:opacity .7s ease,transform .7s ease}
+.reveal.in{opacity:1;transform:none}
+
+/* ============ §01 是什么 ============ */
+.two-col{display:grid;grid-template-columns:1.25fr .9fr;gap:44px;align-items:start}
+.prose p{margin-bottom:18px;color:var(--dim);font-size:15px}
+.prose p b{color:var(--ink);font-weight:500}
+.prose .kw{color:var(--green);font-family:var(--mono);font-size:.92em}
+.prose .kw2{color:var(--amber);font-family:var(--mono);font-size:.92em}
+.prose a{color:var(--cyan);text-decoration:none;border-bottom:1px dotted var(--cyan)}
+.prose a:hover{color:var(--green);border-color:var(--green)}
+.cmp-table{width:100%;border-collapse:collapse;font-size:13px}
+.cmp-table th{font-family:var(--mono);font-weight:500;color:var(--faint);text-align:left;padding:9px 12px;border-bottom:1px solid var(--line2);font-size:11.5px;letter-spacing:.06em}
+.cmp-table td{padding:10px 12px;border-bottom:1px solid var(--line);color:var(--dim);vertical-align:top}
+.cmp-table td:first-child{color:var(--ink);font-weight:400;white-space:nowrap}
+.cmp-table .yes{color:var(--green)}
+.cmp-table .no{color:var(--red)}
+.fact-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:36px}
+.fact{border:1px solid var(--line);border-radius:6px;padding:20px 20px 18px;background:linear-gradient(160deg,var(--panel) 0%,rgba(13,21,16,.4) 100%);transition:border-color .25s,transform .25s}
+.fact:hover{border-color:var(--green-dim);transform:translateY(-3px)}
+.fact .f-no{font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.14em}
+.fact h4{font-family:var(--disp);font-size:16.5px;font-weight:600;margin:8px 0 8px}
+.fact h4 code{font-family:var(--mono);font-size:.85em;color:var(--green)}
+.fact p{font-size:12.8px;color:var(--dim);line-height:1.7}
+
+/* ============ §02 信号线 ============ */
+.topo{border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:22px;margin-bottom:26px}
+.topo svg{width:100%;height:auto;display:block}
+.sig-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+.sig-card{border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel);display:flex;flex-direction:column;transition:border-color .25s}
+.sig-card:hover{border-color:var(--line2)}
+.sig-card .scope{background:#080d0a;border-bottom:1px solid var(--line);position:relative}
+.sig-card .scope::after{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.18) 3px 4px)}
+.sig-card canvas{display:block;width:100%;height:84px}
+.sig-card .body{padding:20px 22px 22px}
+.sig-card .names{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.sig-card .names .main{font-family:var(--disp);font-size:21px;font-weight:600}
+.sig-card .names .alias{font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.06em}
+.sig-card .names .pin{margin-left:auto;font-family:var(--mono);font-size:10px;letter-spacing:.1em;padding:2px 8px;border-radius:3px}
+.sig-card p{font-size:13px;color:var(--dim);margin-top:10px;line-height:1.75}
+.sig-card p b{color:var(--ink);font-weight:500}
+.sig-card .formula{font-family:var(--mono);font-size:12px;color:var(--green);margin-top:12px;padding:8px 12px;background:rgba(52,224,138,.06);border-left:2px solid var(--green-dim);border-radius:0 3px 3px 0}
+.c-clk .main,.c-clk .pin{color:var(--green)} .c-clk .pin{background:rgba(52,224,138,.1);border:1px solid var(--green-dim)}
+.c-cmd .main,.c-cmd .pin{color:var(--amber)} .c-cmd .pin{background:rgba(255,176,46,.08);border:1px solid rgba(255,176,46,.35)}
+.c-dat .main,.c-dat .pin{color:var(--cyan)} .c-dat .pin{background:rgba(87,216,242,.08);border:1px solid rgba(87,216,242,.3)}
+.c-aux .main,.c-aux .pin{color:var(--dim)} .c-aux .pin{background:rgba(140,162,148,.08);border:1px dashed var(--faint)}
+.c-aux{border-style:dashed}
+
+/* ============ §03 分区 + RPMB ============ */
+.part-svg{width:100%;height:auto;display:block}
+.part-svg .p-seg{cursor:pointer;transition:.2s}
+.part-svg .p-seg:hover{filter:brightness(1.35)}
+.part-desc{margin-top:16px;border-left:2px solid var(--green);background:rgba(52,224,138,.05);padding:14px 18px;border-radius:0 6px 6px 0;font-size:13.2px;color:var(--dim);line-height:1.8}
+.part-desc b{color:var(--ink);font-weight:500}
+.part-desc code{font-family:var(--mono);font-size:.9em;color:var(--amber)}
+.rp-box{border:1px solid var(--line);border-radius:10px;background:var(--panel);overflow:hidden;margin-top:44px}
+.rp-bar{display:flex;flex-wrap:wrap;align-items:center;gap:14px;padding:15px 20px;border-bottom:1px solid var(--line);background:rgba(10,16,12,.7)}
+.rp-bar .rp-title{font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.2em}
+.rp-bar .rp-steps{display:flex;gap:6px}
+.rp-bar .rp-steps i{width:22px;height:4px;border-radius:2px;background:var(--line2);transition:.25s}
+.rp-bar .rp-steps i.on{background:var(--green)}
+.icon-btn{width:32px;height:32px;border:1px solid var(--line2);border-radius:5px;background:transparent;color:var(--dim);cursor:pointer;font-family:var(--mono);font-size:14px;transition:all .18s;display:flex;align-items:center;justify-content:center}
+.icon-btn:hover{color:var(--green);border-color:var(--green-dim)}
+.icon-btn.play.on{color:var(--green);border-color:var(--green-dim);background:rgba(52,224,138,.08)}
+.rp-stage{padding:20px 20px 6px;background:#080d0a}
+.rp-stage svg{width:100%;height:auto;display:block}
+.rp-explain{padding:16px 22px 18px;border-top:1px solid var(--line)}
+.rp-explain .rp-t{font-family:var(--disp);font-size:16.5px;font-weight:600;color:var(--amber);margin-bottom:6px}
+.rp-explain p{font-size:13.2px;color:var(--dim);line-height:1.8}
+.rp-explain p b{color:var(--ink);font-weight:500}
+.rp-explain p code{font-family:var(--mono);font-size:.9em;color:var(--green)}
+#rpSvg .lit{filter:drop-shadow(0 0 6px rgba(52,224,138,.8))}
+#rpSvg .el{opacity:.35;transition:opacity .3s}
+#rpSvg .el.on{opacity:1}
+#rpSvg .frame{opacity:0;transition:opacity .3s}
+#rpSvg .frame.on{opacity:1}
+
+/* ============ §04 / §05 实验室 ============ */
+.lab{border:1px solid var(--line);border-radius:10px;background:var(--panel);overflow:hidden}
+.lab-bar{display:flex;flex-wrap:wrap;align-items:center;gap:18px;padding:16px 20px;border-bottom:1px solid var(--line);background:rgba(10,16,12,.7)}
+.ctrl{display:flex;align-items:center;gap:9px}
+.ctrl label{font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.1em}
+.seg{display:flex;border:1px solid var(--line2);border-radius:5px;overflow:hidden}
+.seg button{font-family:var(--mono);font-size:12px;padding:7px 13px;border:none;cursor:pointer;background:transparent;color:var(--dim);border-right:1px solid var(--line2);transition:all .18s;letter-spacing:.02em}
+.seg button:last-child{border-right:none}
+.seg button:hover{color:var(--ink);background:rgba(52,224,138,.06)}
+.seg button.on{background:var(--green);color:#052013;font-weight:600}
+input[type=range]{-webkit-appearance:none;width:120px;height:2px;background:var(--line2);border-radius:2px;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--green);cursor:pointer;box-shadow:0 0 8px rgba(52,224,138,.5)}
+.lab-body{display:grid;grid-template-columns:1fr 276px;gap:0}
+.scope-main{position:relative;background:#080d0a;min-width:0}
+.scope-main::after{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.14) 3px 4px)}
+.scope-main canvas{display:block;width:100%;height:296px}
+.readout{border-left:1px solid var(--line);background:#0a110d;padding:18px 18px 14px;display:flex;flex-direction:column;min-width:0}
+.readout .r-title{font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.22em;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.readout .r-title::before{content:"";width:6px;height:6px;background:var(--red);border-radius:50%;animation:blink 1.4s infinite}
+.r-row{display:flex;justify-content:space-between;align-items:baseline;font-family:var(--mono);padding:7px 0;border-bottom:1px dashed var(--line)}
+.r-row .k{font-size:11px;color:var(--faint);letter-spacing:.08em}
+.r-row .v{font-size:13px;color:var(--ink);text-align:right}
+.r-row .v.g{color:var(--green)} .r-row .v.a{color:var(--amber)} .r-row .v.c{color:var(--cyan)} .r-row .v.r{color:var(--red)}
+.r-note{font-size:11px;color:var(--faint);line-height:1.7;margin-top:12px;font-family:var(--mono)}
+.r-note b{color:var(--dim);font-weight:500}
+.shift{display:flex;gap:5px;margin-top:12px}
+.cell{width:26px;display:flex;flex-direction:column;align-items:center;gap:3px}
+.cell small{font-family:var(--mono);font-size:8.5px;color:var(--faint)}
+.cell .box{width:100%;height:30px;border:1px solid var(--line2);border-radius:5px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:15px;color:var(--faint);transition:.15s}
+.cell.filled .box{color:#052013;background:var(--cyan);border-color:var(--cyan);box-shadow:0 0 10px rgba(87,216,242,.4)}
+.byte-out{margin-top:12px;padding:9px 12px;border:1px dashed var(--line2);border-radius:6px;font-family:var(--mono);font-size:12px;color:var(--dim);line-height:1.9}
+.byte-out b{color:var(--green);font-weight:600;font-size:15px}
+.lab-foot{padding:13px 20px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:10px 26px;background:rgba(10,16,12,.6)}
+.legend{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;color:var(--dim)}
+.legend i{width:18px;height:2px;border-radius:2px}
+.mode-table{width:100%;border-collapse:collapse;font-size:12.6px;margin-top:34px}
+.mode-table th{font-family:var(--mono);font-weight:500;color:var(--faint);text-align:left;padding:9px 12px;border-bottom:1px solid var(--line2);font-size:11px;letter-spacing:.08em}
+.mode-table td{padding:9px 12px;border-bottom:1px solid var(--line);color:var(--dim);vertical-align:top}
+.mode-table td:first-child{color:var(--ink);white-space:nowrap;font-family:var(--mono)}
+.mode-table .hl{color:var(--green)} .mode-table .hl2{color:var(--amber)} .mode-table .hl3{color:var(--cyan)}
+.rule-callout{margin-top:26px;display:grid;grid-template-columns:auto 1fr;gap:22px;align-items:center;border:1px solid rgba(255,176,46,.3);border-radius:8px;padding:20px 26px;background:linear-gradient(120deg,rgba(255,176,46,.06),transparent 60%)}
+.rule-callout .mnemonic{font-family:var(--disp);font-weight:700;font-size:clamp(17px,2.4vw,24px);color:var(--amber);letter-spacing:.06em;white-space:nowrap}
+.rule-callout .mnemonic small{display:block;font-size:11px;font-weight:500;color:var(--faint);letter-spacing:.24em;margin-top:6px;font-family:var(--mono)}
+.rule-callout p{font-size:13.5px;color:var(--dim)}
+.rule-callout p b{color:var(--ink);font-weight:500}
+
+/* ============ §05 队列动画 ============ */
+.qp{border:1px solid var(--line);border-radius:10px;background:var(--panel);overflow:hidden}
+.qp-bar{display:flex;flex-wrap:wrap;align-items:center;gap:18px;padding:16px 20px;border-bottom:1px solid var(--line);background:rgba(10,16,12,.7)}
+.qp-canvas{position:relative;background:#080d0a}
+.qp-canvas::after{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.12) 3px 4px)}
+.qp-canvas canvas{display:block;width:100%;height:330px}
+.q-stats{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line)}
+.q-stat{padding:14px 18px;border-right:1px solid var(--line)}
+.q-stat:last-child{border-right:none}
+.q-stat .k{font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.16em}
+.q-stat .v{font-family:var(--mono);font-size:18px;font-weight:600;color:var(--green);margin-top:4px}
+.q-stat .v.a{color:var(--amber)} .q-stat .v.c{color:var(--cyan)}
+
+/* ============ §06 UFS ============ */
+.stack-grid{display:grid;grid-template-columns:1.05fr 1fr;gap:36px;align-items:start}
+.stack-svg{border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:24px}
+.stack-svg svg{width:100%;height:auto;display:block}
+.arch-cards{display:flex;flex-direction:column;gap:14px}
+.arch{border:1px solid var(--line);border-radius:6px;padding:18px 22px;background:var(--panel)}
+.arch h5{font-family:var(--disp);font-size:15px;font-weight:600;display:flex;align-items:center;gap:10px}
+.arch h5 .b{font-family:var(--mono);font-size:10px;color:var(--green);border:1px solid var(--green-dim);padding:1px 7px;border-radius:3px}
+.arch p{font-size:12.8px;color:var(--dim);margin-top:8px;line-height:1.7}
+.arch p b{color:var(--ink);font-weight:500}
+.arch p code{font-family:var(--mono);font-size:.9em;color:var(--cyan)}
+
+/* ============ 计算器 ============ */
+.calc{border:1px solid var(--line);border-radius:10px;background:var(--panel);display:grid;grid-template-columns:1fr 1fr;overflow:hidden}
+.calc .inputs{padding:30px 32px;border-right:1px solid var(--line)}
+.calc .outputs{padding:30px 32px;background:#0a110d}
+.calc h5{font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.22em;margin-bottom:18px}
+.field{margin-bottom:20px}
+.field label{display:block;font-family:var(--mono);font-size:11.5px;color:var(--dim);margin-bottom:8px;letter-spacing:.06em}
+.field select{width:100%;font-family:var(--mono);font-size:14px;color:var(--ink);background:#080d0a;border:1px solid var(--line2);border-radius:5px;padding:10px 12px;outline:none;cursor:pointer;transition:border-color .2s}
+.field select:focus{border-color:var(--green-dim)}
+.field input[type=range]{width:100%}
+.field .rv{font-family:var(--mono);font-size:13px;color:var(--green);margin-top:8px;text-align:right}
+.out-row{display:flex;justify-content:space-between;align-items:baseline;padding:13px 0;border-bottom:1px dashed var(--line)}
+.out-row .ok{font-size:12.5px;color:var(--dim)}
+.out-row .ok small{display:block;font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.08em}
+.out-row .ov{font-family:var(--mono);font-size:19px;font-weight:600;color:var(--green)}
+.out-row .ov small{font-size:11px;color:var(--faint);font-weight:400;margin-left:4px}
+.out-row.big .ov{font-size:26px;color:var(--amber)}
+.out-row .ov.warn{color:var(--red)}
+.calc-formula{grid-column:1/-1;padding:15px 32px;border-top:1px solid var(--line);font-family:var(--mono);font-size:12.5px;color:var(--dim);background:rgba(10,17,13,.8)}
+.calc-formula b{color:var(--green);font-weight:500}
+.life-cards{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:34px}
+.life-card{border:1px solid var(--line);border-radius:6px;padding:18px 20px;background:var(--panel)}
+.life-card h4{font-family:var(--disp);font-size:15.5px;font-weight:600;margin-bottom:6px;display:flex;gap:10px;align-items:center}
+.life-card h4 code{font-family:var(--mono);font-size:.8em;color:var(--cyan);border:1px solid rgba(87,216,242,.3);padding:1px 7px;border-radius:3px}
+.life-card p{font-size:12.6px;color:var(--dim);line-height:1.7}
+.life-card p b{color:var(--ink);font-weight:500}
+
+/* ============ Linux 终端 ============ */
+.term-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+.term{border:1px solid var(--line);border-radius:8px;background:#070c09;overflow:hidden;display:flex;flex-direction:column;min-width:0;transition:border-color .25s}
+.term:hover{border-color:var(--line2)}
+.term.wide{grid-column:1/-1}
+.term-bar{display:flex;align-items:center;gap:7px;padding:10px 14px;border-bottom:1px solid var(--line);background:rgba(10,16,12,.85)}
+.term-bar i{width:10px;height:10px;border-radius:50%}
+.term-bar .d1{background:rgba(255,100,120,.55)}
+.term-bar .d2{background:rgba(255,176,46,.5)}
+.term-bar .d3{background:rgba(52,224,138,.5)}
+.term-bar span{margin-left:8px;font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.12em}
+.term-bar button{margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--dim);background:transparent;border:1px solid var(--line2);border-radius:4px;padding:3px 9px;cursor:pointer;transition:.2s}
+.term-bar button:hover{color:var(--green);border-color:var(--green-dim)}
+.term-body{padding:15px 18px 17px;font-family:var(--mono);font-size:12.3px;line-height:1.95;overflow-x:auto;flex:1}
+.term-body div{white-space:pre;min-height:1.35em}
+.t-ps{color:#3f5247;user-select:none}
+.t-cmd{color:var(--green);cursor:pointer;font-family:inherit;border-bottom:1px dotted transparent;transition:border-color .15s}
+.t-cmd:hover{border-bottom-color:var(--green)}
+.t-cmd.copied{color:#052013;background:var(--green);border-radius:2px;padding:0 4px}
+.t-out{color:var(--dim)}
+.t-hl{color:var(--amber)}
+.t-cmt{color:#516657}
+.t-tag{color:var(--cyan)}
+.t-cursor{display:inline-block;width:8px;height:14px;background:var(--green);vertical-align:-2px;margin-left:2px;animation:blink 1s steps(1) infinite}
+.lnx-note{margin-top:26px;padding:18px 22px;border-left:2px solid var(--cyan);background:rgba(87,216,242,.05);border-radius:0 6px 6px 0;font-size:13.5px;color:var(--dim)}
+.lnx-note b{color:var(--cyan);font-weight:500}
+.lnx-note code{font-family:var(--mono);font-size:.9em;color:var(--amber)}
+.eq-table{width:100%;border-collapse:collapse;font-size:12.3px;margin-top:30px}
+.eq-table th{font-family:var(--mono);font-weight:500;color:var(--faint);text-align:left;padding:9px 12px;border-bottom:1px solid var(--line2);font-size:11px;letter-spacing:.08em}
+.eq-table td{padding:10px 12px;border-bottom:1px solid var(--line);color:var(--dim);vertical-align:top}
+.eq-table td:first-child{color:var(--ink);white-space:nowrap}
+.eq-table td code{font-family:var(--mono);font-size:11.5px;color:var(--cyan);word-break:break-all}
+
+/* ============ §10 踩坑 ============ */
+.pit-list{display:flex;flex-direction:column;gap:12px}
+.pit{display:grid;grid-template-columns:52px 1fr;gap:18px;align-items:start;border:1px solid var(--line);border-radius:6px;padding:17px 20px;background:var(--panel);transition:border-color .2s}
+.pit:hover{border-color:rgba(255,100,120,.4)}
+.pit .symptom{font-family:var(--mono);font-size:10px;letter-spacing:.04em;color:var(--red);border:1px solid rgba(255,100,120,.35);border-radius:4px;padding:5px 7px;text-align:center;line-height:1.5;background:rgba(255,100,120,.05);height:fit-content}
+.pit .fix b{display:block;font-size:14px;font-weight:500;color:var(--ink);margin-bottom:4px}
+.pit .fix b code{font-family:var(--mono);font-size:.88em;color:var(--green)}
+.pit .fix p{font-size:12.8px;color:var(--dim);line-height:1.7}
+.pit .fix p code{font-family:var(--mono);font-size:.9em;color:var(--amber)}
+
+/* ============ 速查表 ============ */
+.notation{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin:30px 0 26px}
+.n-item{text-align:center}
+.n-item .nv{font-family:var(--mono);font-size:20px;color:var(--green);border:1px solid rgba(52,224,138,.4);padding:8px 16px;border-radius:8px;background:rgba(52,224,138,.06)}
+.n-item .nv.a{color:var(--amber);border-color:rgba(255,176,46,.4);background:rgba(255,176,46,.06)}
+.n-item .nv.c{color:var(--cyan);border-color:rgba(87,216,242,.4);background:rgba(87,216,242,.06)}
+.n-item small{display:block;font-size:11.5px;color:var(--dim);margin-top:6px}
+dl.gloss{display:grid;grid-template-columns:repeat(2,1fr);gap:0 30px}
+dl.gloss dt{font-family:var(--mono);color:var(--green);font-size:13.5px;margin-top:14px}
+dl.gloss dd{color:var(--dim);font-size:13px;line-height:1.7;margin-top:2px}
+
+/* ============ footer ============ */
+footer{border-top:1px solid var(--line);padding:44px 6vw 60px;margin-top:40px;display:flex;flex-wrap:wrap;gap:24px;align-items:baseline;justify-content:space-between}
+footer .f-l{font-family:var(--mono);font-size:11.5px;color:var(--faint);line-height:2.1}
+footer .f-l b{color:var(--dim);font-weight:500}
+footer a{color:var(--faint);text-decoration:none;border-bottom:1px dotted var(--faint)}
+footer a:hover{color:var(--green);border-color:var(--green)}
+footer .f-r{font-family:var(--disp);font-weight:700;font-size:22px;color:var(--green)}
+
+/* ============ 响应式 ============ */
+@media (max-width:1000px){
+  .two-col,.ms-grid,.stack-grid{grid-template-columns:1fr}
+  .lab-body{grid-template-columns:1fr}
+  .readout{border-left:none;border-top:1px solid var(--line)}
+  .calc{grid-template-columns:1fr}
+  .calc .inputs{border-right:none;border-bottom:1px solid var(--line)}
+  .q-stats{grid-template-columns:1fr}
+  .q-stat{border-right:none;border-bottom:1px solid var(--line)}
+  .live{display:none}
+}
+@media (max-width:760px){
+  .sig-grid,.fact-grid,.term-grid,.life-cards,dl.gloss{grid-template-columns:1fr}
+  .nav-links{display:none}
+  section{padding:70px 5vw}
+  .sec-head .en{display:none}
+}
+@media (prefers-reduced-motion: reduce){
+  html{scroll-behavior:auto}
+  .hs-pkt{display:none}
+  .hero .scroll-hint svg{animation:none}
+}
+</style>
+</head>
+<body>
+<nav>
+  <div class="nav-in">
+    <div class="brand">EMMC<b>·</b>LAB</div>
+    <div class="nav-links">
+      <a href="#s1">概述</a><a href="#s2">信号总线</a><a href="#s3">分区·RPMB</a><a href="#s4">速度实验室</a><a href="#s5">vs UFS</a><a href="#s7">寿命维护</a><a href="#s8">带宽计算</a><a href="#s9">Linux 实战</a><a href="#s10">踩坑速查</a>
+    </div>
+    <div class="nav-x"><a href="index.html">« HOME</a><a href="i2c.html">I²C</a><a href="spi.html">SPI</a><a href="uart.html">UART</a><a href="ir.html">IR</a><a href="rs485.html">RS-485</a><a href="onewire.html">1-WIRE</a><a href="can.html">CAN</a><a href="i2s.html">I²S</a><a href="dmic.html">DMIC</a><a href="tdm.html">TDM</a><a href="sdio.html">SDIO</a><a href="ddr.html">DDR</a><a href="rgb.html">RGB</a><a href="lvds.html">LVDS</a><a href="mipi-dsi.html">DSI</a><a href="csi2.html">CSI-2</a><a href="hdmi.html">HDMI</a><a href="usb.html">USB</a><a href="pcie.html">PCIE</a><a href="jtag.html">JTAG</a></div>
+    <div class="live"><i></i>JEDEC&nbsp;JESD84</div>
+  </div>
+</nav>
+
+<main>
+<!-- ================= HERO ================= -->
+<header class="hero">
+  <div class="eyebrow">EMBEDDED MULTI MEDIA CARD · 图解硬件协议</div>
+  <h1>eMMC<span class="zh">手 机 里 的 固 态 硬 盘 · 一 颗 芯 片 装 下 整 个 存 储 栈</span></h1>
+  <p class="lede">
+    拆开手机、车机、智能摄像头，焊在主板上那颗 BGA 八成就是 eMMC：<b>NAND 颗粒 + 主控 + MMC 协议</b>封装成一颗芯片。
+    它与 <a href="sdio.html">SDIO</a> 同宗同源——同一根 CMD 线、同样的 48-bit 命令帧；但为了冲上 <b>400 MB/s</b>，
+    它把时钟提了 4 倍、位宽翻到 8-bit、改用双沿采样，还在芯片里藏了两个 boot 分区和一块<b>防回滚的 RPMB</b>。
+    往下滚动：亲手切换四种速度档、亲眼看 UFS 凭什么把它拍在沙滩上。
+  </p>
+  <div class="chips">
+    <span><b>8-bit</b> 并行 DAT0-7</span>
+    <span><b>400 MB/s</b> HS400 · 双沿采样</span>
+    <span><b>RPMB</b> key+计数器+HMAC 防回滚</span>
+    <span><b>Boot ×2</b> + GPP 分区</span>
+    <span>与 <b>SDIO</b> 同源 MMC 协议</span>
+  </div>
+  <div class="hero-cta">
+    <a class="btn primary" href="#s4">▶ 速度模式实验室</a>
+    <a class="btn ghost" href="#s5">eMMC vs UFS 对决</a>
+  </div>
+  <div class="svg-wrap">
+    <svg id="heroSvg" viewBox="0 0 920 372" xmlns="http://www.w3.org/2000/svg" aria-label="SoC 与 eMMC 芯片拓扑及流动的数据包">
+      <!-- SoC -->
+      <rect class="hs-box" x="24" y="70" width="242" height="238" rx="12"/>
+      <text class="hs-lab big" x="145" y="102" text-anchor="middle">AP / SoC</text>
+      <rect class="hs-sub" x="44" y="118" width="202" height="72" rx="6"/>
+      <text class="hs-lab g" x="145" y="144" text-anchor="middle">eMMC Host Controller</text>
+      <text class="hs-lab" x="145" y="164" text-anchor="middle">sdhci · DMA · tuning 引擎</text>
+      <rect class="hs-sub" x="44" y="200" width="202" height="58" rx="6"/>
+      <text class="hs-lab" x="145" y="224" text-anchor="middle">Linux mmc 子系统</text>
+      <text class="hs-lab" x="145" y="244" text-anchor="middle">mmcblk0 块设备</text>
+      <circle cx="245" cy="82" r="4" fill="#34e08a" class="hs-led"/>
+      <!-- eMMC -->
+      <rect class="hs-box" x="576" y="70" width="320" height="238" rx="12"/>
+      <text class="hs-lab big" x="736" y="100" text-anchor="middle">eMMC（BGA 153）</text>
+      <rect class="hs-sub" x="594" y="112" width="284" height="40" rx="6"/>
+      <text class="hs-lab c" x="736" y="137" text-anchor="middle">MMC 接口 PHY · CMD/DAT/CLK</text>
+      <rect class="hs-sub" x="594" y="160" width="284" height="52" rx="6"/>
+      <text class="hs-lab a" x="736" y="181" text-anchor="middle">Flash Controller + FTL 固件</text>
+      <text class="hs-lab" x="736" y="201" text-anchor="middle">磨损均衡 · GC · ECC · 坏块管理</text>
+      <g class="hs-die">
+        <rect x="600" y="224" width="60" height="64" rx="4"/>
+        <rect x="668" y="224" width="60" height="64" rx="4"/>
+        <rect x="736" y="224" width="60" height="64" rx="4"/>
+        <rect x="804" y="224" width="60" height="64" rx="4"/>
+      </g>
+      <text class="hs-lab" x="630" y="260" text-anchor="middle">DIE0</text>
+      <text class="hs-lab" x="698" y="260" text-anchor="middle">DIE1</text>
+      <text class="hs-lab" x="766" y="260" text-anchor="middle">DIE2</text>
+      <text class="hs-lab" x="834" y="260" text-anchor="middle">DIE3</text>
+      <text class="hs-lab" x="736" y="296" text-anchor="middle">NAND 阵列（TLC/QLC）</text>
+      <!-- 信号线 -->
+      <g>
+        <line class="hs-wire clk" x1="266" y1="126" x2="576" y2="126"/>
+        <path d="M568,121 L578,126 L568,131 z" fill="#34e08a"/>
+        <text class="hs-lab g" x="421" y="118" text-anchor="middle">CLK · 26/52/200 MHz</text>
+        <line class="hs-wire cmd" x1="266" y1="162" x2="576" y2="162"/>
+        <path d="M274,157 L264,162 L274,167 z" fill="#ffb02e"/>
+        <path d="M568,157 L578,162 L568,167 z" fill="#ffb02e"/>
+        <text class="hs-lab a" x="421" y="154" text-anchor="middle">CMD · 48-bit 命令帧 ⇄ R1 响应</text>
+        <g>
+          <line class="hs-wire dat" x1="266" y1="200" x2="576" y2="200"/>
+          <line class="hs-wire dat" x1="266" y1="208" x2="576" y2="208"/>
+          <line class="hs-wire dat" x1="266" y1="216" x2="576" y2="216"/>
+          <line class="hs-wire dat" x1="266" y1="224" x2="576" y2="224"/>
+          <line class="hs-wire dat" x1="266" y1="232" x2="576" y2="232"/>
+          <line class="hs-wire dat" x1="266" y1="240" x2="576" y2="240"/>
+          <line class="hs-wire dat" x1="266" y1="248" x2="576" y2="248"/>
+          <line class="hs-wire dat" x1="266" y1="256" x2="576" y2="256"/>
+          <rect x="371" y="218" width="100" height="20" rx="4" fill="#070b09" stroke="rgba(87,216,242,.5)"/>
+          <text class="hs-lab c" x="421" y="232" text-anchor="middle">DAT[7:0] 8-bit</text>
+        </g>
+        <line class="hs-wire rst" x1="266" y1="284" x2="576" y2="284"/>
+        <path d="M568,279 L578,284 L568,289 z" fill="#5c7264"/>
+        <text class="hs-lab" x="421" y="276" text-anchor="middle">RST_n · 硬件复位</text>
+      </g>
+      <text class="hs-lab" x="421" y="336" text-anchor="middle">VCCQ 1.8/3.3 V（接口电平，HS200/HS400 必须 1.8 V） · VCC 3.3 V（NAND 核心）</text>
+      <text class="hs-lab" x="421" y="356" text-anchor="middle">点对点焊死（non-removable）：一条总线只挂这一颗器件</text>
+      <g id="hpLayer"></g>
+    </svg>
+  </div>
+  <div class="scroll-hint">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+    SCROLL · 速度实验室在 04 节 · eMMC vs UFS 在 05 节
+  </div>
+</header>
+
+<!-- ================= §01 ================= -->
+<section id="s1">
+  <div class="sec-head reveal"><span class="no">01</span><h2>它是什么，为什么需要它</h2><span class="en">What &amp; Why</span></div>
+  <p class="sec-sub reveal">一句话：<b>把「难伺候的 NAND 颗粒」和「懂 NAND 的主控」一起封进 BGA，对外只露一套 MMC 并行总线</b>——主机看到的是一颗安分的块设备芯片。</p>
+  <div class="two-col">
+    <div class="prose reveal">
+      <p>
+        eMMC（<b>embedded MultiMediaCard</b>）是 JEDEC 维护的标准（JESD84 系列，流行版本 4.5 → 5.1）。
+        一颗 eMMC 内部是三明治：<b>NAND 颗粒</b>（多为 TLC/QLC，几个 die）+ <b>Flash 控制器跑 FTL 固件</b>
+        （磨损均衡、垃圾回收、ECC 纠错、坏块管理、写入放大控制）+ <b>MMC 接口 PHY</b>。
+        主机永远不直接碰 NAND 的页和块——它面对的是一个 512 字节扇区的块设备，坏块代代更迭也不关主机的事。
+      </p>
+      <p>
+        协议层它是 <a href="sdio.html">SDIO</a> 的亲兄弟：两者都继承 MMC 血统——<b>CMD 线上永远是一问一答的
+        48-bit 定长命令帧（带 CRC7），DAT 线上跑带 CRC16 的数据块</b>，R1/R1b 响应、DAT0 忙检测全部同款。
+        分叉在枚举入口：SD 卡用 <span class="kw2">ACMD41</span>、SDIO 用 <span class="kw">CMD5</span>，
+        而 eMMC 用 <span class="kw">CMD1</span>（SEND_OP_COND）——纯 MMC 血统。把 SD 卡驱动直接拿来枚举 eMMC，注定超时。
+      </p>
+      <p>
+        为什么不直接挂裸 NAND？NAND 的页编程/块擦除/ECC/坏块随每代工艺全在变，主机驱动疲于奔命；
+        eMMC 把这些全部吸进芯片内，接口十年稳定。代价是并行总线跑不远：<b>HS400 的 200 MHz 8-bit 对走线长度极其敏感</b>，
+        这也是后来串行差分的 UFS 取而代之的伏笔（05–06 节）。
+      </p>
+    </div>
+    <table class="cmp-table reveal">
+      <tr><th></th><th>eMMC</th><th>SD 卡（TF）</th><th>SPI NOR</th><th>UFS</th></tr>
+      <tr><td>形态</td><td>BGA 焊死</td><td>可插拔</td><td>焊死</td><td>BGA 焊死</td></tr>
+      <tr><td>数据路径</td><td class="yes">8-bit 并行</td><td>4-bit 并行</td><td class="no">串行×4</td><td class="yes">差分 Lane×2</td></tr>
+      <tr><td>理论带宽</td><td class="yes">400 MB/s</td><td>~104 MB/s</td><td class="no">~50 MB/s</td><td class="yes">2 GB/s+</td></tr>
+      <tr><td>命令队列</td><td class="no">无 · 顺序执行</td><td class="no">无</td><td class="no">无</td><td class="yes">CQ 32 深 · 乱序</td></tr>
+      <tr><td>双工</td><td class="no">半双工</td><td class="no">半双工</td><td class="no">半双工</td><td class="yes">全双工</td></tr>
+      <tr><td>防回滚分区</td><td class="yes">RPMB</td><td class="no">—</td><td class="no">—</td><td class="yes">RPMB LU</td></tr>
+      <tr><td>典型场景</td><td>手机 · 车机 · 工控</td><td>扩容卡</td><td>启动代码</td><td>旗舰机 · 车载</td></tr>
+    </table>
+  </div>
+  <div class="fact-grid reveal">
+    <div class="fact"><div class="f-no">FACT / A</div><h4>枚举入口是 <code>CMD1</code></h4><p>eMMC 上电后 CMD0 复位 → CMD1 交换 OCR → CMD2 拿 CID → CMD3 分配 RCA → CMD7 选中。与 SD 卡的 ACMD41、SDIO 的 CMD5 都不同——移植驱动时的第一个坑。</p></div>
+    <div class="fact"><div class="f-no">FACT / B</div><h4>512 字节的配置空间 <code>EXT_CSD</code></h4><p>速度档（HS_TIMING）、位宽（BUS_WIDTH）、分区选择、boot 配置、RPMB 大小全在这个寄存器块里：CMD8 读、CMD6 写。eMMC 的「灵魂寄存器」，09 节实战。</p></div>
+    <div class="fact"><div class="f-no">FACT / C</div><h4>8-bit + 双沿 = <code>HS400</code></h4><p>DAT0-7 八根并行线在 200 MHz 下每个时钟沿各采一位：单沿（SDR）200 MB/s，双沿（DDR）400 MB/s。DDR 采样概念与 <a href="ddr.html" style="color:var(--cyan)">DDR 内存</a> 一脉相承。</p></div>
+    <div class="fact"><div class="f-no">FACT / D</div><h4>芯片里的隐藏分区 <code>Boot×2 + RPMB</code></h4><p>User Area 之外还有两个互为备份的 Boot 分区（放引导代码，上电可自动送出）和一块 RPMB（防回滚安全区）。Linux 里它们是 mmcblk0boot0/1 和 mmcblk0rpmb。</p></div>
+  </div>
+</section>
+
+<!-- ================= §02 ================= -->
+<section id="s2">
+  <div class="sec-head reveal"><span class="no">02</span><h2>信号与总线 · 十一根线的点对点王国</h2><span class="en">Signals &amp; Topology</span></div>
+  <p class="sec-sub reveal">
+    CLK + CMD + DAT0-7 + RST_n，共 11 根：<b>一根时钟、一根半双工命令线、八根并行数据、一根硬件复位</b>。
+    没有地址线、没有片选——因为总线上永远只有这一颗器件（hero 图即是完整拓扑）。
+    HS200/HS400 时代，时钟与数据<b>同源同向</b>送出（source synchronous），主机靠调谐决定采样相位。
+  </p>
+  <div class="sig-grid">
+    <div class="sig-card c-clk reveal">
+      <div class="scope"><canvas data-wave="clk"></canvas></div>
+      <div class="body">
+        <div class="names"><span class="main">CLK</span><span class="alias">时钟 · 主机单向驱动</span><span class="pin">CLOCK</span></div>
+        <p>所有 CMD/DAT 位与它对齐。26 MHz 起步，HS200/HS400 到 200 MHz。<b>HS200 起 CLK 与 DAT 同为源同步信号</b>：相位按走线延迟整体平移，主机用调谐算法（CMD21）找最佳采样点。时钟一抖，8 根数据线一起完蛋：</p>
+        <div class="formula">26 MHz（DS）→ 52（HS）→ 200（HS200/HS400）· VCCQ 必须降到 1.8 V</div>
+      </div>
+    </div>
+    <div class="sig-card c-cmd reveal">
+      <div class="scope"><canvas data-wave="cmd"></canvas></div>
+      <div class="body">
+        <div class="names"><span class="main">CMD</span><span class="alias">命令与响应 · 半双工</span><span class="pin">COMMAND</span></div>
+        <p>主机的命令与芯片的响应<b>共用一根线</b>，永远是 48-bit 定长帧 + CRC7（R2 长响应除外）——与 <a href="sdio.html" style="color:var(--cyan)">SDIO 的 CMD 线</a>完全同源。上图绿色段=主机命令（CMD17），琥珀段=芯片响应（R1）：</p>
+        <div class="formula">48 bit = 01 + 命令号×6 + 参数×32 + CRC7 + 1</div>
+      </div>
+    </div>
+    <div class="sig-card c-dat reveal">
+      <div class="scope"><canvas data-wave="dat"></canvas></div>
+      <div class="body">
+        <div class="names"><span class="main">DAT0-7</span><span class="alias">8-bit 并行 · 双向复用</span><span class="pin">DATA</span></div>
+        <p>数据线全双向：<b>读时芯片驱动、写时主机驱动，同一时刻只有一个方向</b>（半双工，05 节动画演示代价）。每 512 字节块尾随 CRC16。DAT0 兼职忙线：R1b 响应后芯片把它拉低表示「写回中，别催」。HS400 时八根线全部双沿采样：</p>
+        <div class="formula">200 MHz × 8 bit × 2 沿 ÷ 8 = 400 MB/s（HS400）</div>
+      </div>
+    </div>
+    <div class="sig-card c-aux reveal">
+      <div class="scope"><canvas data-wave="aux"></canvas></div>
+      <div class="body">
+        <div class="names"><span class="main">RST_n / VCC·VCCQ</span><span class="alias">复位 · 双电源域</span><span class="pin">AUX</span></div>
+        <p>RST_n 拉低 ≥1 µs 硬复位（比 CMD0 干净，主控寄存器一起归零）。<b>两个电源域</b>：VCC 喂 NAND 核心 3.3 V；VCCQ 喂接口——HS200/HS400 必须 1.8 V。冷启动必须先 VCC 后 VCCQ 的顺序上电：</p>
+        <div class="formula">上电顺序：VCC → VCCQ → RST_n 拉高 → CMD0/CMD1 枚举</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= §03 ================= -->
+<section id="s3">
+  <div class="sec-head reveal"><span class="no">03</span><h2>分区结构 · Boot×2 / RPMB / User Area</h2><span class="en">Partitions &amp; RPMB</span></div>
+  <p class="sec-sub reveal">
+    eMMC 不只是一坨连续存储：<b>Boot1 + Boot2 + RPMB + 最多 4 个 GPP + User Area</b>，各自的寻址由 EXT_CSD[179] PARTITION_CONFIG 切换。
+    点击下图任意分区，看它在 Linux 里对应谁、干什么用。
+  </p>
+  <div class="topo reveal">
+    <svg class="part-svg" viewBox="0 0 920 168" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono,monospace">
+      <text x="20" y="26" fill="rgba(140,162,148,.8)" font-size="11">地址空间俯视图（大小按典型值示意，非等比）——点击分区查看说明</text>
+      <g class="p-seg" data-part="boot1">
+        <rect x="20" y="44" width="84" height="52" rx="5" fill="rgba(255,176,46,.10)" stroke="rgba(255,176,46,.55)"/>
+        <text x="62" y="66" text-anchor="middle" fill="#ffb02e" font-size="11.5" font-weight="600">Boot 1</text>
+        <text x="62" y="84" text-anchor="middle" fill="rgba(255,176,46,.75)" font-size="9.5">4 MB</text>
+      </g>
+      <g class="p-seg" data-part="boot2">
+        <rect x="108" y="44" width="84" height="52" rx="5" fill="rgba(255,176,46,.10)" stroke="rgba(255,176,46,.55)" stroke-dasharray="5 4"/>
+        <text x="150" y="66" text-anchor="middle" fill="#ffb02e" font-size="11.5" font-weight="600">Boot 2</text>
+        <text x="150" y="84" text-anchor="middle" fill="rgba(255,176,46,.75)" font-size="9.5">4 MB（备份）</text>
+      </g>
+      <g class="p-seg" data-part="rpmb">
+        <rect x="196" y="44" width="84" height="52" rx="5" fill="rgba(255,100,120,.12)" stroke="rgba(255,100,120,.6)"/>
+        <text x="238" y="66" text-anchor="middle" fill="#ff6478" font-size="11.5" font-weight="600">RPMB</text>
+        <text x="238" y="84" text-anchor="middle" fill="rgba(255,100,120,.8)" font-size="9.5">4 MB · 上锁</text>
+      </g>
+      <g class="p-seg" data-part="gpp">
+        <rect x="284" y="44" width="128" height="52" rx="5" fill="rgba(87,216,242,.08)" stroke="rgba(87,216,242,.45)" stroke-dasharray="5 4"/>
+        <text x="348" y="66" text-anchor="middle" fill="#57d8f2" font-size="11.5" font-weight="600">GPP 1–4</text>
+        <text x="348" y="84" text-anchor="middle" fill="rgba(87,216,242,.75)" font-size="9.5">可选 · 用户划分</text>
+      </g>
+      <g class="p-seg" data-part="user">
+        <rect x="416" y="44" width="484" height="52" rx="5" fill="rgba(52,224,138,.10)" stroke="rgba(52,224,138,.55)"/>
+        <text x="658" y="66" text-anchor="middle" fill="#34e08a" font-size="12" font-weight="600">User Area（主体容量）</text>
+        <text x="658" y="84" text-anchor="middle" fill="rgba(52,224,138,.75)" font-size="9.5">8–256 GB · 含 FTL 保留的 OP 空间</text>
+      </g>
+      <text x="62" y="120" text-anchor="middle" fill="rgba(140,162,148,.7)" font-size="9.5">mmcblk0boot0</text>
+      <text x="150" y="120" text-anchor="middle" fill="rgba(140,162,148,.7)" font-size="9.5">mmcblk0boot1</text>
+      <text x="238" y="120" text-anchor="middle" fill="rgba(140,162,148,.7)" font-size="9.5">mmcblk0rpmb</text>
+      <text x="348" y="120" text-anchor="middle" fill="rgba(140,162,148,.7)" font-size="9.5">（需手动切换启用）</text>
+      <text x="658" y="120" text-anchor="middle" fill="rgba(140,162,148,.7)" font-size="9.5">mmcblk0 + mmcblk0p1/p2/…（GPT 分区）</text>
+      <text x="20" y="152" fill="rgba(92,114,100,.9)" font-size="10">Boot 分区可在上电后由芯片自动送出（Boot 模式，无需主机发读命令）——SoC 冷启动 50ms 内取回一级引导的秘诀</text>
+    </svg>
+    <div class="part-desc" id="partDesc"></div>
+  </div>
+
+  <div class="rp-box reveal">
+    <div class="rp-bar">
+      <span class="rp-title">RPMB · 防回滚保险箱</span>
+      <div>
+        <button class="icon-btn" id="rpPrev" title="上一步">‹</button>
+        <button class="icon-btn play on" id="rpPlay" title="自动播放">❚❚</button>
+        <button class="icon-btn" id="rpNext" title="下一步">›</button>
+      </div>
+      <div class="rp-steps" id="rpSteps"></div>
+      <span style="margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--faint)">HMAC-SHA256 · 32-bit 单调计数器</span>
+    </div>
+    <div class="rp-stage"><div id="rpSvg"></div></div>
+    <div class="rp-explain">
+      <div class="rp-t" id="rpTitle"></div>
+      <p id="rpDesc"></p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= §04 速度实验室 ================= -->
+<section id="s4">
+  <div class="sec-head reveal"><span class="no">04</span><h2>速度模式演进实验室 · DS → HS → HS200 → HS400</h2><span class="en">Bus Speed Lab</span></div>
+  <p class="sec-sub reveal">
+    同一颗 eMMC，四种性格。切档位，看<b>采样方式</b>如何变化：前两代只在<b>时钟上升沿采样</b>（SDR，一周期一位）；
+    HS200 把频率拉到 200 MHz 并回到<b>源同步 + 调谐</b>；HS400 再把下降沿也用上（<b>DDR 双沿，一周期两位</b>）。
+    <b style="color:var(--red)">红色探针</b>是接收端采样点，右侧移位寄存器实时拼装收到的字节。
+  </p>
+  <div class="lab reveal">
+    <div class="lab-bar">
+      <div class="ctrl"><label>速度档</label>
+        <div class="seg" id="modeSeg">
+          <button data-mode="ds">DS 26</button>
+          <button data-mode="hs">HS 52</button>
+          <button data-mode="hs200" class="on">HS200</button>
+          <button data-mode="hs400">HS400</button>
+        </div>
+      </div>
+      <div class="ctrl"><label>速度</label><input type="range" id="labSpeed" min="4" max="60" value="18"></div>
+      <div class="ctrl">
+        <button class="icon-btn play on" id="labPlay" title="播放/暂停">❚❚</button>
+        <button class="icon-btn" id="labStep" title="单步到下一个采样沿">⇥</button>
+        <button class="icon-btn" id="labReset" title="重置">↺</button>
+      </div>
+    </div>
+    <div class="lab-body">
+      <div class="scope-main"><canvas id="labCanvas"></canvas></div>
+      <div class="readout">
+        <div class="r-title">RECEIVER · 采样解码</div>
+        <div class="r-row"><span class="k">当前档位</span><span class="v g" id="rMode">HS200</span></div>
+        <div class="r-row"><span class="k">时钟频率</span><span class="v" id="rFreq">200 MHz</span></div>
+        <div class="r-row"><span class="k">采样方式</span><span class="v c" id="rSamp">上升沿 · 单沿</span></div>
+        <div class="r-row"><span class="k">bit / CLK</span><span class="v" id="rBits">1 bit</span></div>
+        <div class="r-row"><span class="k">理论吞吐(8-bit)</span><span class="v a" id="rThr">200 MB/s</span></div>
+        <div class="r-row"><span class="k">已采样</span><span class="v" id="rCnt">0 bit</span></div>
+        <div class="shift" id="rxShift"></div>
+        <div class="byte-out" id="rxByte">接收字节：—<br>计数：0</div>
+        <div class="r-note"><b>注意</b>：波形窗口显示 9 个时钟周期；DAT0 电平由同一 16-bit 测试码流驱动，SDR 档取前 8 位、DDR 档双沿取满 16 位。</div>
+      </div>
+    </div>
+    <div class="lab-foot">
+      <div class="legend"><i style="background:var(--green)"></i>CLK 时钟</div>
+      <div class="legend"><i style="background:var(--cyan)"></i>DAT0 数据</div>
+      <div class="legend"><i style="background:var(--red);height:8px;width:8px;border-radius:50%"></i>采样探针（沿）</div>
+      <div class="legend">红色竖带 = 当前位窗口</div>
+      <div class="legend">DDR 档每周期两个采样沿</div>
+    </div>
+  </div>
+  <table class="mode-table reveal">
+    <tr><th>档位</th><th>时钟</th><th>采样</th><th>8-bit 吞吐</th><th>VCCQ</th><th>进入条件（EXT_CSD 写入）</th></tr>
+    <tr><td>Legacy / DS</td><td>26 MHz</td><td>SDR · 上升沿</td><td>26 MB/s</td><td>3.3 / 1.8 V</td><td>默认；<span class="hl2">HS_TIMING[183]=0x0</span></td></tr>
+    <tr><td>High Speed</td><td>52 MHz</td><td>SDR · 上升沿</td><td>52 MB/s</td><td>3.3 / 1.8 V</td><td><span class="hl2">HS_TIMING=0x1</span>；无需调谐</td></tr>
+    <tr><td>HS200</td><td>200 MHz</td><td>SDR · 源同步+调谐</td><td class="hl">200 MB/s</td><td class="hl2">必须 1.8 V</td><td><span class="hl2">BUS_WIDTH[185]=0x2</span>（8-bit SDR）+ <span class="hl2">HS_TIMING=0x2</span> + <span class="hl3">CMD21 调谐</span></td></tr>
+    <tr><td>HS400</td><td>200 MHz</td><td class="hl">DDR · 双沿</td><td class="hl">400 MB/s</td><td class="hl2">必须 1.8 V</td><td>先走完 HS200 调谐 → <span class="hl2">BUS_WIDTH=0x6</span>（8-bit DDR）+ <span class="hl2">HS_TIMING=0x3</span></td></tr>
+    <tr><td>HS400ES</td><td>200 MHz</td><td>DDR · 设备回送 strobe</td><td class="hl">400 MB/s</td><td class="hl2">必须 1.8 V</td><td><span class="hl2">HS_TIMING=0x4</span>；Enhanced Strobe 免去后续调谐维护</td></tr>
+  </table>
+  <div class="rule-callout reveal">
+    <div class="mnemonic">调档必经 CMD6 · 先宽度后时序<small>SWITCH ORDER</small></div>
+    <p>
+      所有档位切换都是 <b>CMD6（SWITCH）写 EXT_CSD</b>：先 <b>8-bit（BUS_WIDTH=0x2）再提速（HS_TIMING）</b>，
+      进 HS200 后必须 <b>CMD21 送调谐块</b> 找采样相位，HS400 还要<b>先在 HS200 完成一次调谐</b>才能开双沿。
+      顺序错了只有 -110/-84 陪你。降级排查链见 10 节。
+    </p>
+  </div>
+</section>
+
+<!-- ================= §05 eMMC vs UFS ================= -->
+<section id="s5">
+  <div class="sec-head reveal"><span class="no">05</span><h2>eMMC vs UFS · 半双工排队 对决 全双工乱序</h2><span class="en">eMMC vs UFS · Queue Duel</span></div>
+  <p class="sec-sub reveal">
+    同样 8 个读写 I/O（<b style="color:var(--green)">绿色 R = 读</b>，<b style="color:var(--amber)">琥珀 W = 写</b>），两条时间线并排跑：
+    上面的 eMMC <b>CMD17/24 一条命令一件事、DAT 八根线同一时刻只能单向</b>——读写只能排队；
+    下面的 UFS <b>读走上轨、写下轨同时流动</b>，CQ 命令队列还让设备乱序完成（看块上的 #序号）。
+    这是 UFS 随机性能碾压 eMMC 的根源。
+  </p>
+  <div class="qp reveal">
+    <div class="qp-bar">
+      <div class="ctrl">
+        <button class="icon-btn play on" id="qPlay" title="播放/暂停">❚❚</button>
+        <button class="icon-btn" id="qReset" title="重置">↺</button>
+        <button class="icon-btn" id="qShuffle" title="换一组 I/O">⇄</button>
+      </div>
+      <div class="ctrl"><label>速度</label><input type="range" id="qSpeed" min="4" max="40" value="14"></div>
+      <span style="margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--faint)">时间轴为虚拟单位 · 尚未计入命令开销与 busy 等待（真实差距更大）</span>
+    </div>
+    <div class="qp-canvas"><canvas id="queueCanvas"></canvas></div>
+    <div class="q-stats">
+      <div class="q-stat"><div class="k">eMMC · 顺序执行</div><div class="v" id="qsEmc">0 / 8 完成</div></div>
+      <div class="q-stat"><div class="k">UFS · CQ + 全双工</div><div class="v a" id="qsUfs">0 / 8 完成</div></div>
+      <div class="q-stat"><div class="k">加速比</div><div class="v c" id="qsSum">—</div></div>
+    </div>
+  </div>
+  <div class="rule-callout reveal" style="border-color:rgba(52,224,138,.35);background:linear-gradient(120deg,rgba(52,224,138,.06),transparent 60%)">
+    <div class="mnemonic" style="color:var(--green)">eMMC 一次一件事 · UFS 边收边发边排队<small>HALF vs FULL DUPLEX</small></div>
+    <p>
+      eMMC 的 8 根 DAT 线是<b>共享双向总线</b>：读的时候整条总线归芯片，写的时候整条归主机，方向切换还有死区；
+      命令必须完成（CMD12 停止 + R1b 忙等）才能发下一条。UFS 的每条 lane 是<b>独立的差分收发对</b>，
+      加上 32 深的命令队列，主机可以一口气塞一批命令让设备自己排最优顺序——<b>吞吐与延迟同时赢</b>。
+    </p>
+  </div>
+</section>
+
+<!-- ================= §06 UFS 架构 ================= -->
+<section id="s6">
+  <div class="sec-head reveal"><span class="no">06</span><h2>UFS 速览 · 差分 Lane、UniPro/M-PHY、SCSI 血统</h2><span class="en">UFS Stack</span></div>
+  <p class="sec-sub reveal">UFS（Universal Flash Storage，JEDEC UFS 2.x/3.x）把「并行总线」换成「串行差分 + 分层协议栈」，用三招接过 eMMC 的班。</p>
+  <div class="stack-grid">
+    <div class="stack-svg reveal">
+      <svg viewBox="0 0 520 330" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono,monospace">
+        <defs><marker id="arU" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="context-stroke"/></marker></defs>
+        <text x="12" y="24" fill="rgba(140,162,148,.8)" font-size="10.5">协议栈：SCSI 命令坐电梯下去</text>
+        <rect x="16" y="38" width="488" height="46" rx="7" fill="rgba(255,176,46,.08)" stroke="rgba(255,176,46,.5)"/>
+        <text x="260" y="58" text-anchor="middle" fill="#ffb02e" font-size="12" font-weight="600">SCSI 命令层</text>
+        <text x="260" y="75" text-anchor="middle" fill="rgba(255,176,46,.8)" font-size="9.5">READ(10) / WRITE(10) / UNMAP（Trim 的 SCSI 亲戚）</text>
+        <rect x="16" y="94" width="488" height="46" rx="7" fill="rgba(52,224,138,.07)" stroke="rgba(52,224,138,.5)"/>
+        <text x="260" y="114" text-anchor="middle" fill="#34e08a" font-size="12" font-weight="600">UFS 协议层 · UPIU 帧 + 任务管理 + CQ</text>
+        <text x="260" y="131" text-anchor="middle" fill="rgba(52,224,138,.8)" font-size="9.5">Command Queue：最多 32 个 entry · 乱序执行/乱序完成</text>
+        <rect x="16" y="150" width="488" height="46" rx="7" fill="rgba(87,216,242,.07)" stroke="rgba(87,216,242,.5)"/>
+        <text x="260" y="170" text-anchor="middle" fill="#57d8f2" font-size="12" font-weight="600">MIPI UniPro · 链路与网络层（一句话：可靠的多路交换底座）</text>
+        <text x="260" y="187" text-anchor="middle" fill="rgba(87,216,242,.8)" font-size="9.5">CPort / LPort · 流控 / 重传 / 功率状态机</text>
+        <rect x="16" y="206" width="488" height="46" rx="7" fill="rgba(220,235,225,.05)" stroke="rgba(220,235,225,.4)"/>
+        <text x="260" y="226" text-anchor="middle" fill="#dcebe1" font-size="12" font-weight="600">MIPI M-PHY · 物理层</text>
+        <text x="260" y="243" text-anchor="middle" fill="rgba(220,235,225,.7)" font-size="9.5">差分串行 · Gear1–4（UFS2.1 G3 ≈ 5.8 Gbps/lane/方向）</text>
+        <line x1="260" y1="84" x2="260" y2="92" stroke="rgba(220,235,225,.5)" stroke-width="1.5" marker-end="url(#arU)"/>
+        <line x1="260" y1="140" x2="260" y2="148" stroke="rgba(220,235,225,.5)" stroke-width="1.5" marker-end="url(#arU)"/>
+        <line x1="260" y1="196" x2="260" y2="204" stroke="rgba(220,235,225,.5)" stroke-width="1.5" marker-end="url(#arU)"/>
+        <text x="12" y="280" fill="rgba(140,162,148,.8)" font-size="10.5">Lane 拓扑：每 lane 一收一发，1 或 2 lane，全双工</text>
+        <rect x="16" y="292" width="120" height="30" rx="5" fill="rgba(52,224,138,.05)" stroke="rgba(52,224,138,.4)"/>
+        <text x="76" y="311" text-anchor="middle" fill="#dcebe1" font-size="10">Host UFS-IC</text>
+        <rect x="384" y="292" width="120" height="30" rx="5" fill="rgba(52,224,138,.05)" stroke="rgba(52,224,138,.4)"/>
+        <text x="444" y="311" text-anchor="middle" fill="#dcebe1" font-size="10">UFS Device</text>
+        <line x1="140" y1="301" x2="380" y2="301" stroke="rgba(87,216,242,.7)" stroke-width="2" marker-end="url(#arU)"/>
+        <line x1="380" y1="315" x2="140" y2="315" stroke="rgba(255,176,46,.7)" stroke-width="2" marker-end="url(#arU)"/>
+        <text x="260" y="298" text-anchor="middle" fill="rgba(87,216,242,.85)" font-size="8.5">Lane0 TX→ / RX← （可再加 Lane1）</text>
+      </svg>
+    </div>
+    <div class="arch-cards reveal">
+      <div class="arch">
+        <h5><span class="b">招式一</span>差分 Lane · 全双工</h5>
+        <p>每条 lane 是一对 <a href="lvds.html" style="color:var(--cyan)">差分串行线</a>（LVDS 的远房亲戚），TX/RX 方向各自独立、互不等待。
+        1 lane 起步、2 lane 翻倍；UFS 2.1 双 lane 顺序读 ≈ <code>850 MB/s</code>，UFS 3.1 突破 <code>2 GB/s</code>——并行总线到 HS400 就撞墙，差分还有大把余量。</p>
+      </div>
+      <div class="arch">
+        <h5><span class="b">招式二</span>CQ 命令队列 · 乱序执行</h5>
+        <p>主机一次把最多 <code>32</code> 个命令压进 Command Queue，设备按 NAND 内部状态自己挑顺序执行、乱序完成（05 节动画的 #序号）。
+        eMMC 的 CMD17/24 只能「发一个、等一个」，遇到混合读写就排队空转。CQ 的血统是 SCSI Tagged Queuing——是的，UFS 说的就是 SCSI 方言。</p>
+      </div>
+      <div class="arch">
+        <h5><span class="b">招式三</span>SCSI 血统 + 安全继承</h5>
+        <p>命令层直接复用 SCSI：INQUIRY、READ(10)、WRITE(10)、UNMAP（≈Trim）。RPMB 在 UFS 里也没缺席——变成一个独立的 Well-Known 逻辑单元（LU），
+        key + 计数器 + HMAC 的防回滚机制原样保留，Android 的防刷机验证正靠它。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= §07 寿命与维护 ================= -->
+<section id="s7">
+  <div class="sec-head reveal"><span class="no">07</span><h2>寿命与维护 · P/E、磨损均衡、Trim 与写入放大</h2><span class="en">Endurance &amp; Maintenance</span></div>
+  <p class="sec-sub reveal">NAND 的物理宿命：<b>每个块只能被擦写有限次</b>。eMMC 主控的全部智慧，就是把这件事对主机隐藏起来——但工程师必须知道账怎么算。</p>
+  <div class="life-cards reveal">
+    <div class="life-card"><h4>P/E 循环 <code>PROGRAM / ERASE</code></h4><p>NAND 写前必擦、擦有次数上限：SLC ≈ 10 万次、MLC ≈ 1 万、<b>TLC ≈ 3000、QLC ≈ 1000</b>。容量越大的颗数越多、越耐久，但每天写入量也决定生死。</p></div>
+    <div class="life-card"><h4>磨损均衡 <code>WEAR LEVELING</code></h4><p>FTL 把写入摊到所有物理块，冷数据定期搬家，让各块 P/E 计数趋平——否则热点块先死，整盘报废。预留 OP 空间越多，搬得越从容。</p></div>
+    <div class="life-card"><h4>坏块管理 <code>BBM</code></h4><p>出厂坏块 + 用坏块都登记进坏块表，替换到备用块。ECC（BCH/LDPC）负责纠正读错误；纠不动的块退役。这一切对主机完全透明。</p></div>
+    <div class="life-card"><h4>Trim / 丢弃 <code>CMD38</code></h4><p>主机删文件后用 TRIM/DISCARD 告诉 eMMC「这些块没用了」：FTL 提前回收、减少无效搬运。不 Trim 的盘越用越慢就是这个原因——记得 <code>fstrim</code> 定时跑。</p></div>
+  </div>
+  <div class="calc reveal">
+    <div class="inputs">
+      <h5>INPUT · 写入放大与寿命计算器</h5>
+      <div class="field"><label>NAND 类型（P/E 次数）</label>
+        <select id="waPe">
+          <option value="100000">SLC · 10 万次 P/E</option>
+          <option value="10000">MLC · 1 万次 P/E</option>
+          <option value="3000" selected>TLC · 3000 次（主流 eMMC）</option>
+          <option value="1000">QLC · 1000 次 P/E</option>
+        </select>
+      </div>
+      <div class="field"><label>eMMC 容量</label>
+        <select id="waCap">
+          <option value="8">8 GB</option>
+          <option value="16">16 GB</option>
+          <option value="32" selected>32 GB</option>
+          <option value="64">64 GB</option>
+          <option value="128">128 GB</option>
+        </select>
+      </div>
+      <div class="field"><label>每日主机写入量</label>
+        <select id="waHost">
+          <option value="2">2 GB/天 · 轻度</option>
+          <option value="10" selected>10 GB/天 · 中度</option>
+          <option value="30">30 GB/天 · 重度记录</option>
+          <option value="100">100 GB/天 · 车载录像级</option>
+        </select>
+      </div>
+      <div class="field"><label>写入放大系数 WA</label>
+        <input type="range" id="waWa" min="10" max="60" value="20">
+        <div class="rv" id="waWaV">WA = 2.0</div>
+      </div>
+    </div>
+    <div class="outputs">
+      <h5>OUTPUT · 输出</h5>
+      <div class="out-row"><span class="ok">NAND 实际日写入<small>DAILY NAND WRITES</small></span><span class="ov" id="waNand">20<small>GB/天</small></span></div>
+      <div class="out-row"><span class="ok">全盘日均 P/E<small>DAILY CYCLES</small></span><span class="ov" id="waDaily">0.63<small>次/天</small></span></div>
+      <div class="out-row big"><span class="ok">预计寿命<small>LIFETIME</small></span><span class="ov" id="waLife">13.1<small>年</small></span></div>
+      <div class="out-row"><span class="ok">寿命内总写入（TBW）<small>TOTAL BYTES WRITTEN</small></span><span class="ov" id="waTbw">48<small>TB</small></span></div>
+    </div>
+    <div class="calc-formula">寿命 = 容量 × P/E ÷ (日写入 × WA) = <b id="waExpr">32 GB × 3000 ÷ (10 × 2.0) = 4800 天 ≈ 13.1 年</b> · 顺序大块写 WA≈1.1–1.5；小随机 + 满盘可飙到 3–5+，OP 越小越惨</div>
+  </div>
+</section>
+
+<!-- ================= §08 带宽计算器 ================= -->
+<section id="s8">
+  <div class="sec-head reveal"><span class="no">08</span><h2>带宽计算器 · 位宽 × 时钟 × 模式</h2><span class="en">Bandwidth Math</span></div>
+  <p class="sec-sub reveal">eMMC 的吞吐就是一道乘法题：<b>时钟频率 × 总线位宽 × 每周期采样沿数 ÷ 8</b>。配完设备树先算理论值，再用 dd 对——差太远就回 10 节按降级链排查。</p>
+  <div class="calc reveal">
+    <div class="inputs">
+      <h5>INPUT · 输入</h5>
+      <div class="field"><label>总线位宽</label>
+        <select id="bwWidth">
+          <option value="1">1-bit · 仅 DAT0</option>
+          <option value="4">4-bit · DAT0-3</option>
+          <option value="8" selected>8-bit · DAT0-7（HS200/HS400 要求）</option>
+        </select>
+      </div>
+      <div class="field"><label>时钟频率</label>
+        <select id="bwClk">
+          <option value="26">26 MHz · DS</option>
+          <option value="52">52 MHz · HS</option>
+          <option value="200" selected>200 MHz · HS200/HS400</option>
+        </select>
+      </div>
+      <div class="field"><label>采样模式</label>
+        <select id="bwSmp">
+          <option value="1" selected>SDR · 单沿（每 CLK 1 bit）</option>
+          <option value="2">DDR · 双沿（每 CLK 2 bit · HS400）</option>
+        </select>
+      </div>
+    </div>
+    <div class="outputs">
+      <h5>OUTPUT · 输出</h5>
+      <div class="out-row big"><span class="ok">理论吞吐<small>RAW THROUGHPUT</small></span><span class="ov" id="bwThr">200<small>MB/s</small></span></div>
+      <div class="out-row"><span class="ok">有效吞吐 ≈ 85%（CRC/命令/忙等）<small>EFFECTIVE</small></span><span class="ov" id="bwEff">170<small>MB/s</small></span></div>
+      <div class="out-row"><span class="ok">bit / 时钟周期<small>BITS PER CLK</small></span><span class="ov" id="wbBpc">8<small>bit</small></span></div>
+      <div class="out-row"><span class="ok">CLK 周期 · 单沿眼图窗口<small>CLOCK PERIOD</small></span><span class="ov" id="bwPer">5.0<small>ns</small></span></div>
+      <div class="out-row"><span class="ok">模式合法性<small>MODE CHECK</small></span><span class="ov" id="bwLegal">合法档位 ✓</span></div>
+    </div>
+    <div class="calc-formula">吞吐 = f(CLK) × 位宽 × 沿数 ÷ 8 = <b id="bwExpr">200 MHz × 8 bit × 1 ÷ 8 = 200 MB/s</b> · 对照 UFS 2.1 双 lane ≈ 850 MB/s —— 并行总线与串行差分的代差</div>
+  </div>
+</section>
+
+<!-- ================= §09 Linux 实战 ================= -->
+<section id="s9">
+  <div class="sec-head reveal"><span class="no">09</span><h2>Linux 实战 · mmc-utils 与 sysfs</h2><span class="en">Linux Cheat Sheet</span></div>
+  <p class="sec-sub reveal">
+    eMMC 在 Linux 里走 <b>mmc 子系统</b>：枚举成功后 User Area 变成 <b>mmcblk0</b>，boot 分区与 RPMB 各自是独立块设备。
+    看档位、查分区、验吞吐，<b>mmc-utils</b> 一把梭。<b>点击任意命令行即可复制。</b>
+  </p>
+  <div class="term-grid">
+    <div class="term wide reveal">
+      <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span>mmc-utils — extcsd 关键字段（自动播放 · 输出有删减）</span><button id="btnTermReplay">↺ 重放</button></div>
+      <div class="term-body" id="termBody"></div>
+    </div>
+    <div class="term reveal">
+      <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span>sysfs — 分区与设备布局</span></div>
+      <div class="term-body">
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="ls /sys/block/mmcblk0/">ls /sys/block/mmcblk0/</code></div>
+        <div class="t-out">mmcblk0  <span class="t-hl">mmcblk0boot0  mmcblk0boot1  mmcblk0rpmb</span>  mmcblk0p1 …</div>
+        <div class="t-cmt"># User Area + 双 boot + RPMB 各自是独立块设备</div>
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="cat /sys/block/mmcblk0/mmcblk0p1/partition">cat /sys/block/mmcblk0/mmcblk0p1/partition</code></div>
+        <div class="t-out">1</div>
+        <div class="t-cmt"># 分区号；GPT 由 sgdisk/fdisk 正常使用</div>
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="cat /sys/block/mmcblk0/device/{name,manfid,date}">cat .../device/{name,manfid,date}</code></div>
+        <div class="t-out">AGN4XR  0x000115  04/2025</div>
+      </div>
+    </div>
+    <div class="term reveal">
+      <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span>debugfs — 当前总线档位</span></div>
+      <div class="term-body">
+        <div class="t-cmt"># 需要 root；debugfs 未挂载先 mount -t debugfs none /sys/kernel/debug</div>
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="cat /sys/kernel/debug/mmc/ios">cat /sys/kernel/debug/mmc/ios</code></div>
+        <div class="t-out">clock: <span class="t-hl">200000000</span> Hz   bus width: <span class="t-hl">8 bit DDR</span></div>
+        <div class="t-out">timing: <span class="t-hl">MMC HS400</span>   signal voltage: 1800</div>
+        <div class="t-cmt"># timing=legacy/MMC_HS → 速度档没协商上（10 节第 1 坑）</div>
+        <div class="t-cmt"># HS400ES 显示 MMC HS400 (enhanced strobe)</div>
+      </div>
+    </div>
+    <div class="term reveal">
+      <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span>boot 分区 — 启用与写入</span></div>
+      <div class="term-body">
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="sudo mmc bootbus set single_backward retain 8 /dev/mmcblk0">mmc bootbus set ... /dev/mmcblk0</code></div>
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="sudo mmc boot enable 1 /dev/mmcblk0">mmc boot enable 1 /dev/mmcblk0</code><span class="t-cmt"> # 上电自动送 Boot1</span></div>
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="sudo dd if=bl2.bin of=/dev/mmcblk0boot0 conv=fsync">dd if=bl2.bin of=/dev/mmcblk0boot0 conv=fsync</code></div>
+        <div class="t-cmt"># 掉电保护三件套：小镜像 + conv=fsync + 写前确认分区号</div>
+        <div class="t-cmt"># 大坑：写错 mmcblk0（User 区）还有救，写坏 boot 就是砖（10 节）</div>
+      </div>
+    </div>
+    <div class="term reveal">
+      <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span>RPMB — 计数器与签名写</span></div>
+      <div class="term-body">
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="sudo mmc rpmb read-counter /dev/mmcblk0rpmb">mmc rpmb read-counter /dev/mmcblk0rpmb</code></div>
+        <div class="t-out">Counter value: 0x0000002A</div>
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="sudo mmc rpmb write-block /dev/mmcblk0rpmb data.bin --key keyfile">mmc rpmb write-block ... --key keyfile</code></div>
+        <div class="t-cmt"># PROGRAM_KEY 只有一次机会；key 丢了 RPMB 永久锁死</div>
+        <div class="t-cmt"># Android 的 verified boot 防回滚就建在这上面（03 节动画）</div>
+      </div>
+    </div>
+    <div class="term reveal">
+      <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span>性能 — dd 验证与 Trim</span></div>
+      <div class="term-body">
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="sudo dd if=/dev/mmcblk0 of=/dev/null bs=1M count=512 iflag=direct">dd if=/dev/mmcblk0 of=/dev/null bs=1M count=512</code></div>
+        <div class="t-out">536870912 bytes (537 MB) copied, <span class="t-hl">2.71 s, 198 MB/s</span></div>
+        <div class="t-cmt"># 对 08 节理论值：HS400 应 ≥ 170 MB/s，只有 20 多 MB 就是掉档</div>
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="sudo fstrim -v /">sudo fstrim -v /</code></div>
+        <div class="t-out">/: 12.3 GiB (13201522688 bytes) trimmed</div>
+        <div class="t-cmt"># Trim 让 FTL 回收无效块，不跑的盘越用越慢（07 节）</div>
+      </div>
+    </div>
+    <div class="term wide reveal">
+      <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span>DTS — HS400 四件套（通用示例）</span></div>
+      <div class="term-body">
+        <div class="t-cmt">/* SoC 的 eMMC 控制器：焊死的 BGA 器件 */</div>
+        <div class="t-tag">&amp;sdhci</div><div class="t-out"> {</div>
+        <div class="t-out">    status = "okay";</div>
+        <div class="t-out">    bus-width = <span class="t-hl">&lt;8&gt;</span>;                    /* ←→ 08 节：8-bit 并行 */</div>
+        <div class="t-out">    <span class="t-hl">non-removable</span>;                    /* 焊死：跳过拔卡检测 */</div>
+        <div class="t-out">    <span class="t-hl">mmc-hs200-1_8v</span>;</div>
+        <div class="t-out">    <span class="t-hl">mmc-hs400-1_8v</span>;                   /* 含 DDR 双沿采样 */</div>
+        <div class="t-out">    <span class="t-hl">mmc-hs400-enhanced-strobe</span>;        /* HS400ES：设备回送 strobe */</div>
+        <div class="t-out">    pinctrl-0 = &lt;&amp;emmc_clk &amp;emmc_cmd &amp;emmc_bus8&gt;;</div>
+        <div class="t-out">};</div>
+        <div class="t-cmt">/* 缺 mmc-hs400-1_8v 时内核最高只到 HS200；enhanced-strobe 需芯片 EXT_CSD 声明支持 */</div>
+      </div>
+    </div>
+  </div>
+  <table class="eq-table reveal">
+    <tr><th>任务</th><th>命令</th><th>要点</th></tr>
+    <tr><td>芯片出身与容量</td><td><code>mmc extcsd read /dev/mmcblk0</code></td><td>EXT_CSD_REV / SEC_COUNT 一眼定版本与容量</td></tr>
+    <tr><td>当前速度档</td><td><code>cat /sys/kernel/debug/mmc/ios</code></td><td>timing 字段对照 04 节五档</td></tr>
+    <tr><td>boot 分区布局</td><td><code>ls /sys/block/mmcblk0/</code></td><td>boot0/boot1/rpmb 是独立块设备</td></tr>
+    <tr><td>启用 boot 启动</td><td><code>mmc boot enable 1 /dev/mmcblk0</code></td><td>PARTITION_CONFIG[179] 的 BOOT_PART 位</td></tr>
+    <tr><td>RPMB 计数器</td><td><code>mmc rpmb read-counter /dev/mmcblk0rpmb</code></td><td>单调递增，防回滚基准</td></tr>
+    <tr><td>健康状态</td><td><code>mmc extcsd read ... | grep -i life</code></td><td>DEVICE_LIFE_TIME_EST 各 10% 一档</td></tr>
+    <tr><td>吞吐验证</td><td><code>dd if=/dev/mmcblk0 of=/dev/null bs=1M</code></td><td>对 08 节理论值，差 10× 查档位</td></tr>
+    <tr><td>回收无效块</td><td><code>fstrim -av</code></td><td>触发 CMD38 TRIM/DISCARD</td></tr>
+  </table>
+  <div class="lnx-note reveal">
+    <b>装机前三件事：</b>① <code>mmc extcsd read</code> 确认芯片支持 HS400/ES 与 boot 分区大小；
+    ② <code>ios</code> 确认协商到了目标档；③ <code>fstrim</code> 挂到 cron / systemd-timer。
+    Android 上 <code>adb root</code> 后同样一套；user 版无 debugfs 权限，用 <code>logcat -b kernel | grep -i mmc</code> 代替。
+  </div>
+</section>
+
+<!-- ================= §10 踩坑 + 速查 ================= -->
+<section id="s10">
+  <div class="sec-head reveal"><span class="no">10</span><h2>踩坑指南 · 症状 → 病因</h2><span class="en">Troubleshooting</span></div>
+  <p class="sec-sub reveal">调 eMMC 的时间几乎都花在下面这几张药方上。按症状对号入座。</p>
+  <div class="pit-list reveal">
+    <div class="pit"><div class="symptom">HS400<br>不稳/枚举失败</div><div class="fix"><b>降级排查链：HS400ES → HS400 → HS200 → HS → DS</b><p>每降一档测一次：HS200 好、HS400 坏 → 走线等长/串阻/参考地问题或 <code>mmc-hs400-1_8v</code> 未写；HS200 就坏 → 1.8 V VCCQ 没切或调谐窗口太窄，dmesg 找 <code>tuning failed</code>；全坏回 DS 查 CMD1 枚举。支持 ES 就优先 <code>mmc-hs400-enhanced-strobe</code> 免调谐。</p></div></div>
+    <div class="pit"><div class="symptom">速度<br>只有 26MB/s</div><div class="fix"><b>档位协商失败 · ios 里 timing=legacy</b><p>设备树缺 <code>mmc-hs200-1_8v</code>/<code>mmc-hs400-1_8v</code>，或 EXT_CSD 写 HS_TIMING 被芯片拒绝（版本老）。dd 实测 20 多 MB/s 是 DS 档、40 多是 HS：先用 <code>cat /sys/kernel/debug/mmc/ios</code> 定档再查 dts。</p></div></div>
+    <div class="pit"><div class="symptom">只能<br>4-bit</div><div class="fix"><b>8-bit 起不来 · DAT4-7 没配好</b><p>三处排查：pinctrl 的 <code>bus8</code> 引脚组缺脚、设备树 <code>bus-width=&lt;8&gt;</code> 没写、BGA 焊接虚焊（换板验证）。ios 显示 4 bit 而 dts 写 8 → 大概率引脚复用冲突被静默降级。</p></div></div>
+    <div class="pit"><div class="symptom">RPMB<br>key 烧错</div><div class="fix"><b>PROGRAM_KEY 一次定终身</b><p>RPMB 认证密钥只能烧一次，不可读、不可改：烧错/丢 key = RPMB 永久锁死，部分安全启动流程直接判废片。产线必须落盘保存 key 并先 <code>read-counter</code> 验证链路，再烧正式 key（03 节动画第 ① 步）。</p></div></div>
+    <div class="pit"><div class="symptom">写 boot<br>后变砖</div><div class="fix"><b>掉电瞬间写 boot 分区 = 灾难</b><p>boot 分区存的是 SoC 第一级引导，写入途中掉电没有文件系统日志可救。三道保险：镜像尽量小、<code>dd ... conv=fsync</code> 确认落盘、双 boot 分区互为备份（坏 Boot1 还有 Boot2）。升级流程必须先写备区、校验、再切 PARTITION_CONFIG。</p></div></div>
+    <div class="pit"><div class="symptom">枚举<br>error -110</div><div class="fix"><b>CMD1 无响应 · 驱动/上电顺序坑</b><p>把 SD 卡驱动（ACMD41）拿来点 eMMC 必超时——入口是 <code>CMD1</code>。硬件侧查上电顺序（VCC→VCCQ→RST_n）与 RST_n 是否被 GPIO 拉住。-110 是无响应、-84 是 CRC 错，先分清再动手。</p></div></div>
+    <div class="pit"><div class="symptom">越用<br>越慢</div><div class="fix"><b>Trim 没跑 · GC 拖累写入放大</b><p>删文件不 Trim，FTL 以为数据还活着，GC 搬着一堆尸体跑（07 节 WA 计算器可算代价）。挂载参数加 discard 或定时 <code>fstrim</code>；嵌入式只读根文件系统则无所谓。慢的另一个嫌疑是过热降速——摸温度。</p></div></div>
+  </div>
+
+  <div class="sec-head reveal" style="margin-top:90px"><span class="no">+</span><h2>速查表 · 收工前背下来</h2><span class="en">Cheat Sheet</span></div>
+  <div class="notation reveal">
+    <div class="n-item"><div class="nv">CMD1</div><small>枚举入口（非 ACMD41）</small></div>
+    <div class="n-item"><div class="nv a">EXT_CSD</div><small>512 B 灵魂寄存器 · CMD8 读 / CMD6 写</small></div>
+    <div class="n-item"><div class="nv">185 / 183</div><small>BUS_WIDTH / HS_TIMING 字段</small></div>
+    <div class="n-item"><div class="nv c">179</div><small>PARTITION_CONFIG 分区切换</small></div>
+    <div class="n-item"><div class="nv a">×2 沿</div><small>HS400 = 200 MHz × 8 bit × 2 = 400 MB/s</small></div>
+  </div>
+  <div class="two-col reveal">
+    <table class="mode-table" style="margin-top:0">
+      <tr><th>命令</th><th>作用</th><th>备注</th></tr>
+      <tr><td>CMD0 / CMD1</td><td>复位 / OCR 协商</td><td>eMMC 的枚举起点</td></tr>
+      <tr><td>CMD2 / CMD3 / CMD7</td><td>CID / 分配 RCA / 选中</td><td>进入 tran 传输态</td></tr>
+      <tr><td>CMD8 / CMD6</td><td>读 / 写 EXT_CSD</td><td>一切档位与分区配置</td></tr>
+      <tr><td>CMD17 / CMD18</td><td>读单块 / 多块</td><td>CMD12 停止多块</td></tr>
+      <tr><td>CMD24 / CMD25</td><td>写单块 / 多块</td><td>R1b 后 DAT0 忙</td></tr>
+      <tr><td>CMD21</td><td>送调谐块</td><td>HS200/HS400 采样相位</td></tr>
+      <tr><td>CMD38</td><td>ERASE/TRIM/DISCARD</td><td>寿命维护入口</td></tr>
+      <tr><td>CMD13</td><td>查询状态</td><td>轮询忙/AUTO_EN 状态</td></tr>
+    </table>
+    <dl class="gloss">
+      <dt>FTL · Flash Translation Layer</dt><dd>主控固件：逻辑扇区 ↔ 物理块映射，一切维护的核心</dd>
+      <dt>OP · Over-Provisioning</dt><dd>超出标称容量的保留空间，喂给 GC 与磨损均衡周转</dd>
+      <dt>WA · Write Amplification</dt><dd>NAND 实际写入 ÷ 主机写入；越小越长寿</dd>
+      <dt>EXT_CSD</dt><dd>512 字节扩展配置寄存器块，eMMC 的控制面板</dd>
+      <dt>RPMB</dt><dd>防回滚分区：key + 32-bit 单调计数器 + HMAC-SHA256</dd>
+      <dt>GPP</dt><dd>General Purpose Partition，用户在 User Area 外自划的逻辑分区</dd>
+      <dt>CQ · Command Queue</dt><dd>UFS 的命令队列，最深 32 entry，支持乱序完成</dd>
+      <dt>UPIU / UniPro / M-PHY</dt><dd>UFS 的协议帧 / 链路层 / 差分物理层三件套</dd>
+      <dt>HS400ES</dt><dd>Enhanced Strobe：设备回送与数据对齐的 strobe，免调谐维护</dd>
+      <dt>TBW · TeraBytes Written</dt><dd>寿命内总写入量，寿命公式的另一种读法</dd>
+    </dl>
+  </div>
+</section>
+
+<footer>
+  <div class="f-l">
+    <b>参考</b> · JEDEC JESD84-B51（eMMC 5.1）· JEDEC UFS 2.1/3.1 标准 · Linux 内核 Documentation/devicetree/bindings/mmc 与 drivers/mmc ·
+    mmc-utils（git.kernel.org）· <a href="sdio.html">同源协议：SDIO 图解页</a> ·<br>
+    本页为单文件交互式图解，可离线打开 · 波形与队列动画由浏览器实时渲染
+  </div>
+  <div class="f-r">EMMC·LAB</div>
+</footer>
+</main>
+
+<script>
+/* ================================================================
+   EMMC·LAB 交互引擎
+   模块：hero 包流动 / 信号卡波形 / RPMB 步进 / 速度实验室 /
+        eMMC vs UFS 队列 / 双计算器 / 打字终端 / reveal
+================================================================ */
+(function(){
+"use strict";
+const $=s=>document.querySelector(s);
+const $$=s=>Array.from(document.querySelectorAll(s));
+const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const mod=(a,m)=>((a%m)+m)%m;
+const COL={clk:'#34e08a',cmd:'#ffb02e',dat:'#57d8f2',red:'#ff6478',
+           grid:'rgba(52,224,138,.07)',grid2:'rgba(52,224,138,.16)'};
+const escHtml=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+  .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+function fit(cv,h){
+  const w=cv.parentElement.getBoundingClientRect().width||600;
+  const dpr=Math.min(2,window.devicePixelRatio||1);
+  cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);
+  cv.style.width=w+'px';cv.style.height=h+'px';
+  const ctx=cv.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);
+  return {ctx,w};
+}
+function lcg(seed){let s=seed>>>0;return ()=>((s=(s*1664525+1013904223)>>>0)/4294967296);}
+
+/* ============ Hero：数据包流动（JS 驱动 SVG） ============ */
+const heroPackets=[];
+(function heroInit(){
+  const NS='http://www.w3.org/2000/svg';
+  const layer=document.getElementById('hpLayer');
+  if(!layer) return;
+  const defs=[
+    {y:162,x0:272,x1:568,dur:2.6,off:0,   col:'#34e08a',lab:'CMD17',bg:'rgba(52,224,138,.16)'},
+    {y:162,x0:568,x1:272,dur:2.6,off:1.3, col:'#ffb02e',lab:'R1',   bg:'rgba(255,176,46,.16)'},
+    {y:162,x0:272,x1:568,dur:2.6,off:3.4, col:'#34e08a',lab:'CMD24',bg:'rgba(52,224,138,.16)'},
+    {y:228,x0:568,x1:272,dur:3.2,off:2.6, col:'#57d8f2',lab:'512B ×n · CRC16',bg:'rgba(87,216,242,.16)'},
+    {y:244,x0:272,x1:568,dur:3.2,off:5.7, col:'#ffb02e',lab:'512B ×n · CRC16',bg:'rgba(255,176,46,.14)'},
+    {y:228,x0:568,x1:272,dur:3.2,off:8.8, col:'#57d8f2',lab:'READ DATA',bg:'rgba(87,216,242,.16)'},
+  ];
+  defs.forEach(d=>{
+    const g=document.createElementNS(NS,'g');
+    g.setAttribute('class','hs-pkt');
+    const r=document.createElementNS(NS,'rect');
+    r.setAttribute('x','-46');r.setAttribute('y','-11');
+    r.setAttribute('width','92');r.setAttribute('height','22');r.setAttribute('rx','5');
+    r.setAttribute('fill',d.bg);r.setAttribute('stroke',d.col);r.setAttribute('stroke-width','1.4');
+    const t=document.createElementNS(NS,'text');
+    t.setAttribute('text-anchor','middle');t.setAttribute('y','4');
+    t.setAttribute('font-family','IBM Plex Mono,monospace');t.setAttribute('font-size','9.5');
+    t.setAttribute('fill',d.col);t.textContent=d.lab;
+    g.appendChild(r);g.appendChild(t);layer.appendChild(g);
+    heroPackets.push({el:g,...d});
+  });
+})();
+let heroT=0;
+function heroTick(dt){
+  if(reduced) return;
+  heroT+=dt;
+  for(const p of heroPackets){
+    const c=mod(heroT+p.off,p.dur)/p.dur;
+    const x=p.x0+(p.x1-p.x0)*c;
+    p.el.setAttribute('transform','translate('+x.toFixed(1)+','+p.y+')');
+    const op=c<.06?c/.06:(c>.94?(1-c)/.06:1);
+    p.el.setAttribute('opacity',op.toFixed(2));
+  }
+  const leds=$$('#heroSvg .hs-led');
+  leds.forEach((l,i)=>{ l.style.opacity=(Math.sin(heroT*3+i*1.7)>0)?'1':'.2'; });
+}
+
+/* ============ §02：信号卡实时波形 ============ */
+const WAVES=[];
+$$('canvas[data-wave]').forEach(cv=>{
+  const kind=cv.dataset.wave;
+  const cfgs={
+    clk :{rows:['clk'],pb:22,speed:40,seed:11},
+    cmd :{rows:['cmd'],pb:9, speed:22,seed:23},
+    dat :{rows:['d0','d1','d2','d3'],pb:7,speed:22,seed:37},
+    aux :{rows:['rst'],pb:26,speed:16,seed:51},
+  }[kind];
+  const rnd=lcg(cfgs.seed);
+  const bits=Array.from({length:96},()=>rnd()>.5?1:0);
+  WAVES.push({cv,cfg:cfgs,bits,phase:rnd()*40,visible:false});
+});
+function waveTick(dt){
+  for(const w of WAVES){
+    if(!w.visible) continue;
+    w.phase+=w.cfg.speed*dt;
+    const f=fit(w.cv,84);const c=f.ctx,W=f.w,H=84,pb=w.cfg.pb;
+    c.clearRect(0,0,W,H);
+    const t0=w.phase,t1=t0+W/pb;
+    const x=t=>(t-w.phase)*pb;
+    if(pb>=6){
+      c.strokeStyle=COL.grid;c.lineWidth=1;
+      for(let i=Math.ceil(t0);i<t1;i++){c.beginPath();c.moveTo(x(i)+.5,6);c.lineTo(x(i)+.5,H-6);c.stroke();}
+    }
+    const rows=w.cfg.rows,n=rows.length;
+    rows.forEach((k,idx)=>{
+      const y0=16+(H-24)*(idx+.5)/n, amp=n>1?7:12;
+      if(k==='clk'){
+        c.strokeStyle=COL.clk;c.lineWidth=2;
+        if(idx===0){c.shadowColor=COL.clk;c.shadowBlur=7;}
+        c.beginPath();
+        for(let i=Math.floor(t0)-1;i<=Math.ceil(t1)+1;i++){
+          const segs=[[i,i+.5,y0-amp],[i+.5,i+1,y0+amp]];
+          for(const [a,b,y] of segs){
+            const xa=x(a),xb=x(b);
+            c.lineTo(xa,y);c.lineTo(xb,y);
+          }
+        }
+        c.stroke();c.shadowBlur=0;
+      }else if(k==='rst'){
+        c.strokeStyle='#8aa294';c.lineWidth=2;c.beginPath();
+        for(let i=Math.floor(t0)-2;i<=Math.ceil(t1)+2;i++){
+          const m=mod(i,24),y=m<4?y0+amp:y0-amp;   /* 周期性低脉冲 = 复位 */
+          c.lineTo(x(i),y);c.lineTo(x(i+1),y);
+        }
+        c.stroke();
+      }else{ /* cmd / dat */
+        const isCmd=k==='cmd';
+        const L=isCmd?48:1;
+        const bitAt=i=>{
+          if(isCmd){
+            const seg=Math.floor(i/L),inner=mod(i,L);
+            return inner<20?w.bits[mod(seg*20+inner,96)]:(inner<26?1:w.bits[mod(seg*40+inner,96)]);
+          }
+          const off=k==='d1'?17:k==='d2'?41:k==='d3'?73:0;
+          return w.bits[mod(i+off,96)];
+        };
+        let curCol=null,py=null;
+        c.lineWidth=2;
+        for(let i=Math.floor(t0)-1;i<=Math.ceil(t1)+1;i++){
+          const y=bitAt(i)?y0-amp:y0+amp;
+          const col=isCmd?(Math.floor(mod(i,96)/L)%2===0?COL.clk:COL.cmd):COL.dat;
+          if(col!==curCol){
+            if(curCol!==null)c.stroke();
+            c.strokeStyle=col;c.beginPath();
+            if(py!==null)c.moveTo(x(i),py);else c.moveTo(x(i),y);
+            curCol=col;
+          }
+          c.lineTo(x(i+1),y);py=y;
+        }
+        c.stroke();
+      }
+    });
+  }
+}
+
+/* ============ §03：分区说明切换 ============ */
+const PARTS={
+  boot1:['Boot Partition 1 · 一级引导的家','容量由 <code>BOOT_SIZE_MULT[226]</code> 决定（典型 4 MB，单位 128 KB）。配置好 BOOT_CFG 后，芯片上电无需任何命令即把这里的字节顺序送上 DAT 线——SoC 的 BootROM 直接吃。对应块设备 <code>mmcblk0boot0</code>，默认只读，需 <code>mmc bootbus</code>/<code>mmc boot enable</code> 解锁写权限。'],
+  boot2:['Boot Partition 2 · 免费的双保险','与 Boot1 完全对等的第二个引导分区。OTA 升级的正确姿势：新引导写 Boot2 → 校验 → 切 PARTITION_CONFIG 指向 Boot2 → 重启。失败还能回 Boot1，救砖于无形。对应 <code>mmcblk0boot1</code>。'],
+  rpmb:['RPMB · Replay Protected Memory Block','带锁的 4 MB：<b>写入必须带 HMAC-SHA256 签名，签名里掺着芯片内单调递增的写计数器</b>——重放旧数据会被当场识破（下方动画逐步演示）。key 出厂烧录一次，永不可读。对应 <code>mmcblk0rpmb</code>，只能经 mmc-utils/vdcmd 之类专用工具访问。'],
+  gpp:['GPP 1–4 · 自划的逻辑分区','General Purpose Partition：在 User Area 之外由用户预先划出最多 4 个独立分区（放敏感配置、A/B 系统元数据等），各有独立 EXT_CSD 寻址开关。默认不启用，需要时用 <code>mmc gp create</code> 划分——划分动作本身不可逆，想清楚再敲。'],
+  user:['User Area · 主存储','真正放文件系统的地盘（GPT 分出 p1/p2…）。标称容量之外，FTL 还偷偷保留了 OP（Over-Provisioning）空间做垃圾回收周转——这也是 128 GB 盘格式化后「缩水」之外的另一层真相。磨损均衡、坏块替换全部发生在这层之下，主机无感。'],
+};
+(function partInit(){
+  const desc=document.getElementById('partDesc');
+  const segs=$$('.part-svg .p-seg');
+  function sel(k){
+    segs.forEach(g=>g.querySelector('rect').setAttribute('stroke-width',g.dataset.part===k?'2.6':'1.2'));
+    const d=PARTS[k];
+    desc.innerHTML='<b>'+d[0]+'</b><br>'+d[1];
+  }
+  segs.forEach(g=>g.addEventListener('click',()=>sel(g.dataset.part)));
+  sel('rpmb');
+})();
+
+/* ============ §03：RPMB 步进动画 ============ */
+document.getElementById('rpSvg').innerHTML=`
+<svg viewBox="0 0 560 264" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono,monospace">
+  <rect x="12" y="14" width="180" height="222" rx="10" fill="rgba(52,224,138,.04)" stroke="rgba(52,224,138,.4)"/>
+  <text x="102" y="38" text-anchor="middle" fill="#dcebe1" font-size="13" font-weight="600">HOST（SoC）</text>
+  <g class="el" id="rpeKeyH">
+    <rect x="28" y="52" width="148" height="34" rx="6" fill="rgba(255,176,46,.07)" stroke="rgba(255,176,46,.5)"/>
+    <text x="102" y="66" text-anchor="middle" fill="#ffb02e" font-size="10.5" font-weight="600">KEY · 32 B（本地保存）</text>
+    <text x="102" y="80" text-anchor="middle" fill="rgba(255,176,46,.7)" font-size="8.5">与芯片内那份相同</text>
+  </g>
+  <g class="el" id="rpeCtrH">
+    <rect x="28" y="94" width="148" height="30" rx="6" fill="rgba(87,216,242,.06)" stroke="rgba(87,216,242,.45)"/>
+    <text x="102" y="113" text-anchor="middle" fill="#57d8f2" font-size="10.5">counter 副本 = <tspan id="rpCtrH">42</tspan></text>
+  </g>
+  <g class="el" id="rpeNonce">
+    <rect x="28" y="132" width="148" height="30" rx="6" fill="rgba(87,216,242,.06)" stroke="rgba(87,216,242,.45)"/>
+    <text x="102" y="151" text-anchor="middle" fill="#57d8f2" font-size="10.5">nonce（随机数·防重放）</text>
+  </g>
+  <g class="el" id="rpeMac">
+    <rect x="28" y="174" width="148" height="52" rx="6" fill="rgba(52,224,138,.07)" stroke="rgba(52,224,138,.5)"/>
+    <text x="102" y="194" text-anchor="middle" fill="#34e08a" font-size="10.5" font-weight="600">HMAC-SHA256</text>
+    <text x="102" y="210" text-anchor="middle" fill="rgba(52,224,138,.8)" font-size="8.5">MAC = f(key, counter‖data‖addr)</text>
+  </g>
+  <rect x="368" y="14" width="180" height="222" rx="10" fill="rgba(255,100,120,.04)" stroke="rgba(255,100,120,.4)"/>
+  <text x="458" y="38" text-anchor="middle" fill="#dcebe1" font-size="13" font-weight="600">eMMC 芯片</text>
+  <g class="el" id="rpeKeyD">
+    <rect x="384" y="52" width="148" height="34" rx="6" fill="rgba(255,176,46,.07)" stroke="rgba(255,176,46,.5)"/>
+    <text x="458" y="66" text-anchor="middle" fill="#ffb02e" font-size="10.5" font-weight="600">KEY VAULT（只进不出）</text>
+    <text x="458" y="80" text-anchor="middle" fill="rgba(255,176,46,.7)" font-size="8.5">PROGRAM_KEY 一次烧死</text>
+  </g>
+  <g class="el" id="rpeCtrD">
+    <rect x="384" y="94" width="148" height="30" rx="6" fill="rgba(87,216,242,.06)" stroke="rgba(87,216,242,.45)"/>
+    <text x="458" y="113" text-anchor="middle" fill="#57d8f2" font-size="10.5">写计数器 = <tspan id="rpCtrD">42</tspan></text>
+  </g>
+  <g class="el" id="rpeRpmb">
+    <rect x="384" y="132" width="148" height="94" rx="6" fill="rgba(255,100,120,.08)" stroke="rgba(255,100,120,.55)"/>
+    <text x="458" y="158" text-anchor="middle" fill="#ff6478" font-size="11" font-weight="600">RPMB 分区 · 4 MB</text>
+    <text x="458" y="178" text-anchor="middle" fill="rgba(255,100,120,.75)" font-size="8.5">数据 + 计数器掉电不丢</text>
+    <text x="458" y="194" text-anchor="middle" fill="rgba(255,100,120,.75)" font-size="8.5">写入需验证 MAC 与计数器</text>
+  </g>
+  <g class="frame" id="rpeFrame">
+    <rect x="212" y="98" width="136" height="40" rx="7" id="rpeFrameBg" fill="rgba(87,216,242,.14)" stroke="#57d8f2" stroke-width="1.6"/>
+    <text x="280" y="115" text-anchor="middle" fill="#57d8f2" font-size="9.5" font-weight="600" id="rpeFrameLab">FRAME</text>
+    <text x="280" y="130" text-anchor="middle" fill="rgba(87,216,242,.75)" font-size="8" id="rpeFrameSub">经过 CMD/DAT 线</text>
+    <path d="M348,118 L364,118" stroke="#57d8f2" stroke-width="1.6" id="rpeFrameArr" fill="none"/>
+    <path d="M362,113 L372,118 L362,123 z" fill="#57d8f2" id="rpeFrameTip"/>
+  </g>
+  <text x="280" y="258" text-anchor="middle" fill="rgba(92,114,100,.9)" font-size="9.5">掉电重启后计数器原值还在——这就是「回放旧帧」行不通的原因</text>
+</svg>`;
+const RPSTEPS=[
+  {t:'① 产线烧 Key · PROGRAM_KEY',
+   d:'认证密钥 32 字节，<code>PROGRAM_KEY</code> 命令<b>只能执行一次</b>：烧入后芯片内永不可读、永不可改。主机（产线服务器）自己留一份。烧错 = RPMB 报废（10 节第 4 坑）。',
+   on:['rpeKeyH','rpeKeyD'],frame:null},
+  {t:'② 读计数器 · READ_COUNTER + nonce',
+   d:'写 RPMB 前先带随机 <code>nonce</code> 读芯片的 32-bit 写计数器（响应也带 MAC，防止伪造响应）。计数器每成功写一次就 +1，<b>单调递增、掉电保持</b>。',
+   on:['rpeCtrD','rpeCtrH','rpeNonce'],frame:{dir:1,lab:'READ_COUNTER(nonce)',col:'#57d8f2'}},
+  {t:'③ 本地算 MAC · HMAC-SHA256',
+   d:'主机用 key 对 <code>counter ‖ data ‖ addr</code> 计算 HMAC-SHA256 得到 MAC。<b>计数器掺进签名</b>是点睛之笔：同一份数据在不同时刻的 MAC 必然不同。',
+   on:['rpeKeyH','rpeCtrH','rpeMac'],frame:null},
+  {t:'④ 签名写 · AUTHENTICATE WRITE',
+   d:'写请求 = 数据 + 刚算的 MAC，一起发进 RPMB。<b>没有 MAC 的写入请求会被芯片直接拒绝</b>——这不是文件系统权限，是硅片级的门卫。',
+   on:['rpeMac','rpeFrame'],frame:{dir:1,lab:'WRITE(data+MAC)',col:'#34e08a'}},
+  {t:'⑤ 芯片验证 · 重算 + 比对 + 计数器自增',
+   d:'芯片用自己保存的 key 重算 MAC：一致且计数器匹配当前值 → 落盘，<code>counter 42→43</code>；不一致 → 拒绝并报错。主机下次写必须重新走第 ②步。',
+   on:['rpeKeyD','rpeCtrD','rpeRpmb'],frame:null,ctrD:'43',ctrH:'43'},
+  {t:'⑥ 攻击演示 · 回放旧帧被拒',
+   d:'攻击者录下第 ④步的旧帧重发：MAC 本身没错，但<b>签名里的 counter 还是 42，芯片当前已是 43</b> → 验证失败。想把系统版本「滚」回去骗过防回滚校验？此路不通。',
+   on:['rpeFrame','rpeCtrD'],frame:{dir:1,lab:'旧帧重放 ✗',col:'#ff6478',shake:true}},
+];
+let rpIdx=0,rpAuto=!reduced,rpTimer=0;
+const rpSvgEl=document.getElementById('rpSvg');
+(function rpStepsInit(){
+  const bar=document.getElementById('rpSteps');
+  RPSTEPS.forEach(()=>{const i=document.createElement('i');bar.appendChild(i);});
+})();
+function rpRender(){
+  const st=RPSTEPS[rpIdx];
+  rpSvgEl.querySelectorAll('.el').forEach(g=>g.classList.toggle('on',st.on.includes(g.id)));
+  rpSvgEl.querySelectorAll('.el.on').forEach(g=>g.classList.add('lit'));
+  rpSvgEl.querySelectorAll('.el:not(.on)').forEach(g=>g.classList.remove('lit'));
+  const fr=document.getElementById('rpeFrame');
+  fr.classList.toggle('on',!!st.frame);
+  if(st.frame){
+    document.getElementById('rpeFrameBg').setAttribute('stroke',st.frame.col);
+    document.getElementById('rpeFrameBg').setAttribute('fill','rgba(255,100,120,.14)');
+    document.getElementById('rpeFrameLab').textContent=st.frame.lab;
+    document.getElementById('rpeFrameLab').setAttribute('fill',st.frame.col);
+    const left=st.frame.dir>0;
+    document.getElementById('rpeFrameArr').setAttribute('d',left?'M348,118 L364,118':'M212,118 L196,118');
+    document.getElementById('rpeFrameTip').setAttribute('d',left?'M362,113 L372,118 L362,123 z':'M202,113 L192,118 L202,123 z');
+  }
+  document.getElementById('rpCtrD').textContent=st.ctrD||'42';
+  document.getElementById('rpCtrH').textContent=st.ctrH||'42';
+  document.getElementById('rpTitle').textContent=st.t;
+  document.getElementById('rpDesc').innerHTML=st.d;
+  $$('#rpSteps i').forEach((i,k)=>i.classList.toggle('on',k===rpIdx));
+}
+function rpGoto(i){rpIdx=mod(i,RPSTEPS.length);rpRender();rpTimer=0;}
+document.getElementById('rpPrev').addEventListener('click',()=>{rpAuto=false;syncRp();rpGoto(rpIdx-1);});
+document.getElementById('rpNext').addEventListener('click',()=>{rpAuto=false;syncRp();rpGoto(rpIdx+1);});
+function syncRp(){
+  const b=document.getElementById('rpPlay');
+  b.textContent=rpAuto?'❚❚':'▶';
+  b.classList.toggle('on',rpAuto);
+}
+document.getElementById('rpPlay').addEventListener('click',()=>{rpAuto=!rpAuto;syncRp();rpTimer=0;});
+function rpTick(dt){
+  if(!rpAuto) return;
+  rpTimer+=dt;
+  if(rpTimer>3.4) rpGoto(rpIdx+1);
+}
+rpRender();syncRp();
+
+/* ============ §04：速度模式实验室 ============ */
+const MODES={
+  ds:  {name:'LEGACY · DS', f:26, ddr:false, samp:'上升沿 · 单沿', bpc:'1 bit',  thr:'26 MB/s',  timing:'HS_TIMING=0x0 · 默认档', v:'3.3/1.8 V'},
+  hs:  {name:'HIGH SPEED',  f:52, ddr:false, samp:'上升沿 · 单沿', bpc:'1 bit',  thr:'52 MB/s',  timing:'HS_TIMING=0x1 · 无需调谐', v:'3.3/1.8 V'},
+  hs200:{name:'HS200',      f:200,ddr:false, samp:'上升沿 · 源同步+调谐', bpc:'1 bit', thr:'200 MB/s', timing:'BUS_WIDTH=0x2 + HS_TIMING=0x2 + CMD21 调谐', v:'必须 1.8 V'},
+  hs400:{name:'HS400',      f:200,ddr:true,  samp:'双沿 · 上升+下降', bpc:'2 bit',  thr:'400 MB/s', timing:'先 HS200 调谐 → BUS_WIDTH=0x6 + HS_TIMING=0x3', v:'必须 1.8 V'},
+};
+const STREAM_SDR=[0,1,0,1,1,0,0,1];              /* 0x59 */
+const STREAM_DDR=[0,1,0,1,1,0,0,1,1,1,0,0,1,0,1,1]; /* 0x59 0xCB */
+const TW=9;                                        /* 显示窗口 = 9 个 CLK 周期 */
+const LB={m:MODES.hs200,phase:0,speed:18,playing:!reduced,nextAbs:0,got:[],bytes:[],lastEdge:null,visible:false};
+const labCv=document.getElementById('labCanvas');
+let labCtx=null,labW=600;const LABH=296;
+(function shiftInit(){
+  const box=document.getElementById('rxShift');
+  for(let i=0;i<8;i++){
+    const c=document.createElement('div');c.className='cell';
+    c.innerHTML='<div class="box">·</div><small>b'+i+'</small>';
+    box.appendChild(c);
+  }
+})();
+function labSetMode(k){
+  LB.m=MODES[k];LB.phase=0;LB.nextAbs=0;LB.got=[];LB.bytes=[];LB.lastEdge=null;
+  document.getElementById('rMode').textContent=LB.m.name;
+  document.getElementById('rFreq').textContent=LB.m.f+' MHz';
+  document.getElementById('rSamp').textContent=LB.m.samp;
+  document.getElementById('rBits').textContent=LB.m.bpc;
+  document.getElementById('rThr').textContent=LB.m.thr;
+  labUpdateCells();
+}
+function labUpdateCells(){
+  const cells=$$('#rxShift .cell');
+  const last8=LB.got.slice(-8);
+  cells.forEach((c,i)=>{
+    const v=last8[i];
+    c.classList.toggle('filled',v!==undefined);
+    c.querySelector('.box').textContent=v===undefined?'·':v;
+  });
+  document.getElementById('rCnt').textContent=LB.got.length+' bit';
+  const hex=LB.bytes.slice(-4).map(b=>'0x'+b.toString(16).toUpperCase().padStart(2,'0')).join(' ');
+  document.getElementById('rxByte').innerHTML='接收字节：'+(hex||'—')+'<br>计数：'+LB.bytes.length;
+}
+function labFire(){
+  const step=LB.m.ddr?0.5:1,L=LB.m.ddr?16:8;
+  const stream=LB.m.ddr?STREAM_DDR:STREAM_SDR;
+  const tP=LB.phase+0.62*TW;
+  while(LB.nextAbs*step<=tP){
+    const bitIdx=LB.nextAbs%L;
+    LB.got.push(stream[bitIdx]);
+    LB.lastEdge=LB.nextAbs*step;
+    LB.nextAbs++;
+    if(LB.got.length%8===0){
+      let b=0;for(let i=0;i<8;i++)b=(b<<1)|LB.got[LB.got.length-8+i];
+      LB.bytes.push(b);
+    }
+    if(LB.got.length>256){LB.got.splice(0,248);/* 计数连续性优先显示 */}
+  }
+  labUpdateCells();
+}
+function labTick(dt){
+  if(!LB.visible||!LB.playing) return;
+  LB.phase+=LB.speed*dt;
+  labFire();
+}
+function labDraw(){
+  if(!labCtx){const f=fit(labCv,LABH);labCtx=f.ctx;labW=f.w;}
+  const c=labCtx,W=labW,H=LABH,pb=W/TW;
+  const x=t=>(t-LB.phase)*pb;
+  c.clearRect(0,0,W,H);
+  const t0=LB.phase,t1=t0+TW;
+  const L=LB.m.ddr?16:8,stream=LB.m.ddr?STREAM_DDR:STREAM_SDR;
+  /* 位窗口：探针所在周期 */
+  const tP=t0+0.62*TW,win=Math.floor(tP);
+  c.fillStyle='rgba(255,100,120,.08)';
+  c.fillRect(x(win),14,pb,H-28);
+  /* 网格 */
+  c.strokeStyle=COL.grid;c.lineWidth=1;
+  for(let i=Math.ceil(t0);i<t1;i++){c.beginPath();c.moveTo(x(i)+.5,12);c.lineTo(x(i)+.5,H-12);c.stroke();}
+  if(LB.m.ddr){
+    c.strokeStyle='rgba(255,100,120,.1)';
+    for(let i=Math.ceil(t0);i<t1;i++){c.beginPath();c.moveTo(x(i+.5)+.5,12);c.lineTo(x(i+.5)+.5,H-12);c.stroke();}
+  }
+  /* CLK */
+  const yc=70,ampC=16;
+  c.strokeStyle=COL.clk;c.lineWidth=2;
+  c.shadowColor=COL.clk;c.shadowBlur=8;
+  c.beginPath();
+  for(let i=Math.floor(t0)-1;i<=Math.ceil(t1)+1;i++){
+    c.lineTo(x(i),yc-ampC);c.lineTo(x(i+.5),yc-ampC);
+    c.lineTo(x(i+.5),yc+ampC);c.lineTo(x(i+1),yc+ampC);
+  }
+  c.stroke();c.shadowBlur=0;
+  c.fillStyle='rgba(7,11,9,.88)';c.fillRect(0,yc-9,64,18);
+  c.font='600 11px "IBM Plex Mono"';c.textAlign='left';c.fillStyle=COL.clk;
+  c.fillText('CLK',8,yc+4);
+  c.fillStyle='rgba(140,162,148,.7)';c.font='9px "IBM Plex Mono"';
+  c.fillText(LB.m.f+' MHz',34,yc+4);
+  /* DAT0 */
+  const yd=170,ampD=22;
+  const bitAt=t=>{
+    if(!LB.m.ddr){
+      const i=Math.floor(t);return stream[mod(i,8)];
+    }
+    const h=t-Math.floor(t);
+    const i=Math.floor(t);return stream[mod(h<.5?2*i:2*i+1,16)];
+  };
+  c.strokeStyle=COL.dat;c.lineWidth=2.2;
+  c.beginPath();
+  const half=LB.m.ddr?.5:1;
+  for(let i=Math.floor(t0/half)-1;i<=Math.ceil(t1/half)+1;i++){
+    const a=i*half,b=a+half;
+    const y=bitAt(a+half/2)?yd-ampD:yd+ampD;
+    c.lineTo(x(a),y);c.lineTo(x(b),y);
+  }
+  c.stroke();
+  c.fillStyle='rgba(7,11,9,.88)';c.fillRect(0,yd-9,64,18);
+  c.font='600 11px "IBM Plex Mono"';c.fillStyle=COL.dat;
+  c.fillText('DAT0',8,yd+4);
+  c.fillStyle='rgba(140,162,148,.7)';c.font='9px "IBM Plex Mono"';
+  c.fillText(LB.m.ddr?'DDR':'SDR',44,yd+4);
+  /* 位标签 */
+  c.font='9px "IBM Plex Mono"';c.textAlign='center';
+  for(let i=Math.ceil(t0);i<t1;i++){
+    if(LB.m.ddr){
+      c.fillStyle='rgba(87,216,242,.75)';
+      c.fillText(''+mod(2*i,16),x(i+.25),H-16);
+      c.fillText(''+mod(2*i+1,16),x(i+.75),H-16);
+    }else{
+      c.fillStyle='rgba(87,216,242,.75)';
+      c.fillText(''+mod(i,8),x(i+.5),H-16);
+    }
+  }
+  c.fillStyle='rgba(92,114,100,.9)';c.textAlign='left';
+  c.fillText('DAT0 位序（循环测试码流）',8,H-4);
+  /* 探针 + 采样点 */
+  const xp=W*0.62;
+  c.strokeStyle=COL.red;c.lineWidth=1;c.setLineDash([5,4]);
+  c.beginPath();c.moveTo(xp+.5,12);c.lineTo(xp+.5,H-12);c.stroke();c.setLineDash([]);
+  /* 已触发的采样沿（窗口内） */
+  const step=LB.m.ddr?0.5:1;
+  c.fillStyle=COL.red;
+  for(let n=Math.max(0,Math.ceil(t0/step));n*step<t1;n++){
+    if(n>=LB.nextAbs) break;
+    const xe=x(n*step);
+    c.beginPath();c.arc(xe,yc-ampC,3,0,7);c.fill();
+    const yb=bitAt(n*step+.01)?yd-ampD:yd+ampD;
+    c.beginPath();c.arc(xe,yb,3,0,7);c.fill();
+  }
+  if(LB.lastEdge!==null){
+    const xe=x(LB.lastEdge);
+    c.font='600 9px "IBM Plex Mono"';c.fillStyle=COL.red;c.textAlign='center';
+    c.fillText('↑采样',xp+2,26);
+    c.beginPath();c.arc(xe,yc-ampC,4.4,0,7);
+    c.strokeStyle=COL.red;c.lineWidth=1.6;c.stroke();
+  }
+}
+document.getElementById('modeSeg').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b) return;
+  $$('#modeSeg button').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');labSetMode(b.dataset.mode);
+});
+const labPlayBtn=document.getElementById('labPlay');
+function labSyncPlay(){
+  labPlayBtn.textContent=LB.playing?'❚❚':'▶';
+  labPlayBtn.classList.toggle('on',LB.playing);
+}
+labPlayBtn.addEventListener('click',()=>{LB.playing=!LB.playing;labSyncPlay();});
+document.getElementById('labStep').addEventListener('click',()=>{
+  LB.playing=false;labSyncPlay();
+  const step=LB.m.ddr?0.5:1;
+  LB.phase=LB.nextAbs*step-0.62*TW+0.001;
+  labFire();
+});
+document.getElementById('labReset').addEventListener('click',()=>{
+  LB.phase=0;LB.nextAbs=0;LB.got=[];LB.bytes=[];LB.lastEdge=null;labUpdateCells();
+});
+document.getElementById('labSpeed').addEventListener('input',e=>{LB.speed=+e.target.value;});
+labSetMode('hs200');labSyncPlay();
+
+/* ============ §05：eMMC vs UFS 队列动画 ============ */
+const QT={cmds:[],emc:[],ufs:[],Te:0,Tu:0,t:0,speed:14,playing:!reduced,visible:false};
+function qtGen(){
+  const n=7+Math.floor(Math.random()*3);
+  QT.cmds=Array.from({length:n},(_,i)=>({
+    t:Math.random()<.58?'R':'W',
+    d:+(1.0+Math.random()*1.9).toFixed(1),
+    i
+  }));
+  let t=0;
+  QT.emc=QT.cmds.map(cm=>{const o={...cm,s:t};t+=cm.d;o.e=t;return o;});
+  QT.Te=t;
+  let tr=0,tw=0;
+  QT.ufs=QT.cmds.map(cm=>{
+    const o={...cm};
+    if(cm.t==='R'){o.s=tr;tr+=cm.d;o.e=tr;}else{o.s=tw;tw+=cm.d;o.e=tw;}
+    return o;
+  });
+  QT.Tu=Math.max(tr,tw);
+  const order=QT.ufs.slice().sort((a,b)=>a.e-b.e);
+  order.forEach((o,k)=>o.done=k+1);
+  QT.t=0;
+  document.getElementById('qsSum').textContent='—';
+}
+const qCv=document.getElementById('queueCanvas');
+let qCtx=null,qW=600;const QH=330;
+function qDraw(){
+  if(!qCtx){const f=fit(qCv,QH);qCtx=f.ctx;qW=f.w;}
+  const c=qCtx,W=qW,H=QH;
+  c.clearRect(0,0,W,H);
+  const padL=96,padR=16;
+  const xw=W-padL-padR;
+  const X=v=>padL+v/QT.Te*xw;
+  const lab=(y,main,sub,col)=>{
+    c.font='600 11px "IBM Plex Mono"';c.textAlign='right';c.fillStyle=col;
+    c.fillText(main,padL-10,y);
+    c.font='8.5px "IBM Plex Mono"';c.fillStyle='rgba(140,162,148,.75)';
+    c.fillText(sub,padL-10,y+12);
+  };
+  /* eMMC lane */
+  c.fillStyle='rgba(52,224,138,.03)';c.fillRect(padL,34,xw,58);
+  c.strokeStyle='rgba(52,224,138,.2)';c.strokeRect(padL+.5,34.5,xw-1,57);
+  lab(56,'eMMC','#MMC 顺序协议','#dcebe1');
+  c.font='8.5px "IBM Plex Mono"';c.fillStyle='rgba(140,162,148,.7)';c.textAlign='left';
+  c.fillText('半双工 DAT[7:0]：读写排队，一条做完才下一条',padL+8,48);
+  /* UFS lanes */
+  c.fillStyle='rgba(87,216,242,.03)';c.fillRect(padL,158,xw,50);
+  c.strokeStyle='rgba(87,216,242,.2)';c.strokeRect(padL+.5,158.5,xw-1,49);
+  lab(178,'UFS RX','读 lane · 设备→主机','#57d8f2');
+  c.fillStyle='rgba(255,176,46,.03)';c.fillRect(padL,216,xw,50);
+  c.strokeStyle='rgba(255,176,46,.2)';c.strokeRect(padL+.5,216.5,xw-1,49);
+  lab(236,'UFS TX','写 lane · 主机→设备','#ffb02e');
+  c.font='8.5px "IBM Plex Mono"';c.fillStyle='rgba(140,162,148,.7)';c.textAlign='left';
+  c.fillText('差分 lane 全双工 + CQ 乱序：读写下轨同时流，块上 # = 完成顺序',padL+8,150);
+  const drawBlk=(o,y0,track)=>{
+    if(QT.t<o.s) return;
+    const x1=X(o.s),x2=X(o.e),bw=Math.max(x2-x1,10);
+    const done=QT.t>=o.e;
+    const run=!done;
+    const col=o.t==='R'?COL.clk:COL.cmd;
+    c.fillStyle=done?(o.t==='R'?'rgba(52,224,138,.30)':'rgba(255,176,46,.30)')
+                    :(o.t==='R'?'rgba(52,224,138,.14)':'rgba(255,176,46,.14)');
+    c.strokeStyle=run?col:'rgba(140,162,148,.5)';
+    c.lineWidth=run?2:1;
+    const r=6,yh=34;
+    c.beginPath();
+    if(c.roundRect)c.roundRect(x1,y0,bw,yh,r);else c.rect(x1,y0,bw,yh);
+    c.fill();c.stroke();
+    c.font='600 10px "IBM Plex Mono"';c.textAlign='center';
+    c.fillStyle=done?'#dcebe1':col;
+    const arrow=o.t==='R'?'←':'→';
+    c.fillText((o.t+ (o.i+1))+' '+arrow,(x1+x2)/2,y0+15);
+    c.font='8.5px "IBM Plex Mono"';
+    c.fillStyle='rgba(140,162,148,.9)';
+    c.fillText(done?'✓':'…',(x1+x2)/2,y0+27);
+    if(track==='ufs'&&done&&o.done){
+      c.font='700 9px "IBM Plex Mono"';c.fillStyle='#57d8f2';
+      c.fillText('#'+o.done,(x1+x2)/2,y0-4);
+    }
+  };
+  let emcDone=0,ufsDone=0;
+  for(const o of QT.emc){
+    drawBlk(o,44,'emc');
+    if(QT.t>=o.e) emcDone++;
+  }
+  for(const o of QT.ufs){
+    drawBlk(o,o.t==='R'?166:224,'ufs');
+    if(QT.t>=o.e) ufsDone++;
+  }
+  /* 播放头 */
+  const xp=X(Math.min(QT.t,QT.Te));
+  c.strokeStyle='rgba(220,235,225,.8)';c.lineWidth=1.6;
+  c.beginPath();c.moveTo(xp,26);c.lineTo(xp,284);c.stroke();
+  c.font='600 9px "IBM Plex Mono"';c.textAlign='center';c.fillStyle='#dcebe1';
+  c.fillText('t = '+QT.t.toFixed(1)+' µs',Math.min(xp+30,W-52),300);
+  /* 时间轴 */
+  c.strokeStyle='rgba(140,162,148,.3)';c.lineWidth=1;
+  c.beginPath();c.moveTo(padL,284);c.lineTo(W-padR,284);c.stroke();
+  c.font='8.5px "IBM Plex Mono"';c.fillStyle='rgba(92,114,100,.9)';c.textAlign='left';
+  c.fillText('0',padL,298);
+  c.textAlign='right';c.fillText('Te '+QT.Te.toFixed(1)+' µs',W-padR,298);
+  /* UFS 完成线 */
+  if(QT.Tu<QT.Te){
+    const xu=X(QT.Tu);
+    c.strokeStyle='rgba(87,216,242,.5)';c.setLineDash([4,4]);
+    c.beginPath();c.moveTo(xu,26);c.lineTo(xu,284);c.stroke();c.setLineDash([]);
+    c.fillStyle='rgba(87,216,242,.8)';c.textAlign='center';
+    c.fillText('UFS 全部完成',xu,26-8+18);
+  }
+  document.getElementById('qsEmc').textContent=emcDone+' / '+QT.cmds.length+' 完成';
+  document.getElementById('qsUfs').textContent=ufsDone+' / '+QT.cmds.length+' 完成';
+  if(QT.t>=QT.Te&&QT.playing){
+    QT.playing=false;qSyncPlay();
+    const sp=QT.Te/QT.Tu;
+    document.getElementById('qsSum').innerHTML=
+      '快 <b style="color:#57d8f2">'+sp.toFixed(2)+'×</b>（'+QT.cmds.length+' 个 I/O：eMMC '+QT.Te.toFixed(1)+' µs vs UFS '+QT.Tu.toFixed(1)+' µs）';
+  }
+}
+function qTick(dt){
+  if(!QT.visible||!QT.playing) return;
+  QT.t+=QT.speed*dt;
+  if(QT.t>QT.Te+1.5){qtGen();}
+}
+const qPlayBtn=document.getElementById('qPlay');
+function qSyncPlay(){
+  qPlayBtn.textContent=QT.playing?'❚❚':'▶';
+  qPlayBtn.classList.toggle('on',QT.playing);
+}
+qPlayBtn.addEventListener('click',()=>{QT.playing=!QT.playing;qSyncPlay();});
+document.getElementById('qReset').addEventListener('click',()=>{QT.t=0;QT.playing=true;qSyncPlay();});
+document.getElementById('qShuffle').addEventListener('click',()=>{qtGen();QT.playing=true;qSyncPlay();});
+document.getElementById('qSpeed').addEventListener('input',e=>{QT.speed=+e.target.value;});
+qtGen();qSyncPlay();
+
+/* ============ §07 写入放大/寿命计算器 ============ */
+function waCalc(){
+  const pe=+document.getElementById('waPe').value;
+  const cap=+document.getElementById('waCap').value;
+  const host=+document.getElementById('waHost').value;
+  const wa=+document.getElementById('waWa').value/10;
+  document.getElementById('waWaV').textContent='WA = '+wa.toFixed(1);
+  const nadW=host*wa;
+  const daily=nadW/cap;
+  const days=pe/daily;
+  const years=days/365;
+  const tbw=cap*pe/1048576;      /* GB×P/E ÷ 1024^2 → TB(按 1000 进位近似 GiB→TiB 语义) */
+  document.getElementById('waNand').innerHTML=nadW.toFixed(0)+'<small>GB/天</small>';
+  document.getElementById('waDaily').innerHTML=daily.toFixed(2)+'<small>次/天</small>';
+  const ly=years>=1?years.toFixed(1)+'<small>年</small>':days.toFixed(0)+'<small>天</small>';
+  document.getElementById('waLife').innerHTML=ly;
+  document.getElementById('waTbw').innerHTML=(tbw*1024/1000).toFixed(0)+'<small>TB</small>';
+  document.getElementById('waExpr').textContent=
+    cap+' GB × '+pe.toLocaleString()+' ÷ ('+host+' × '+wa.toFixed(1)+') = '+Math.round(days)+' 天 ≈ '+years.toFixed(1)+' 年';
+}
+['waPe','waCap','waHost','waWa'].forEach(id=>document.getElementById(id).addEventListener('change',waCalc));
+document.getElementById('waWa').addEventListener('input',waCalc);
+waCalc();
+
+/* ============ §08 带宽计算器 ============ */
+function bwCalc(){
+  const Wd=+document.getElementById('bwWidth').value;
+  const f=+document.getElementById('bwClk').value;
+  const s=+document.getElementById('bwSmp').value;
+  const mb=f*Wd*s/8;
+  const legal=!(s===2&&(f!==200||Wd!==8));
+  document.getElementById('bwThr').innerHTML=mb.toFixed(0)+'<small>MB/s</small>';
+  document.getElementById('bwEff').innerHTML=(mb*0.85).toFixed(0)+'<small>MB/s</small>';
+  document.getElementById('wbBpc').innerHTML=(Wd*s)+'<small>bit/CLK</small>';
+  document.getElementById('bwPer').innerHTML=(1000/f).toFixed(1)+'<small>ns</small>';
+  const lg=document.getElementById('bwLegal');
+  if(legal){lg.textContent='合法档位 ✓';lg.classList.remove('warn');}
+  else{lg.innerHTML='DDR 仅 HS400 档<small>（200 MHz·8-bit）</small>';lg.classList.add('warn');}
+  document.getElementById('bwExpr').textContent=
+    f+' MHz × '+Wd+' bit × '+s+' ÷ 8 = '+mb.toFixed(0)+' MB/s';
+}
+['bwWidth','bwClk','bwSmp'].forEach(id=>document.getElementById(id).addEventListener('change',bwCalc));
+bwCalc();
+
+/* ============ 命令点击复制 ============ */
+document.addEventListener('click',async e=>{
+  const el=e.target.closest('.t-cmd');
+  if(!el) return;
+  const txt=el.dataset.copy||el.textContent;
+  let okFlag=false;
+  try{await navigator.clipboard.writeText(txt);okFlag=true;}
+  catch{
+    const ta=document.createElement('textarea');
+    ta.value=txt;ta.style.position='fixed';ta.style.opacity='0';
+    document.body.appendChild(ta);ta.select();
+    try{okFlag=document.execCommand('copy');}catch{}
+    ta.remove();
+  }
+  const old=el.textContent;
+  el.classList.add('copied');
+  el.textContent=okFlag?'已复制 ✓':'复制失败';
+  setTimeout(()=>{el.classList.remove('copied');el.textContent=old;},900);
+});
+
+/* ============ §09 打字终端 ============ */
+const TERM={
+  lines:[
+    {c:'sudo mmc extcsd read /dev/mmcblk0',n:'① 一条命令读出 512 B 灵魂寄存器（输出删减）'},
+    {o:'=========================================='},
+    {o:'Extended CSD revision 8 (eMMC 5.1)        # 芯片出身'},
+    {o:'SEC_COUNT [212] : 0x03A38000  (29.3 GB)   # 容量 = 扇区数 × 512 B'},
+    {o:'BOOT_SIZE_MULT [226] : 0x20 (4 MB x 2)    # 双 boot 分区各 4 MB'},
+    {o:'RPMB_SIZE_MULT [166] : 0x04 (4 MB)        # RPMB 分区容量'},
+    {o:'PARTITION_CONFIG [179] : 0x00             # 当前访问 User Area'},
+    {o:'HS_TIMING [183] : 0x03 (HS400)            # 0=DS 1=HS 2=HS200 3=HS400/ES'},
+    {o:'BUS_WIDTH [185] : 0x06 (8-bit, DDR)       # 04 节实验室的字段'},
+    {o:'DEVICE_LIFE_TIME_EST_A [268] : 0x02       # 已消耗 10–20% 寿命（07 节）'},
+    {c:'ls /sys/block/mmcblk0/',n:'② 分区布局：boot 与 rpmb 是独立块设备'},
+    {o:'mmcblk0  mmcblk0boot0  mmcblk0boot1  mmcblk0rpmb  mmcblk0p1 ...'},
+    {c:'cat /sys/kernel/debug/mmc/ios',n:'③ 当前协商档位'},
+    {o:'clock: 200000000 Hz  bus width: 8 bit DDR'},
+    {o:'timing: MMC HS400 (enhanced strobe)  voltage: 1800'},
+  ],
+  li:0,ci:0,wait:.4,visible:false,playing:!reduced,staticDone:false
+};
+function termReset(){TERM.li=0;TERM.ci=0;TERM.wait=.4;document.getElementById('termBody').innerHTML='';}
+function termStatic(){
+  const b=document.getElementById('termBody');b.innerHTML='';
+  TERM.lines.forEach(L=>{
+    if(L.c!==undefined){
+      const d=document.createElement('div');
+      d.innerHTML='<span class="t-ps">$ </span><code class="t-cmd" data-copy="'+escHtml(L.c)+'">'+escHtml(L.c)+'</code>'+
+        (L.n?'<span class="t-cmt">   # '+escHtml(L.n)+'</span>':'');
+      b.appendChild(d);
+    }else{
+      const d=document.createElement('div');
+      d.className='t-out';d.textContent=L.o;
+      b.appendChild(d);
+    }
+  });
+}
+function termTick(dt){
+  if(!TERM.visible) return;
+  if(reduced){if(!TERM.staticDone){termStatic();TERM.staticDone=true;}return;}
+  if(!TERM.playing) return;
+  if(TERM.wait>0){TERM.wait-=dt;if(TERM.wait>0)return;}
+  if(TERM.li>=TERM.lines.length){termReset();return;}
+  const L=TERM.lines[TERM.li],b=document.getElementById('termBody');
+  if(L.c!==undefined){
+    let div=b.querySelector('.t-line[data-i="'+TERM.li+'"]');
+    if(!div){
+      div=document.createElement('div');div.className='t-line';div.dataset.i=TERM.li;
+      div.innerHTML='<span class="t-ps">$ </span><span class="t-cmd"></span><span class="t-cmt"></span><span class="t-cursor"></span>';
+      b.appendChild(div);
+    }
+    TERM.ci+=dt*46;
+    const n=Math.min(L.c.length,Math.floor(TERM.ci));
+    div.querySelector('.t-cmd').textContent=L.c.slice(0,n);
+    if(n>=L.c.length){
+      if(L.n)div.querySelector('.t-cmt').textContent='   # '+L.n;
+      const cu=div.querySelector('.t-cursor');if(cu)cu.remove();
+      TERM.li++;TERM.ci=0;TERM.wait=.55;
+      if(TERM.li>=TERM.lines.length)TERM.wait=5;
+    }
+  }else{
+    const d=document.createElement('div');
+    d.className='t-out';d.textContent=L.o;
+    b.appendChild(d);
+    TERM.li++;TERM.wait=.32;
+    if(TERM.li>=TERM.lines.length)TERM.wait=6;
+  }
+  b.scrollTop=b.scrollHeight;
+}
+document.getElementById('btnTermReplay').addEventListener('click',()=>{termReset();TERM.playing=true;});
+
+/* ============ 滚动显现 + 可见性 ============ */
+const io=new IntersectionObserver(es=>es.forEach(e=>{
+  if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}
+}),{threshold:.12});
+$$('.reveal').forEach(el=>io.observe(el));
+function watch(elm,obj){
+  new IntersectionObserver(es=>es.forEach(e=>obj.visible=e.isIntersecting),{rootMargin:'80px'}).observe(elm);
+}
+watch(labCv,LB);watch(qCv,QT);
+watch(document.getElementById('termBody'),TERM);
+WAVES.forEach(w=>watch(w.cv,w));
+watch(document.getElementById('heroSvg'),{set visible(v){}});
+
+/* ============ 主循环 ============ */
+let rzT;
+function resizeAll(){labCtx=null;qCtx=null;}
+window.addEventListener('resize',()=>{clearTimeout(rzT);rzT=setTimeout(resizeAll,150);});
+let lastT=performance.now();
+function loop(now){
+  const dt=Math.min((now-lastT)/1000,.1);lastT=now;
+  try{
+    heroTick(dt);
+    waveTick(dt);
+    rpTick(dt);
+    labTick(dt);labDraw();
+    qTick(dt);qDraw();
+    termTick(dt);
+  }catch(err){
+    if(!window.__emmcLoopErr){window.__emmcLoopErr=String(err&&err.stack||err);console.error(err);}
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1800 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>USB 协议详解 · 交互式图解（USB·LAB）</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%23070b09'/><circle cx='16' cy='16' r='11' fill='none' stroke='%2334e08a' stroke-width='2.4'/><circle cx='16' cy='16' r='4.5' fill='none' stroke='%2334e08a' stroke-width='2.4'/><path d='M16 5v3.5M16 23.5V27M5 16h3.5M23.5 16H27' stroke='%23ffb02e' stroke-width='2.4'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{ --bg:#070b09; --bg2:#0a100c; --panel:#0d1510; --panel2:#101a13; --line:#1d2c22; --line2:#27392d; --ink:#dcebe1; --dim:#8aa294; --faint:#5c7264; --green:#34e08a; --green-dim:#1d8a55; --amber:#ffb02e; --cyan:#57d8f2; --red:#ff6478; --mono:'IBM Plex Mono',ui-monospace,monospace; --disp:'Chakra Petch','Noto Sans SC',sans-serif; --sans:'Noto Sans SC',-apple-system,sans-serif;}
+*{margin:0;padding:0;box-sizing:border-box} html{scroll-behavior:smooth} body{ background:var(--bg);color:var(--ink); font-family:var(--sans);font-weight:300;line-height:1.8;letter-spacing:.01em; overflow-x:hidden;}
+/* 全局网格纸背景 */
+body::before{ content:"";position:fixed;inset:0;z-index:0;pointer-events:none; background-image: linear-gradient(rgba(52,224,138,.028) 1px,transparent 1px), linear-gradient(90deg,rgba(52,224,138,.028) 1px,transparent 1px), linear-gradient(rgba(52,224,138,.014) 1px,transparent 1px), linear-gradient(90deg,rgba(52,224,138,.014) 1px,transparent 1px); background-size:120px 120px,120px 120px,24px 24px,24px 24px;}
+body::after{ content:"";position:fixed;inset:0;z-index:0;pointer-events:none; background:radial-gradient(ellipse 120% 90% at 50% 0%,transparent 60%,rgba(0,0,0,.5));} main{position:relative;z-index:1}
+::selection{background:rgba(52,224,138,.3)}
+/* ============ 导航 ============ */
+nav{ position:fixed;top:0;left:0;right:0;z-index:100; display:flex;align-items:center;gap:14px;padding:0 22px;height:52px; background:rgba(7,11,9,.85);backdrop-filter:blur(12px); border-bottom:1px solid var(--line);}
+nav .brand{font-family:var(--disp);font-weight:700;font-size:16px;color:var(--green);letter-spacing:.04em;white-space:nowrap} nav .brand b{color:var(--amber);font-weight:700}
+nav .nav-links{display:flex;gap:3px;min-width:0;overflow:hidden}
+nav .nav-links a{ color:var(--dim);text-decoration:none;font-size:12px;font-family:var(--mono); letter-spacing:.04em;transition:color .2s;white-space:nowrap;padding:4px 6px;} nav .nav-links a:hover{color:var(--green)}
+nav .spacer{flex:1} nav .live{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:10.5px;color:var(--faint);white-space:nowrap}
+nav .live i{width:7px;height:7px;border-radius:50%;background:var(--green);animation:blink 1.6s infinite} @keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+/* ---- 跨页导航（全站清单，去掉自己）---- */
+nav .xnav{display:flex;gap:4px;margin-left:2px;padding-left:12px;border-left:1px solid var(--line); white-space:nowrap;overflow-x:auto;scrollbar-width:none;min-width:0;max-width:60vw} nav .xnav::-webkit-scrollbar{display:none}
+nav .xnav a{ display:inline-block;font-size:10.5px;letter-spacing:.05em;font-family:var(--mono); color:var(--dim);padding:4px 8px;border:1px solid var(--line);border-radius:3px;text-decoration:none;}
+nav .xnav a:hover{color:var(--green);border-color:rgba(52,224,138,.45)}
+@media (max-width:1360px){nav .nav-links{display:none}nav .xnav{max-width:none}}
+@media (max-width:760px){nav .live{display:none}}
+/* ============ Hero ============ */
+.hero{min-height:94vh;display:flex;flex-direction:column;justify-content:center;padding:104px 6vw 36px;position:relative}
+.hero .eyebrow{ font-family:var(--mono);font-size:12px;color:var(--amber);letter-spacing:.32em; margin-bottom:20px;display:flex;align-items:center;gap:14px;}
+.hero .eyebrow::before{content:"";width:44px;height:1px;background:var(--amber)} .hero h1{font-family:var(--disp);font-weight:700;font-size:clamp(56px,11vw,142px);line-height:.95;letter-spacing:-.01em;color:var(--ink)}
+.hero h1 sup{color:var(--green);font-size:.42em;letter-spacing:.06em} .hero h1 .zh{ display:block;font-family:var(--sans);font-weight:300; font-size:clamp(17px,2.3vw,28px);color:var(--dim);letter-spacing:.4em;margin-top:16px;}
+.hero p.lede{max-width:680px;margin-top:30px;font-size:15.5px;color:var(--dim)} .hero p.lede b{color:var(--ink);font-weight:500} .hero .chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:26px}
+.hero .chips span{ font-family:var(--mono);font-size:11.5px;padding:5px 12px; border:1px solid var(--line2);border-radius:3px;color:var(--dim);background:rgba(13,21,16,.6);} .hero .chips span b{color:var(--green);font-weight:500}
+.hero .chips span.ba b{color:var(--amber)} .hero .chips span.bc b{color:var(--cyan)} .hero .cta{display:flex;gap:12px;margin-top:28px;flex-wrap:wrap}
+.hero .cta a{ font-family:var(--disp);font-weight:600;font-size:14px;letter-spacing:.06em;text-decoration:none; padding:11px 24px;border-radius:5px;transition:.22s;border:1px solid transparent;cursor:pointer;}
+.hero .cta .p{color:#052013;background:var(--green);box-shadow:0 0 22px rgba(52,224,138,.3)} .hero .cta .p:hover{transform:translateY(-2px);box-shadow:0 6px 28px rgba(52,224,138,.45)}
+.hero .cta .g{color:var(--ink);border-color:var(--line2);background:rgba(255,255,255,.02)} .hero .cta .g:hover{border-color:rgba(52,224,138,.4);color:var(--green)}
+.hero-schema{ margin-top:46px;border:1px solid var(--line);border-radius:8px;overflow:hidden; background:rgba(9,14,11,.78);position:relative;}
+.hero-schema::after{ content:"";position:absolute;inset:0;pointer-events:none; background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.15) 3px 4px);} .hero-schema svg{display:block;width:100%;height:auto}
+.hero .scroll-hint{ margin-top:34px;font-family:var(--mono);font-size:11px;color:var(--faint); letter-spacing:.2em;display:flex;align-items:center;gap:10px;} .hero .scroll-hint svg{animation:bounce 1.8s infinite}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(6px)}}
+/* ============ 通用 section ============ */
+section{padding:92px 6vw;max-width:1280px;margin:0 auto;position:relative} .sec-head{display:flex;align-items:baseline;gap:20px;margin-bottom:16px}
+.sec-head .no{ font-family:var(--mono);font-size:13px;color:var(--green);letter-spacing:.1em; border:1px solid var(--green-dim);padding:3px 10px;border-radius:3px;white-space:nowrap;}
+.sec-head h2{font-family:var(--disp);font-weight:600;font-size:clamp(26px,3.6vw,40px);letter-spacing:.01em}
+.sec-head .en{ font-family:var(--mono);font-size:12px;color:var(--faint);letter-spacing:.24em; text-transform:uppercase;margin-left:auto;white-space:nowrap;}
+.sec-sub{color:var(--dim);max-width:780px;margin-bottom:42px;font-size:15px} .sec-sub b{color:var(--ink);font-weight:500} .reveal{opacity:0;transform:translateY(26px);transition:opacity .7s ease,transform .7s ease}
+.reveal.in{opacity:1;transform:none}
+/* ============ §01 概述 ============ */
+.two-col{display:grid;grid-template-columns:1.25fr .9fr;gap:44px;align-items:start} .prose p{margin-bottom:18px;color:var(--dim);font-size:15px} .prose p b{color:var(--ink);font-weight:500}
+.prose .kw{color:var(--green);font-family:var(--mono);font-size:.92em} .prose .kw2{color:var(--amber);font-family:var(--mono);font-size:.92em}
+.prose a{color:var(--cyan);text-decoration:none;border-bottom:1px dotted rgba(87,216,242,.5)} .prose a:hover{color:var(--green);border-color:var(--green)} .cmp-table{width:100%;border-collapse:collapse;font-size:13px}
+.cmp-table th{ font-family:var(--mono);font-weight:500;color:var(--faint);text-align:left; padding:9px 12px;border-bottom:1px solid var(--line2);font-size:11.5px;letter-spacing:.06em;}
+.cmp-table td{padding:10px 12px;border-bottom:1px solid var(--line);color:var(--dim);vertical-align:top} .cmp-table td:first-child{color:var(--ink);font-weight:400;white-space:nowrap} .cmp-table .yes{color:var(--green)}
+.cmp-table .no{color:var(--red)} .fact-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:36px}
+.fact{ border:1px solid var(--line);border-radius:6px;padding:20px 20px 18px; background:linear-gradient(160deg,var(--panel) 0%,rgba(13,21,16,.4) 100%); transition:border-color .25s,transform .25s;}
+.fact:hover{border-color:var(--green-dim);transform:translateY(-3px)} .fact .f-no{font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.14em}
+.fact h4{font-family:var(--disp);font-size:16.5px;font-weight:600;margin:8px 0 8px} .fact h4 code{font-family:var(--mono);font-size:.85em;color:var(--green)} .fact p{font-size:12.8px;color:var(--dim);line-height:1.7}
+.topo-wrap{margin-top:40px;border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:24px} .topo-wrap svg{width:100%;height:auto;display:block}
+/* ============ §02 物理层 ============ */
+.sig-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin-bottom:26px}
+.sig-card{ border:1px solid var(--line);border-radius:8px;overflow:hidden; background:var(--panel);display:flex;flex-direction:column;transition:border-color .25s;} .sig-card:hover{border-color:var(--line2)}
+.sig-card .scope{background:#080d0a;border-bottom:1px solid var(--line);position:relative}
+.sig-card .scope::after{ content:"";position:absolute;inset:0;pointer-events:none; background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.18) 3px 4px);} .sig-card canvas{display:block;width:100%;height:96px}
+.sig-card .body{padding:20px 22px 22px} .sig-card .names{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap} .sig-card .names .main{font-family:var(--disp);font-size:21px;font-weight:600}
+.sig-card .names .alias{font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.06em}
+.sig-card .names .pin{margin-left:auto;font-family:var(--mono);font-size:10px;letter-spacing:.1em;padding:2px 8px;border-radius:3px} .sig-card p{font-size:13px;color:var(--dim);margin-top:10px;line-height:1.75}
+.sig-card p b{color:var(--ink);font-weight:500}
+.sig-card .formula{ font-family:var(--mono);font-size:12px;color:var(--green);margin-top:12px;padding:8px 12px; background:rgba(52,224,138,.06);border-left:2px solid var(--green-dim);border-radius:0 3px 3px 0;}
+.c-dp .main,.c-dp .pin{color:var(--green)} .c-dp .pin{background:rgba(52,224,138,.1);border:1px solid var(--green-dim)} .c-dm .main,.c-dm .pin{color:var(--cyan)}
+.c-dm .pin{background:rgba(87,216,242,.08);border:1px solid rgba(87,216,242,.3)} .c-vb .main,.c-vb .pin{color:var(--amber)} .c-vb .pin{background:rgba(255,176,46,.08);border:1px solid rgba(255,176,46,.35)}
+.c-pu .main,.c-pu .pin{color:var(--dim)} .c-pu .pin{background:rgba(140,162,148,.08);border:1px dashed var(--faint)}
+/* ============ 实验室通用（§03/§05/§06） ============ */
+.lab{border:1px solid var(--line);border-radius:10px;background:var(--panel);overflow:hidden}
+.lab-bar{ display:flex;flex-wrap:wrap;align-items:center;gap:16px; padding:14px 20px;border-bottom:1px solid var(--line);background:rgba(10,16,12,.7);} .ctrl{display:flex;align-items:center;gap:9px}
+.ctrl label{font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.1em} .seg{display:flex;border:1px solid var(--line2);border-radius:5px;overflow:hidden}
+.seg button{ font-family:var(--mono);font-size:12px;padding:7px 12px;border:none;cursor:pointer; background:transparent;color:var(--dim);border-right:1px solid var(--line2); transition:all .18s;letter-spacing:.02em;}
+.seg button:last-child{border-right:none} .seg button:hover{color:var(--ink);background:rgba(52,224,138,.06)} .seg button.on{background:var(--green);color:#052013;font-weight:600}
+.icon-btn{ width:32px;height:32px;border:1px solid var(--line2);border-radius:5px;background:transparent; color:var(--dim);cursor:pointer;font-family:var(--mono);font-size:13px; transition:all .18s;display:flex;align-items:center;justify-content:center;}
+.icon-btn:hover{color:var(--green);border-color:var(--green-dim)} .icon-btn.play.on{color:var(--green);border-color:var(--green-dim);background:rgba(52,224,138,.08)}
+.txt-btn{ height:32px;padding:0 14px;border:1px solid var(--line2);border-radius:5px;background:transparent; color:var(--dim);cursor:pointer;font-family:var(--mono);font-size:12px;transition:all .18s;}
+.txt-btn:hover{color:var(--green);border-color:var(--green-dim)} input[type=range]{ -webkit-appearance:none;width:110px;height:2px;background:var(--line2);border-radius:2px;outline:none;}
+input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--green); cursor:pointer;box-shadow:0 0 8px rgba(52,224,138,.5);}
+.lab-body{display:grid;grid-template-columns:1fr 268px;gap:0} .scope-main{position:relative;background:#080d0a;min-width:0;overflow-x:auto}
+.scope-main::after{ content:"";position:absolute;inset:0;pointer-events:none; background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.14) 3px 4px);}
+.scope-main svg{display:block;width:100%;min-width:640px;height:auto} .readout{ border-left:1px solid var(--line);background:#0a110d; padding:18px 18px 14px;display:flex;flex-direction:column;gap:0;min-width:0;}
+.readout .r-title{ font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.22em; margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.readout .r-title::before{content:"";width:6px;height:6px;background:var(--red);border-radius:50%;animation:blink 1.4s infinite}
+.r-row{display:flex;justify-content:space-between;align-items:baseline;font-family:var(--mono);padding:7px 0;border-bottom:1px dashed var(--line)} .r-row .k{font-size:11px;color:var(--faint);letter-spacing:.08em}
+.r-row .v{font-size:13px;color:var(--ink);text-align:right} .r-row .v.g{color:var(--green)} .r-row .v.a{color:var(--amber)} .r-row .v.c{color:var(--cyan)} .r-row .v.r{color:var(--red)}
+.r-note{font-size:11px;color:var(--faint);line-height:1.7;margin-top:12px;font-family:var(--mono)} .r-note b{color:var(--dim);font-weight:500}
+.lab-foot{ padding:13px 20px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:10px 26px; background:rgba(10,16,12,.6);}
+.legend{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;color:var(--dim)} .legend i{width:18px;height:2px;border-radius:2px}
+.rule-callout{ margin-top:26px;display:grid;grid-template-columns:auto 1fr;gap:22px;align-items:center; border:1px solid rgba(255,176,46,.3);border-radius:8px;padding:20px 26px; background:linear-gradient(120deg,rgba(255,176,46,.06),transparent 60%);}
+.rule-callout .mnemonic{ font-family:var(--disp);font-weight:700;font-size:clamp(18px,2.4vw,25px); color:var(--amber);letter-spacing:.08em;white-space:nowrap;}
+.rule-callout .mnemonic small{display:block;font-size:11px;font-weight:500;color:var(--faint);letter-spacing:.24em;margin-top:6px;font-family:var(--mono)} .rule-callout p{font-size:13.5px;color:var(--dim)}
+.rule-callout p b{color:var(--ink);font-weight:500}
+/* ============ §04 传输类型 ============ */
+.xf-seg{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+.xf-btn{ border:1px solid var(--line2);border-radius:8px;background:var(--panel);cursor:pointer; padding:16px 16px 14px;text-align:left;transition:all .18s;color:var(--dim);font-family:var(--sans);}
+.xf-btn .xn{font-family:var(--mono);font-size:10px;letter-spacing:.16em;color:var(--faint)} .xf-btn h4{font-family:var(--disp);font-size:18px;font-weight:600;margin:6px 0 4px;color:var(--ink)}
+.xf-btn p{font-size:12px;line-height:1.6} .xf-btn:hover{border-color:var(--green-dim);transform:translateY(-2px)} .xf-btn.on{border-color:var(--green);background:rgba(52,224,138,.07)} .xf-btn.on h4{color:var(--green)}
+.xf-grid{display:grid;grid-template-columns:1.15fr 1fr;gap:18px;align-items:start} .xf-panel{border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:22px 24px}
+.xf-panel h5{font-family:var(--disp);font-size:17px;font-weight:600;margin-bottom:4px} .xf-panel .xen{font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.2em;margin-bottom:14px}
+.xf-rows .xr{display:grid;grid-template-columns:110px 1fr;gap:14px;padding:9px 0;border-bottom:1px dashed var(--line);font-size:13px}
+.xf-rows .xr .xk{font-family:var(--mono);font-size:11.5px;color:var(--faint);letter-spacing:.04em;padding-top:2px} .xf-rows .xr .xv{color:var(--dim)} .xf-rows .xr .xv b{color:var(--ink);font-weight:500}
+.frame-strip{margin-top:18px} .frame-strip .fs-cap{font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.14em;margin-bottom:8px}
+.fs-bar{display:flex;height:40px;border:1px solid var(--line2);border-radius:5px;overflow:hidden}
+.fs-bar .fs{ display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:10px; color:var(--dim);border-right:1px solid var(--line);transition:all .3s;overflow:hidden;white-space:nowrap; letter-spacing:.04em;}
+.fs-bar .fs:last-child{border-right:none} .fs-bar .fs.hot{color:#052013;font-weight:600} .fs-scale{display:flex;justify-content:space-between;font-family:var(--mono);font-size:9.5px;color:var(--faint);margin-top:5px}
+/* ============ §05 控制传输 ============ */
+.ct-stages{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;background:#080d0a} .ct-stage{border-right:1px dashed var(--line);padding:16px 18px 18px;transition:background .3s} .ct-stage:last-child{border-right:none}
+.ct-stage .cs-h{display:flex;align-items:baseline;gap:10px;margin-bottom:12px}
+.ct-stage .cs-no{ font-family:var(--mono);font-size:10px;color:#052013;background:var(--dim); padding:2px 7px;border-radius:3px;font-weight:600;letter-spacing:.08em;} .ct-stage.cur .cs-no{background:var(--green)}
+.ct-stage .cs-t{font-family:var(--disp);font-size:16px;font-weight:600;color:var(--faint);transition:color .3s} .ct-stage.cur .cs-t{color:var(--ink)}
+.ct-stage .cs-d{font-family:var(--mono);font-size:9.5px;color:var(--faint);margin-left:auto;letter-spacing:.08em}
+.ct-chip{ font-family:var(--mono);font-size:11px;color:var(--dim);border:1px solid var(--line2);border-radius:4px; padding:6px 9px;margin-bottom:7px;opacity:.35;transition:all .25s;background:rgba(255,255,255,.015);}
+.ct-chip.done{opacity:.85;border-color:var(--line2)} .ct-chip.cur{opacity:1;border-color:var(--green);color:var(--green);background:rgba(52,224,138,.08);box-shadow:0 0 12px rgba(52,224,138,.15)}
+.ct-hex{display:flex;gap:5px;flex-wrap:wrap;margin:4px 0 12px}
+.ct-hex .hb{ font-family:var(--mono);font-size:12px;color:var(--ink);border:1px solid var(--line2);border-radius:4px; padding:6px 8px;transition:all .25s;background:rgba(255,255,255,.02);}
+.ct-hex .hb small{display:block;font-size:8px;color:var(--faint);letter-spacing:.04em;margin-top:1px} .ct-hex .hb.lit{border-color:var(--amber);color:var(--amber);background:rgba(255,176,46,.08)}
+.ct-fields .xr{display:grid;grid-template-columns:150px 76px 1fr;gap:12px;padding:8px 10px;border-radius:5px;font-size:12.5px;transition:background .25s;border:1px solid transparent}
+.ct-fields .xr .xk{font-family:var(--mono);color:var(--dim)} .ct-fields .xr .xv{font-family:var(--mono);color:var(--green)} .ct-fields .xr .xd{color:var(--faint);font-size:12px}
+.ct-fields .xr.lit{border-color:rgba(255,176,46,.4);background:rgba(255,176,46,.06)} .ct-fields .xr.lit .xk{color:var(--amber)}
+.ct-log{ background:#070c09;border:1px solid var(--line);border-radius:6px;padding:12px 14px; font-family:var(--mono);font-size:11.5px;line-height:1.9;max-height:170px;overflow-y:auto;} .ct-log div{white-space:pre-wrap}
+.ct-log .cl-n{color:var(--faint)} .ct-log .cl-t{color:var(--dim)} .ct-log .cl-cur{color:var(--green)}
+/* ============ §06 枚举 ============ */
+.em-grid{display:grid;grid-template-columns:.92fr 1.08fr;gap:22px;align-items:start} .em-diagram{border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:20px}
+.em-diagram svg{width:100%;height:auto;display:block} .em-side{display:flex;flex-direction:column;gap:14px} .em-steps{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.em-step{ border:1px solid var(--line2);border-radius:6px;background:var(--panel);cursor:pointer; padding:9px 6px;font-family:var(--mono);font-size:10.5px;color:var(--faint); text-align:center;transition:all .18s;line-height:1.5;}
+.em-step:hover{border-color:var(--green-dim);color:var(--dim)} .em-step.on{border-color:var(--green);color:var(--green);background:rgba(52,224,138,.08)} .em-step.done{color:var(--dim)}
+.em-detail{border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:20px 22px} .em-detail h5{font-family:var(--disp);font-size:16.5px;font-weight:600;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.em-detail h5 .b{ font-family:var(--mono);font-size:10px;color:var(--green);border:1px solid var(--green-dim); padding:1px 7px;border-radius:3px;letter-spacing:.06em;}
+.em-detail .bus{ font-family:var(--mono);font-size:11.5px;color:var(--amber);margin:10px 0 8px; padding:8px 12px;background:rgba(255,176,46,.05);border-left:2px solid rgba(255,176,46,.5); border-radius:0 4px 4px 0;line-height:1.7;word-break:break-all;}
+.em-detail p{font-size:13px;color:var(--dim);line-height:1.75} .em-readout{display:grid;grid-template-columns:repeat(3,1fr);gap:10px} .em-ro{border:1px dashed var(--line2);border-radius:6px;padding:10px 12px;text-align:center}
+.em-ro .k{font-family:var(--mono);font-size:9.5px;color:var(--faint);letter-spacing:.14em} .em-ro .v{font-family:var(--mono);font-size:16px;color:var(--green);margin-top:3px}
+/* ============ §07 描述符 ============ */
+.desc-grid{display:grid;grid-template-columns:1fr 1.15fr;gap:18px;align-items:start} .desc-tree{border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:18px}
+.desc-tree svg{width:100%;height:auto;display:block} .desc-tree .hint{font-family:var(--mono);font-size:10px;color:var(--faint);margin-top:12px;letter-spacing:.06em;line-height:1.8}
+/* ============ Linux 终端（§07/§09） ============ */
+.term{ border:1px solid var(--line);border-radius:8px;background:#070c09; overflow:hidden;display:flex;flex-direction:column;min-width:0;transition:border-color .25s;} .term:hover{border-color:var(--line2)}
+.term.wide{grid-column:1/-1} .term-bar{ display:flex;align-items:center;gap:7px;padding:10px 14px; border-bottom:1px solid var(--line);background:rgba(10,16,12,.85);} .term-bar i{width:10px;height:10px;border-radius:50%}
+.term-bar .d1{background:rgba(255,100,120,.55)} .term-bar .d2{background:rgba(255,176,46,.5)} .term-bar .d3{background:rgba(52,224,138,.5)}
+.term-bar span{margin-left:8px;font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.12em} .term-bar button{margin-left:auto}
+.term-body{ padding:15px 18px 17px;font-family:var(--mono);font-size:12.3px; line-height:1.95;overflow-x:auto;flex:1;} .term-body div{white-space:pre;min-height:1.35em} .t-ps{color:#3f5247;user-select:none}
+.t-cmd{color:var(--green);cursor:pointer;font-family:inherit;border-bottom:1px dotted transparent;transition:border-color .15s} .t-cmd:hover{border-bottom-color:var(--green)}
+.t-cmd.copied{color:#052013;background:var(--green);border-radius:2px;padding:0 4px} .t-cmd2{color:var(--green)} .t-out{color:var(--dim)} .t-hl{color:var(--amber)} .t-cmt{color:#516657} .t-tag{color:var(--cyan)}
+.t-cur{display:inline-block;width:7px;height:14px;background:var(--green);vertical-align:-2px;margin-left:2px;animation:blink 1s steps(1) infinite} .term-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+.term.lit-on .t-line{transition:opacity .25s} .term.lit-on .t-line{opacity:.25} .term.lit-on .t-line.lit{opacity:1}
+.lnx-note{ margin-top:26px;padding:18px 22px;border-left:2px solid var(--cyan); background:rgba(87,216,242,.05);border-radius:0 6px 6px 0;font-size:13.5px;color:var(--dim);} .lnx-note b{color:var(--cyan);font-weight:500}
+.lnx-note code{font-family:var(--mono);font-size:.9em;color:var(--amber)}
+/* ============ §08 版本与供电 ============ */
+.vers-grid{display:grid;grid-template-columns:1.35fr 1fr;gap:18px;align-items:start;margin-bottom:24px} .typec-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:8px}
+.tc-card{border:1px solid var(--line);border-radius:6px;padding:16px 18px;background:var(--panel)} .tc-card h5{font-family:var(--disp);font-size:14.5px;font-weight:600;display:flex;align-items:center;gap:9px;margin-bottom:8px}
+.tc-card h5 .b{font-family:var(--mono);font-size:9.5px;color:var(--amber);border:1px solid rgba(255,176,46,.4);padding:1px 6px;border-radius:3px} .tc-card p{font-size:12.5px;color:var(--dim);line-height:1.7}
+.tc-card p b{color:var(--ink);font-weight:500} .calc{border:1px solid var(--line);border-radius:10px;background:var(--panel);display:grid;grid-template-columns:1fr 1fr;overflow:hidden}
+.calc .inputs{padding:26px 30px;border-right:1px solid var(--line)} .calc .outputs{padding:26px 30px;background:#0a110d} .calc h5{font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.22em;margin-bottom:18px}
+.field{margin-bottom:16px} .field label{display:block;font-family:var(--mono);font-size:11.5px;color:var(--dim);margin-bottom:8px;letter-spacing:.06em}
+.field select{ width:100%;font-family:var(--mono);font-size:13.5px;color:var(--ink); background:#080d0a;border:1px solid var(--line2);border-radius:5px;padding:10px 12px;outline:none; cursor:pointer;transition:border-color .2s;}
+.field select:focus{border-color:var(--green-dim)} .out-row{display:flex;justify-content:space-between;align-items:baseline;padding:12px 0;border-bottom:1px dashed var(--line)} .out-row .ok{font-size:12.5px;color:var(--dim)}
+.out-row .ok small{display:block;font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.08em} .out-row .ov{font-family:var(--mono);font-size:19px;font-weight:600;color:var(--green)}
+.out-row .ov small{font-size:11px;color:var(--faint);font-weight:400;margin-left:4px} .out-row.big .ov{font-size:25px;color:var(--amber)} .out-row .ov.warn{color:var(--amber)} .out-row .ov.bad{color:var(--red)}
+.calc-formula{ grid-column:1/-1;padding:14px 30px;border-top:1px solid var(--line); font-family:var(--mono);font-size:12.5px;color:var(--dim);background:rgba(10,17,13,.8);} .calc-formula b{color:var(--green);font-weight:500}
+/* ============ §10 踩坑 + 速查 ============ */
+.pit-list{display:flex;flex-direction:column;gap:12px}
+.pit{ display:grid;grid-template-columns:64px 1fr;gap:18px;align-items:start; border:1px solid var(--line);border-radius:6px;padding:17px 20px;background:var(--panel); transition:border-color .2s;}
+.pit:hover{border-color:rgba(255,100,120,.4)}
+.pit .symptom{ font-family:var(--mono);font-size:10px;letter-spacing:.04em;color:var(--red); border:1px solid rgba(255,100,120,.35);border-radius:4px;padding:6px 7px;text-align:center; line-height:1.5;background:rgba(255,100,120,.05);height:fit-content;}
+.pit .fix b{display:block;font-size:14px;font-weight:500;color:var(--ink);margin-bottom:4px} .pit .fix b code{font-family:var(--mono);font-size:.88em;color:var(--green)}
+.pit .fix p{font-size:12.8px;color:var(--dim);line-height:1.7} .pit .fix p code{font-family:var(--mono);font-size:.9em;color:var(--amber)} .cheat-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:40px}
+.cheat-panel{border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:20px 22px} .cheat-panel h5{font-family:var(--disp);font-size:15.5px;font-weight:600;margin-bottom:12px}
+.notation{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin:6px 0 8px} .n-item{text-align:center}
+.n-item .nv{font-family:var(--mono);font-size:22px;color:var(--green);border:1px solid rgba(52,224,138,.4);padding:7px 16px;border-radius:8px;background:rgba(52,224,138,.06)}
+.n-item .nv.a{color:var(--amber);border-color:rgba(255,176,46,.4);background:rgba(255,176,46,.06)} .n-item .nv.c{color:var(--cyan);border-color:rgba(87,216,242,.4);background:rgba(87,216,242,.06)}
+.n-item small{display:block;font-size:11px;color:var(--dim);margin-top:6px} .rules{list-style:none;display:flex;flex-direction:column;gap:10px}
+.rules li{display:flex;gap:12px;align-items:flex-start;padding:11px 14px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.015)}
+.rules .no{font-family:var(--mono);color:#052013;background:var(--green);border-radius:6px;min-width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:13px;flex:none;margin-top:2px}
+.rules b{color:var(--ink);font-weight:500}
+/* ============ footer ============ */
+footer{ border-top:1px solid var(--line);padding:44px 6vw 60px;margin-top:40px; display:flex;flex-wrap:wrap;gap:24px;align-items:baseline;justify-content:space-between;}
+footer .f-l{font-family:var(--mono);font-size:11.5px;color:var(--faint);line-height:2.1} footer .f-l b{color:var(--dim);font-weight:500} footer .f-r{font-family:var(--disp);font-weight:700;font-size:22px;color:var(--green)}
+/* ============ 响应式 ============ */
+@media (max-width:1060px){ .two-col,.xf-grid,.em-grid,.desc-grid,.vers-grid,.cheat-grid{grid-template-columns:1fr} .lab-body{grid-template-columns:1fr} .readout{border-left:none;border-top:1px solid var(--line)} .calc{grid-template-columns:1fr} .calc .inputs{border-right:none;border-bottom:1px solid var(--line)} .ct-stages{grid-template-columns:1fr} .ct-stage{border-right:none;border-bottom:1px dashed var(--line)} .xf-seg{grid-template-columns:repeat(2,1fr)} .typec-cards{grid-template-columns:1fr}}
+@media (max-width:720px){ .sig-grid,.term-grid,.fact-grid{grid-template-columns:1fr} .xf-seg,.em-steps,.em-readout{grid-template-columns:repeat(2,1fr)} section{padding:70px 5vw} .sec-head .en{display:none}}</style>
+</head>
+<body>
+<nav>
+  <div class="brand">USB<b>·</b>LAB</div>
+  <div class="nav-links">
+    <a href="#s1">概述</a><a href="#s2">物理层</a><a href="#s3">编码动画</a><a href="#s4">传输类型</a><a href="#s5">控制传输</a><a href="#s6">枚举·描述符</a><a href="#s8">版本·供电</a><a href="#s9">Linux</a><a href="#s10">踩坑</a>
+  </div>
+  <div class="xnav"><a href="index.html">« HOME</a>
+<a href="i2c.html">I²C</a><a href="spi.html">SPI</a><a href="uart.html">UART</a><a href="ir.html">IR</a>
+<a href="rs485.html">RS-485</a><a href="onewire.html">1-WIRE</a><a href="can.html">CAN</a>
+<a href="i2s.html">I²S</a><a href="dmic.html">DMIC</a><a href="tdm.html">TDM</a>
+<a href="sdio.html">SDIO</a><a href="emmc.html">eMMC</a><a href="ddr.html">DDR</a>
+<a href="rgb.html">RGB</a><a href="lvds.html">LVDS</a><a href="mipi-dsi.html">DSI</a><a href="csi2.html">CSI-2</a>
+<a href="hdmi.html">HDMI</a><a href="pcie.html">PCIE</a><a href="jtag.html">JTAG</a></div>
+  <div class="spacer"></div>
+  <div class="live"><i></i>HOST&nbsp;POLLED</div>
+</nav>
+
+<main>
+<!-- ================= HERO ================= -->
+<header class="hero">
+  <div class="eyebrow">UNIVERSAL SERIAL BUS · 图解硬件协议</div>
+  <h1>USB<sup>2.0+</sup>
+    <span class="zh">通 用 串 行 总 线 · 即 插 即 用 的 帝 国</span>
+  </h1>
+  <p class="lede">
+    1996 年，一群工程师想终结机箱背后的「串口并口 PS/2 线缆地狱」，于是发明了 USB：四根线、带供电、插上就能用。
+    三十年后，从 5 块钱的鼠标到 100 W 的显示器都挂在它上面。<b>往下滚动：看主机如何用两根差分线，
+    把一个字节经过 NRZI + 位填充送到 127 个设备中的任意一个。</b>
+  </p>
+  <div class="chips">
+    <span><b>2</b> 根差分数据线 D+/D−</span>
+    <span class="ba"><b>480 Mbps</b> Hi-Speed</span>
+    <span class="bc"><b>127</b> 个设备 · 树状拓扑</span>
+    <span><b>5 V</b> 供电 · PD 可到 100 W</span>
+    <span class="ba"><b>即插即用</b> · 热插拔</span>
+  </div>
+  <div class="cta">
+    <a class="p" href="#s3">▶ 进入编码实验室</a>
+    <a class="g" href="#s1">从拓扑开始学</a>
+  </div>
+  <div class="hero-schema">
+    <svg id="heroSvg" viewBox="0 0 880 342" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono,monospace" aria-label="USB 主机-集线器-设备树状拓扑动画">
+      <defs>
+        <marker id="arH" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="context-stroke"/></marker>
+      </defs>
+      <text x="20" y="30" fill="rgba(140,162,148,.75)" font-size="11">TIERED STAR · 分层星型：每一段都是点对点，级联成树 —— 所有传输都由主机发起</text>
+      <text x="20" y="48" fill="rgba(92,114,100,.9)" font-size="10">绿色 = 主机发出的令牌 · 青色 = 设备回传的数据 · 琥珀 = 握手</text>
+      <!-- HOST -->
+      <rect x="30" y="112" width="168" height="118" rx="10" fill="#0d181d" stroke="rgba(148,200,180,.3)" stroke-width="1.5"/>
+      <rect x="40" y="122" width="148" height="98" rx="7" fill="none" stroke="rgba(148,200,180,.18)"/>
+      <circle cx="188" cy="130" r="3.5" fill="#34e08a"><animate attributeName="opacity" values="1;.15;1" dur="1.6s" repeatCount="indefinite"/></circle>
+      <text x="114" y="156" text-anchor="middle" fill="#dcebe1" font-size="15" font-weight="600">HOST 主机</text>
+      <text x="114" y="176" text-anchor="middle" fill="#8aa294" font-size="10.5">Root Hub · Tier 0</text>
+      <text x="114" y="194" text-anchor="middle" fill="rgba(140,162,148,.7)" font-size="9.5">唯一的主控 · 轮询调度</text>
+      <text x="114" y="210" text-anchor="middle" fill="rgba(52,224,138,.8)" font-size="9.5">xHCI / EHCI 控制器</text>
+      <!-- HUB -->
+      <rect x="330" y="118" width="140" height="106" rx="10" fill="#0d181d" stroke="rgba(148,200,180,.3)" stroke-width="1.5"/>
+      <text x="400" y="152" text-anchor="middle" fill="#dcebe1" font-size="14" font-weight="600">HUB</text>
+      <text x="400" y="170" text-anchor="middle" fill="#8aa294" font-size="10.5">Tier 1 · 转发器</text>
+      <text x="400" y="188" text-anchor="middle" fill="rgba(255,176,46,.85)" font-size="9.5">总线供电：每口 100 mA</text>
+      <text x="400" y="204" text-anchor="middle" fill="rgba(87,216,242,.85)" font-size="9.5">自供电：每口 500 mA</text>
+      <!-- 设备 -->
+      <g>
+        <rect x="630" y="22" width="220" height="72" rx="9" fill="#0d181d" stroke="rgba(148,200,180,.28)" stroke-width="1.4"/>
+        <text x="648" y="48" fill="#dcebe1" font-size="12.5" font-weight="600">Dev 2 · HID 键盘鼠标</text>
+        <text x="648" y="68" fill="#8aa294" font-size="10">中断传输 · 每 10 ms 轮询 EP1 IN</text>
+        <text x="648" y="84" fill="rgba(140,162,148,.75)" font-size="9.5">bInterval 决定延迟上限</text>
+      </g>
+      <g>
+        <rect x="630" y="138" width="220" height="72" rx="9" fill="#0d181d" stroke="rgba(148,200,180,.28)" stroke-width="1.4"/>
+        <text x="648" y="164" fill="#dcebe1" font-size="12.5" font-weight="600">Dev 3 · U 盘 (MSC)</text>
+        <text x="648" y="184" fill="#8aa294" font-size="10">批量传输 · 吃掉全部剩余带宽</text>
+        <text x="648" y="200" fill="rgba(140,162,148,.75)" font-size="9.5">无延迟保证 · 出错重试</text>
+      </g>
+      <g>
+        <rect x="630" y="254" width="220" height="72" rx="9" fill="#0d181d" stroke="rgba(148,200,180,.28)" stroke-width="1.4"/>
+        <text x="648" y="280" fill="#dcebe1" font-size="12.5" font-weight="600">Dev 4 · UVC 摄像头</text>
+        <text x="648" y="300" fill="#8aa294" font-size="10">同步传输 · 每帧预留固定带宽</text>
+        <text x="648" y="316" fill="rgba(140,162,148,.75)" font-size="9.5">不重试 · 丢就丢了</text>
+      </g>
+      <!-- 连线 -->
+      <path id="pHH" d="M198,171 L330,171" stroke="rgba(52,224,138,.35)" stroke-width="2" fill="none"/>
+      <path id="pH1" d="M470,152 C560,152 560,58 630,58" stroke="rgba(52,224,138,.3)" stroke-width="2" fill="none"/>
+      <path id="pH2" d="M470,171 L630,174" stroke="rgba(52,224,138,.3)" stroke-width="2" fill="none"/>
+      <path id="pH3" d="M470,190 C560,190 560,290 630,290" stroke="rgba(52,224,138,.3)" stroke-width="2" fill="none"/>
+      <g id="sprites"></g>
+      <!-- 层级标尺 -->
+      <g font-size="9.5" fill="rgba(92,114,100,.95)">
+        <line x1="30" y1="338" x2="850" y2="338" stroke="#27392d" stroke-width="1"/>
+        <line x1="114" y1="234" x2="114" y2="338" stroke="rgba(92,114,100,.4)" stroke-dasharray="3 4"/>
+        <line x1="400" y1="228" x2="400" y2="338" stroke="rgba(92,114,100,.4)" stroke-dasharray="3 4"/>
+        <line x1="740" y1="330" x2="740" y2="338" stroke="rgba(92,114,100,.4)" stroke-dasharray="3 4"/>
+        <text x="30" y="333">Tier 0</text><text x="316" y="333">Tier 1</text><text x="656" y="333">Tier 2</text>
+        <text x="850" y="333" text-anchor="end">最多 5 级集线器 · 每段线缆 ≤5 m · 7-bit 地址 → 127 设备</text>
+      </g>
+    </svg>
+  </div>
+  <div class="scroll-hint">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+    SCROLL · 编码动画在 03 节
+  </div>
+</header>
+
+<!-- ================= §01 概述 ================= -->
+<section id="s1">
+  <div class="sec-head reveal"><span class="no">01</span><h2>它是什么，为什么它赢了</h2><span class="en">What &amp; Why</span></div>
+  <p class="sec-sub reveal">一句话：<b>USB 是一根「带供电的、主机说了算的、即插即用的」分层星型总线</b>——统一连接器 + 统一软件栈，让外设彻底免驱动安装、免重启、免供电线。</p>
+  <div class="two-col">
+    <div class="prose reveal">
+      <p>
+        USB（<b>Universal Serial Bus</b>）1996 年由 Intel / Compaq / Microsoft / DEC 等 seven 家公司联合推出，
+        1998 年的 <span class="kw">USB 1.1</span> 搭上 iMac 与 Windows 98 才真正普及。它一次性解决了三件事：
+        <b>统一连接器</b>（终结串口/并口/PS2/游戏口各自为政）、<b>内置供电</b>（5 V VBUS，小设备连电源线都省了）、
+        <b>即插即用</b>（插入 → 枚举 → 驱动自动加载，全程无需重启）。
+      </p>
+      <p>
+        它的拓扑与 <a href="i2c.html">I²C</a> / <a href="spi.html">SPI</a> 那种「对等共享总线」有本质区别：
+        USB 是<b>分层星型（Tiered Star）</b>——主机（含根集线器）在树根，集线器向外分叉，设备是叶子。
+        每一段线缆都是点对点；树上的任何通信都必须由主机发起（主机轮询模型），设备永远不能主动「插话」，
+        只能在被轮询到时回答。这与 <a href="can.html">CAN</a> 的多主仲裁、I²C 的从机应答是两种世界观。
+      </p>
+      <p>
+        设备用 <b>7-bit 地址</b>区分（地址 0 保留给「刚复位还没分配地址」的设备），所以一条总线上最多
+        <b>127 个设备</b>；级联最多 <b>5 级集线器</b>（含根集线器共 7 层），每段线缆全速/高速 ≤5 m。
+        主机每 <span class="kw2">1 ms</span>（全速）或 <span class="kw2">125 µs</span>（高速微帧）发一帧，
+        帧头是广播的 <b>SOF 令牌</b>——所有传输都排布在帧内调度。
+      </p>
+    </div>
+    <table class="cmp-table reveal">
+      <tr><th></th><th>USB 2.0</th><th>I²C</th><th>SPI</th></tr>
+      <tr><td>拓扑</td><td>分层星型（树）</td><td class="yes">共享两线总线</td><td>主机 + 片选</td></tr>
+      <tr><td>谁发起</td><td class="no">仅主机（轮询）</td><td class="yes">主从均可</td><td>主机</td></tr>
+      <tr><td>设备数上限</td><td>127（7-bit 地址）</td><td>112（7-bit 地址）</td><td>片选数量</td></tr>
+      <tr><td>速度</td><td class="yes">1.5M / 12M / 480M</td><td>100k–3.4M</td><td>几–几十 M</td></tr>
+      <tr><td>供电</td><td class="yes">5V/500mA（PD 可 100W）</td><td class="no">无</td><td class="no">无</td></tr>
+      <tr><td>热插拔</td><td class="yes">原生支持</td><td>需软件处理</td><td class="no">需断电</td></tr>
+      <tr><td>典型角色</td><td>用户外设总线</td><td>板级传感器</td><td>板级存储/屏</td></tr>
+    </table>
+  </div>
+  <div class="fact-grid reveal">
+    <div class="fact"><div class="f-no">FACT / A</div><h4>四根线的极简主义 <code>VBUS D+ D− GND</code></h4><p>屏蔽双绞的差分对 D+/D− 扛全部数据，VBUS 供电。连接器永远「A 口朝主机、B 口朝设备」，插反了物理上就插不进去——这是刻意设计。</p></div>
+    <div class="fact"><div class="f-no">FACT / B</div><h4>主机是唯一的「大脑」<code>HOST-CENTRIC</code></h4><p>没有仲裁、没有冲突检测：主机控制器轮询调度一切。想理解 USB 的任何行为，先问一句「主机现在在轮询谁」。</p></div>
+    <div class="fact"><div class="f-no">FACT / C</div><h4>上电即自我介绍 <code>ENUMERATION</code></h4><p>插入瞬间，设备用一只上拉电阻报身份、用描述符自述「我是谁、我要多少电流、我有哪些端点」——这就是 06 节的枚举流程。</p></div>
+    <div class="fact"><div class="f-no">FACT / D</div><h4>供电也是协议的一部分 <code>VBUS</code></h4><p>未配置设备只许取 100 mA（一个单位负载），配置后按描述符申报的 bMaxPower 供给，最高 500 mA；集线器还要再做一次电流分配。</p></div>
+  </div>
+</section>
+
+<!-- ================= §02 物理层 ================= -->
+<section id="s2">
+  <div class="sec-head reveal"><span class="no">02</span><h2>物理层 · 两根线，四种线态</h2><span class="en">Physical Layer</span></div>
+  <p class="sec-sub reveal">
+    D+/D− 是一对<b>90 Ω 差分阻抗的双绞线</b>（和 <a href="can.html">CAN</a>、<a href="rs485.html">RS-485</a> 一样吃差分信号的抗干扰红利）。
+    但 USB 的精妙在于：靠两根线上的电平组合，不用额外引脚就表达出 <b>J / K / SE0 / SE1</b> 四种线态——数据、复位、包结束、速度识别全在这一对线上。
+  </p>
+  <div class="sig-grid">
+    <div class="sig-card c-dp reveal">
+      <div class="scope"><canvas data-mini="diff"></canvas></div>
+      <div class="body">
+        <div class="names"><span class="main">D+ / D−</span><span class="alias">差分数据对 · 半双工</span><span class="pin">90Ω TWISTED</span></div>
+        <p>数据在两根线上<b>差分传输</b>：D+ 为高、D− 为低是一个线态，反过来是另一个。发送方交替驱动（推挽），总线上同一时刻只有一方在说话——<b>半双工</b>。上面每格背景色就是当前线态。</p>
+        <div class="formula">V(D+) − V(D−) &gt; +200 mV 或 &lt; −200 mV 才算有效差分</div>
+      </div>
+    </div>
+    <div class="sig-card c-pu reveal">
+      <div class="scope"><canvas data-mini="spd"></canvas></div>
+      <div class="body">
+        <div class="names"><span class="main">上拉电阻</span><span class="alias">速度识别 · 唯一的「自我介绍」</span><span class="pin">1.5 kΩ</span></div>
+        <p>主机在 D+/D− 上各挂 <b>15 kΩ 下拉</b>，空闲时双双为低（SE0）。设备插入后经 <b>1.5 kΩ 上拉到 3.3 V</b>：<b>拉 D+ = Full-Speed，拉 D− = Low-Speed</b>——分压后约 3.0 V，主机一眼识别。高速设备随后再握手升级。</p>
+        <div class="formula">FS：1.5 kΩ → D+ · LS：1.5 kΩ → D− · HS：撤上拉，改用 45 Ω 端接</div>
+      </div>
+    </div>
+    <div class="sig-card c-dm reveal">
+      <div class="body" style="padding-bottom:6px">
+        <div class="names"><span class="main">四种线态</span><span class="alias">J · K · SE0 · SE1</span><span class="pin">LINE STATES</span></div>
+      </div>
+      <table class="cmp-table" style="font-size:12.3px">
+        <tr><th>线态</th><th>D+</th><th>D−</th><th>含义（全速极性）</th></tr>
+        <tr><td class="yes">J（空闲）</td><td>1</td><td>0</td><td>逻辑 1 · NRZI 保持 · 空闲电平</td></tr>
+        <tr><td class="yes">K</td><td>0</td><td>1</td><td>逻辑翻转 · 复位后的恢复信号</td></tr>
+        <tr><td style="color:var(--red)">SE0</td><td>0</td><td>0</td><td>复位（≥10 ms）· EOP（2 位）· 断开</td></tr>
+        <tr><td style="color:var(--red)">SE1</td><td>1</td><td>1</td><td>非法 · 违规驱动，按错误处理</td></tr>
+      </table>
+      <div class="body" style="padding-top:12px">
+        <p style="margin-top:0"><b>低速极性相反</b>：因为 LS 设备上拉在 D−，J/K 对 LS 恰好镜像翻转，集线器负责在两侧翻译。</p>
+      </div>
+    </div>
+    <div class="sig-card c-vb reveal">
+      <div class="scope"><canvas data-mini="eop"></canvas></div>
+      <div class="body">
+        <div class="names"><span class="main">SE0 的三副面孔</span><span class="alias">EOP · 复位 · 断开</span><span class="pin">TIMING</span></div>
+        <p>同样的 SE0，时长说了算：<b>2 个位时间 + 1 位 J = EOP</b>（包结束）；<b>≥10 ms = 复位</b>（设备回到地址 0）；VBUS 掉电后线态维持 SE0 = 拔出。上面的动画把三段都演给你看。</p>
+        <div class="formula">EOP = SE0 ×2 bit + J ×1 bit · RESET = SE0 ≥ 10 ms</div>
+      </div>
+    </div>
+  </div>
+  <table class="cmp-table reveal">
+    <tr><th>引脚</th><th>USB-A / B / mini / micro</th><th>USB 3.x SuperSpeed 追加</th><th>Type-C（24 pin）</th></tr>
+    <tr><td>1</td><td>VBUS +5V</td><td>—</td><td>VBUS ×4（可协商升压）</td></tr>
+    <tr><td>2</td><td>D−</td><td>TX−（独立发送对）</td><td>SSTX± / SSRX± 各一对</td></tr>
+    <tr><td>3</td><td>D+</td><td>TX+</td><td>D+/D− 保留（兼容 2.0）</td></tr>
+    <tr><td>4</td><td>GND（B/mini：ID）</td><td>GND·DRAIN</td><td>CC1 / CC2（角色与 PD）</td></tr>
+    <tr><td>5</td><td>—（mini/micro）</td><td>RX− / RX+</td><td>SBU1 / SBU2（SideBand）</td></tr>
+  </table>
+</section>
+
+<!-- ================= §03 编码动画 ================= -->
+<section id="s3">
+  <div class="sec-head reveal"><span class="no">03</span><h2>编码实验室 · NRZI + 位填充</h2><span class="en">Interactive · Bit Stuffing</span></div>
+  <p class="sec-sub reveal">
+    USB 2.0 的灵魂在这里：数据<b>没有时钟线</b>（这一点和 <a href="uart.html">UART</a> 一样），但接收端要用<b>数据本身的电平翻转</b>来恢复时钟。
+    于是两级流水线：<b style="color:var(--amber)">① 位填充</b>——连着 6 个 1 之后强制插一个 0；<b style="color:var(--green)">② NRZI 编码</b>——0 让电平翻转、1 让电平保持。
+    净效果：电平永远不会连续 7 个位时间不动，时钟永远追得上。换字节、单步、点任意一列试试。
+  </p>
+  <div class="lab reveal">
+    <div class="lab-bar">
+      <div class="ctrl"><label>负载字节</label>
+        <div class="seg" id="byteChips">
+          <button data-b="FF 00" class="on">FF 00</button>
+          <button data-b="FF">FF</button>
+          <button data-b="00">00</button>
+          <button data-b="55">55</button>
+          <button data-b="A5">A5</button>
+        </div>
+      </div>
+      <div class="ctrl"><label>自定义</label>
+        <input type="text" id="byteIn" value="FF 00" size="9" spellcheck="false" style="font-family:var(--mono);font-size:12.5px;color:var(--ink);background:#080d0a;border:1px solid var(--line2);border-radius:5px;padding:7px 10px;outline:none">
+      </div>
+      <div class="ctrl"><label>速度</label><input type="range" id="nrzSpeed" min="0.3" max="4" step="0.1" value="1.6"></div>
+      <div class="ctrl">
+        <button class="icon-btn" id="nrzReset" title="重置">↺</button>
+        <button class="txt-btn" id="nrzStep">单步 +1</button>
+        <button class="icon-btn play" id="nrzPlay" title="播放/暂停">❚❚</button>
+      </div>
+    </div>
+    <div class="lab-body">
+      <div class="scope-main"><svg id="nrzSvg"></svg></div>
+      <div class="readout">
+        <div class="r-title">ENCODER · 实时状态</div>
+        <div class="r-row"><span class="k">当前位</span><span class="v g" id="nBit">0 / 17</span></div>
+        <div class="r-row"><span class="k">连续 1 计数</span><span class="v" id="nOnes">0</span></div>
+        <div class="r-row"><span class="k">填充位已插入</span><span class="v a" id="nStuff">0</span></div>
+        <div class="r-row"><span class="k">NRZI 翻转 / 保持</span><span class="v c" id="nTog">0 / 0</span></div>
+        <div class="r-row"><span class="k">位宽膨胀</span><span class="v" id="nRatio">+0.0%</span></div>
+        <div class="r-note" id="nMsg"><b>就绪</b>：按播放，看每个位如何穿过两级流水线。</div>
+        <div class="r-note">规则：<b>0 → 翻转</b>，<b>1 → 保持</b>；连续 <b>6 个 1</b> 后强制塞 0（接收端数到 6 个 1 就丢弃下一位）。真实包还有 <b>SYNC</b>（KJKJKJKK）打头、<b>EOP</b>（SE0×2+J）收尾。</div>
+      </div>
+    </div>
+    <div class="lab-foot">
+      <div class="legend"><i style="background:var(--green)"></i>原始位 · 1</div>
+      <div class="legend"><i style="background:rgba(140,162,148,.7)"></i>原始位 · 0</div>
+      <div class="legend"><i style="background:var(--amber)"></i>填充位（强制插入的 0）</div>
+      <div class="legend"><i style="background:var(--cyan)"></i>NRZI 电平 D+（绿）/ D−（青）</div>
+      <div class="legend">点击任意列可跳转 · 悬空竖线 = 播放头</div>
+    </div>
+  </div>
+  <div class="rule-callout reveal">
+    <div class="mnemonic">0 翻 1 保 · 六一塞零<small>NMZI + BIT STUFFING</small></div>
+    <p>
+      反过来想：<b>全 1 的数据（0xFF）如果直接 NRZI，电平会一直不动</b>，接收端的时钟立刻失锁。
+      塞进一个 0，就制造了一次翻转。这就是为什么 USB 线上传 <b>0x00 比传 0xFF 更「累」</b>（0=每拍都翻转），
+      以及为什么最坏情况下有效带宽要打约 <b>1/7</b> 的折扣——协议把这一切都提前算好了。
+    </p>
+  </div>
+</section>
+
+<!-- ================= §04 传输类型 ================= -->
+<section id="s4">
+  <div class="sec-head reveal"><span class="no">04</span><h2>四种传输类型 · 各司其职</h2><span class="en">Transfer Types</span></div>
+  <p class="sec-sub reveal">
+    同一条总线，要伺候键盘（要及时）、硬盘（要大）、摄像头（要稳）、枚举（必须有）四种脾气完全不同的流量。
+    USB 的答案是把「传输」分成四类，<b>端点（Endpoint）在描述符里声明自己是哪一类</b>，主机调度器按类分配 1 ms 帧内的时隙。点击切换：
+  </p>
+  <div class="xf-seg reveal" id="xfSeg"></div>
+  <div class="xf-grid reveal">
+    <div class="xf-panel">
+      <h5 id="xfTitle">控制传输</h5>
+      <div class="xen" id="xfEn">CONTROL TRANSFER</div>
+      <div class="xf-rows" id="xfRows"></div>
+    </div>
+    <div class="xf-panel">
+      <h5 style="font-size:15px">帧内调度 · 谁先谁后</h5>
+      <div class="xen">SCHEDULING IN A 1 ms FRAME</div>
+      <p style="font-size:12.8px;color:var(--dim);line-height:1.75" id="xfNote"></p>
+      <div class="frame-strip">
+        <div class="fs-cap">全速 1 ms 帧的时隙分配示意（高速为 125 µs 微帧）</div>
+        <div class="fs-bar" id="fsBar"></div>
+        <div class="fs-scale"><span>帧开始</span><span>← SOF 广播后按优先级排队 →</span><span>帧结束</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= §05 控制传输 ================= -->
+<section id="s5">
+  <div class="sec-head reveal"><span class="no">05</span><h2>控制传输 · 三阶段剧场</h2><span class="en">Control Transfer</span></div>
+  <p class="sec-sub reveal">
+    所有设备共有的 <b>EP0</b> 走控制传输，永远是三幕剧：<b style="color:var(--green)">SETUP</b>（主机下达 8 字节标准请求）→
+    <b style="color:var(--cyan)">DATA</b>（可选，载描述符或写配置）→ <b style="color:var(--amber)">STATUS</b>（反向确认，「收货成功」）。
+    切换请求、单步走完一场演出，右侧 8 字节字段逐一亮起解读。
+  </p>
+  <div class="lab reveal">
+    <div class="lab-bar">
+      <div class="ctrl"><label>标准请求</label>
+        <div class="seg" id="ctReqSeg">
+          <button data-r="getd" class="on">GET_DESCRIPTOR</button>
+          <button data-r="seta">SET_ADDRESS</button>
+          <button data-r="setc">SET_CONFIGURATION</button>
+        </div>
+      </div>
+      <div class="ctrl">
+        <button class="icon-btn" id="ctReset" title="重置">↺</button>
+        <button class="txt-btn" id="ctStep">单步 +1</button>
+        <button class="txt-btn play on" id="ctPlay" style="color:var(--green);border-color:var(--green-dim)">▶ 自动</button>
+      </div>
+    </div>
+    <div class="ct-stages" id="ctStages"></div>
+    <div style="padding:18px 20px;background:rgba(10,16,12,.5)">
+      <div class="ct-hex" id="ctHex"></div>
+      <div class="ct-fields" id="ctFields"></div>
+    </div>
+    <div class="lab-body" style="grid-template-columns:1fr 268px">
+      <div style="padding:16px 20px;background:#080d0a">
+        <div class="r-title" style="margin-bottom:8px">BUS LOG · 总线上发生的事</div>
+        <div class="ct-log" id="ctLog"></div>
+      </div>
+      <div class="readout" style="background:#0a110d">
+        <div class="r-title">当前步骤</div>
+        <div class="r-note" id="ctMsg" style="font-size:12px;color:var(--dim);line-height:1.8;margin-top:0"></div>
+        <div class="r-row"><span class="k">阶段</span><span class="v g" id="ctStage">SETUP</span></div>
+        <div class="r-row"><span class="k">数据切换</span><span class="v c" id="ctToggle">DATA0</span></div>
+        <div class="r-row"><span class="k">端点</span><span class="v">EP0 · 双向</span></div>
+        <div class="r-row"><span class="k">重试</span><span class="v a">NAK 时无限重试</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= §06 枚举 ================= -->
+<section id="s6">
+  <div class="sec-head reveal"><span class="no">06</span><h2>枚举 · 从插入到就绪</h2><span class="en">Enumeration FSM</span></div>
+  <p class="sec-sub reveal">
+    「即插即用」的全部魔法：插入 → 上拉报速度 → 复位到地址 0 → 读 8 字节摸底 → 分配地址 → 读全部描述符 → 选配置。
+    <b>每一步都对应 05 节的一场控制传输</b>。逐步走一遍，看状态机跳变与总线动作一一对应。
+  </p>
+  <div class="em-grid reveal">
+    <div class="em-diagram" id="emSvg"></div>
+    <div class="em-side">
+      <div class="em-steps" id="emSteps"></div>
+      <div class="em-detail">
+        <h5><span class="b" id="emNo">STEP 1/10</span><span id="emTitle">插入</span></h5>
+        <div class="bus" id="emBus">—</div>
+        <p id="emNote"></p>
+      </div>
+      <div class="em-readout">
+        <div class="em-ro"><div class="k">设备地址</div><div class="v" id="emAddr">—</div></div>
+        <div class="em-ro"><div class="k">USB 状态</div><div class="v" id="emState">ATTACHED</div></div>
+        <div class="em-ro"><div class="k">EP0 包长</div><div class="v" id="emMps">未知</div></div>
+      </div>
+      <div class="ctrl" style="gap:8px">
+        <button class="icon-btn" id="emReset" title="重置">↺</button>
+        <button class="txt-btn" id="emPrev">← 上一步</button>
+        <button class="txt-btn" id="emNext">下一步 →</button>
+        <button class="txt-btn play on" id="emPlay" style="color:var(--green);border-color:var(--green-dim)">▶ 自动</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= §07 描述符 ================= -->
+<section id="s7">
+  <div class="sec-head reveal"><span class="no">07</span><h2>描述符 · 设备的自我介绍</h2><span class="en">Descriptor Hierarchy</span></div>
+  <p class="sec-sub reveal">
+    枚举读回来的东西就是描述符：一棵 <b>设备 → 配置 → 接口 → 端点</b> 的树（外加字符串）。
+    一只复合设备可以在一个物理壳里装多个接口——键盘 + 音量键就是这样共存的。<b>点击左树的节点，右侧 lsusb -v 的对应段落会亮起。</b>
+  </p>
+  <div class="desc-grid reveal">
+    <div class="desc-tree">
+      <div id="svgDesc"></div>
+      <div class="hint">▸ Device：我是谁（VID/PID/版本/EP0 包长）<br>▸ Configuration：我吃多少电、有几个接口<br>▸ Interface：我提供什么功能类（HID/MSC/UVC…）<br>▸ Endpoint：数据的门牌号 + 传输类型 + 包长 + 轮询间隔</div>
+    </div>
+    <div class="term" id="lsTerm">
+      <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span>lsusb -v -d 046d:c31c（节选 · 高亮与左树联动）</span></div>
+      <div class="term-body" id="lsBody"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= §08 版本与供电 ================= -->
+<section id="s8">
+  <div class="sec-head reveal"><span class="no">08</span><h2>版本演进 · 供电与线缆计算器</h2><span class="en">Evolution &amp; Power Math</span></div>
+  <p class="sec-sub reveal">
+    从 12 Mbps 到 40 Gbps，路线图很清晰：<b>加线（3.x 独立 SS 收发对）→ 加编码（8b/10b → 128b/132b）→ 加通道（×2）→ 换连接器（Type-C + CC + PD）</b>。USB 2.0 的 D+/D− 一路保留到底，向后兼容。
+  </p>
+  <div class="vers-grid">
+    <table class="cmp-table reveal">
+      <tr><th>版本</th><th>年代</th><th>速率</th><th>编码</th><th>要点</th></tr>
+      <tr><td>USB 1.1</td><td>1998</td><td>1.5M / 12M</td><td>NRZI + 位填充</td><td>LS/FS · 真正普及的第一版</td></tr>
+      <tr><td>USB 2.0</td><td>2000</td><td class="yes">480 Mbps</td><td>NRZI + 位填充</td><td>Hi-Speed · 125 µs 微帧 · 本页主角</td></tr>
+      <tr><td>USB 3.0 / 3.1 Gen1</td><td>2008</td><td class="yes">5 Gbps</td><td>8b/10b</td><td>独立 SS 发送/接收对 · 全双工 · 异步</td></tr>
+      <tr><td>USB 3.1 Gen2</td><td>2013</td><td class="yes">10 Gbps</td><td>128b/132b</td><td>编码效率 97% · 线缆 ≤1 m 也能跑满</td></tr>
+      <tr><td>USB 3.2 Gen2×2</td><td>2017</td><td class="yes">20 Gbps</td><td>128b/132b ×2</td><td>双 lane 并行 · 仅 Type-C</td></tr>
+      <tr><td>USB4</td><td>2019</td><td class="yes">40 Gbps</td><td>隧道化</td><td>复用 PCIe/DP 隧道 · v2 可 80 G</td></tr>
+    </table>
+    <div>
+      <table class="cmp-table reveal">
+        <tr><th>供电档位</th><th>电流</th><th>条件</th></tr>
+        <tr><td>单位负载（USB2）</td><td>100 mA</td><td>未配置 / 总线供电 hub 下游</td></tr>
+        <tr><td>配置后（USB2）</td><td>500 mA</td><td>描述符 bMaxPower 申报（2 mA 步进）</td></tr>
+        <tr><td>USB 3.x</td><td>900 mA</td><td>SS 端口默认档</td></tr>
+        <tr><td>BC 1.2 / Type-C</td><td>1.5 A / 3 A</td><td>充电口 / CC 广播的 Rp 档</td></tr>
+        <tr><td>USB PD</td><td class="yes">最高 100 W</td><td>CC 线上 BMC 协商 5–20 V · EPR 可 240 W</td></tr>
+      </table>
+      <div class="typec-cards reveal">
+        <div class="tc-card"><h5><span class="b">CC</span>角色识别</h5><p>CC1/CC2 上 Rp/Rd 电阻组合宣布「我是源还是sink」；DRP 双角色可翻转。正反插靠两根 CC 各测一遍解决。</p></div>
+        <div class="tc-card"><h5><span class="b">PD</span>功率协商</h5><p>PD 在 CC 上用 <b>BMC 编码</b>传 5–20 V 档位请求，最高 100 W（EPR 240 W）。电压电流都是「谈」出来的，不是插上就有。</p></div>
+        <div class="tc-card"><h5><span class="b">兼容</span>一路保留</h5><p>Type-C 里 D+/D− 原样保留，USB 2.0 设备照常工作；SS 双对独立全双工，Alt Mode 还能复用跑 DP。</p></div>
+      </div>
+    </div>
+  </div>
+  <div class="calc reveal">
+    <div class="inputs">
+      <h5>INPUT · 输入</h5>
+      <div class="field"><label>USB 版本 / 速率</label>
+        <select id="cVer">
+          <option value="ls">USB 1.1 · Low-Speed · 1.5 Mbps</option>
+          <option value="fs">USB 1.1 · Full-Speed · 12 Mbps</option>
+          <option value="hs" selected>USB 2.0 · Hi-Speed · 480 Mbps</option>
+          <option value="ss5">USB 3.2 Gen1 · 5 Gbps</option>
+          <option value="ss10">USB 3.2 Gen2 · 10 Gbps</option>
+          <option value="ss20">USB 3.2 Gen2×2 · 20 Gbps</option>
+          <option value="u4">USB4 · 40 Gbps</option>
+        </select>
+      </div>
+      <div class="field"><label>线缆长度</label>
+        <select id="cLen">
+          <option value="0.5">0.5 m（原装短线）</option>
+          <option value="1" selected>1 m</option>
+          <option value="2">2 m</option>
+          <option value="3">3 m</option>
+          <option value="5">5 m（规范上限）</option>
+        </select>
+      </div>
+      <div class="field"><label>电源线线规（VBUS+GND 往返）</label>
+        <select id="cAwg">
+          <option value="0.033">20 AWG · 0.033 Ω/m（粗）</option>
+          <option value="0.084" selected>24 AWG · 0.084 Ω/m（标准）</option>
+          <option value="0.213">28 AWG · 0.213 Ω/m（劣质细线）</option>
+        </select>
+      </div>
+      <div class="field"><label>设备取流</label>
+        <select id="cAmp">
+          <option value="100">100 mA · 单位负载</option>
+          <option value="300">300 mA · 小外设</option>
+          <option value="500" selected>500 mA · 2.5″硬盘起步</option>
+          <option value="900">900 mA · USB 3.x 端口满载</option>
+          <option value="1500">1.5 A · BC1.2 充电口</option>
+        </select>
+      </div>
+    </div>
+    <div class="outputs">
+      <h5>OUTPUT · 输出</h5>
+      <div class="out-row big"><span class="ok">有效数据吞吐<small>EFFECTIVE THROUGHPUT</small></span><span class="ov" id="oThr">57<small>MB/s</small></span></div>
+      <div class="out-row"><span class="ok">编码效率<small>LINE ENCODING</small></span><span class="ov" id="oEnc">95<small>%</small></span></div>
+      <div class="out-row"><span class="ok">VBUS 压降（往返）<small>VOLTAGE DROP</small></span><span class="ov" id="oDrop">0.084<small>V</small></span></div>
+      <div class="out-row"><span class="ok">设备端电压<small>AT DEVICE</small></span><span class="ov" id="oVolt">4.92<small>V</small></span></div>
+      <div class="out-row"><span class="ok">判定<small>VERDICT</small></span><span class="ov" id="oVerdict">正常 ✓</span></div>
+    </div>
+    <div class="calc-formula">吞吐 = 线速率 × 编码效率 ÷ 8 ·  压降 = I × (R/m × 长度 × 2) ·  设备端 ≥ <b>4.75 V</b> 才在规范内（对应 10 节「线缆过长/劣质」坑）</div>
+  </div>
+</section>
+
+<!-- ================= §09 Linux ================= -->
+<section id="s9">
+  <div class="sec-head reveal"><span class="no">09</span><h2>Linux 实战 · lsusb 与 usbmon</h2><span class="en">Linux Field Guide</span></div>
+  <p class="sec-sub reveal">
+    USB 设备在 Linux 里挂 <b>usb 总线</b>：控制器（xhci/ehci）→ 物理树（1-1、1-1.2 这种路径就是拓扑）→ 接口级设备再交给
+    <b>hid / usb-storage / uvcvideo</b> 等接口驱动。<b>点击任意命令行即可复制。</b>
+  </p>
+  <div class="term-grid">
+    <div class="term reveal">
+      <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span>lsusb — 总线上有谁</span></div>
+      <div class="term-body">
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="lsusb">lsusb</code></div>
+        <div class="t-out">Bus 001 Device 001: ID <span class="t-hl">1d6b:0002</span> Linux Foundation 2.0 root hub</div>
+        <div class="t-out">Bus 001 Device 004: ID <span class="t-hl">046d:c31c</span> Logitech, Inc. Keyboard K120</div>
+        <div class="t-out">Bus 001 Device 007: ID <span class="t-hl">046d:c52b</span> Logitech, Inc. Unifying Receiver</div>
+        <div class="t-out">Bus 002 Device 003: ID <span class="t-hl">0781:5583</span> SanDisk Corp. Ultra Fit</div>
+        <div class="t-cmt"># Bus=控制器号 · Device=枚举时分配的地址（06 节的 SET_ADDRESS）</div>
+      </div>
+    </div>
+    <div class="term reveal">
+      <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span>lsusb -t — 拓扑与速率</span></div>
+      <div class="term-body">
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="lsusb -t">lsusb -t</code></div>
+        <div class="t-out">/:  Bus 01.Port 1: Dev 1, Class=root_hub, Driver=ehci-pci/2p</div>
+        <div class="t-out">    |__ Port 1: Dev 4, If 0, Class=HID, Driver=usbhid, <span class="t-hl">1.5M</span></div>
+        <div class="t-out">    |__ Port 2: Dev 7, If 1, Class=HID, Driver=usbhid, 12M</div>
+        <div class="t-cmt"># 1.5M=Low-Speed 12M=Full-Speed 480M=Hi-Speed 5G=SuperSpeed</div>
+        <div class="t-cmt"># 树形缩进 = 集线器层级（01 节的分层星型）</div>
+      </div>
+    </div>
+    <div class="term reveal">
+      <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span>sysfs — 描述符落地的样子</span></div>
+      <div class="term-body">
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="cat /sys/bus/usb/devices/1-1/{speed,bMaxPower,maxchild}">cat /sys/bus/usb/devices/1-1/{speed,bMaxPower,maxchild}</code></div>
+        <div class="t-out">12        <span class="t-cmt"># speed: Mbps</span></div>
+        <div class="t-out">90mA      <span class="t-cmt"># bMaxPower: 描述符申报（07 节的 Configuration）</span></div>
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="cat /sys/bus/usb/devices/1-1/product">cat /sys/bus/usb/devices/1-1/product</code></div>
+        <div class="t-out">Keyboard K120   <span class="t-cmt"># 字符串描述符</span></div>
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="cat /sys/bus/usb/devices/1-1:1.0/modalias">cat .../1-1:1.0/modalias</code></div>
+        <div class="t-out">usb:v046DpC31Cd0100dc00dsc00dp00ic03isc01ip01</div>
+        <div class="t-cmt"># v=Vendor p=Product ic=接口类 → 内核用这串匹配驱动</div>
+      </div>
+    </div>
+    <div class="term reveal">
+      <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span>dmesg — 枚举成功与否</span></div>
+      <div class="term-body">
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="dmesg | grep -i usb | tail -6">dmesg | grep -i usb | tail -6</code></div>
+        <div class="t-out">usb 1-1: <span class="t-hl">new full-speed USB device number 4</span> using ehci-pci</div>
+        <div class="t-out">usb 1-1: New USB device found, idVendor=046d, idProduct=c31c</div>
+        <div class="t-out">usb 1-1: Product: Keyboard K120</div>
+        <div class="t-cmt"># 失败两连：device descriptor read/64, error -71 → 信号/线缆</div>
+        <div class="t-cmt">#           error -110 → 超时：设备没理主机（10 节坑 2）</div>
+      </div>
+    </div>
+    <div class="term wide reveal">
+      <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span>dmesg -w — 插入一只无线接收器的完整枚举（自动播放）</span>
+        <button class="txt-btn" id="utReplay" style="margin-left:auto">↺ 重放</button></div>
+      <div class="term-body" id="utBody" style="height:300px;overflow-y:auto"></div>
+    </div>
+    <div class="term wide reveal">
+      <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span>usbmon — 总线级抓包（枚举期间的控制传输）</span></div>
+      <div class="term-body">
+        <div class="t-cmt"># ① 加载并挂载（需要 root）   ② 盯住总线 1，然后插入设备</div>
+        <div><span class="t-ps"># </span><code class="t-cmd" data-copy="modprobe usbmon && mount -t debugfs none_debugs /sys/kernel/debug">modprobe usbmon &amp;&amp; mount -t debugfs none_debugs /sys/kernel/debug</code></div>
+        <div><span class="t-ps"># </span><code class="t-cmd" data-copy="cat /sys/kernel/debug/usb/usbmon/1u">cat /sys/kernel/debug/usb/usbmon/1u</code></div>
+        <div class="t-out">ffff9e12.34ab:c080 1234567.891 S <span class="t-hl">Ci:001:000:00</span> 6 18 &lt;</div>
+        <div class="t-cmt">        │           │   │  └ 控制 IN · 总线001 · 设备000 · EP00（06 节第 3 步）</div>
+        <div class="t-cmt">        │           │   └ bRequest=6 GET_DESCRIPTOR · wLength=18</div>
+        <div class="t-cmt">        │           └ S=提交 C=完成（两次一行，成对读）</div>
+        <div class="t-out">ffff9e12.34ab:c080 1234567.933 C Ci:001:000:00 0 18 = <span class="t-tag">12010002…6D04C52B…</span></div>
+        <div class="t-cmt"># 等号后就是 18 字节设备描述符（07 节那张表）· 也可在 Wireshark 里选 usbmon 直接图形化</div>
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="modprobe usbmon; sudo tshark -i usbmon1 -Y usb.transfer_type==2">tshark -i usbmon1 -Y usb.transfer_type==2</code></div>
+        <div class="t-cmt"># 只看控制传输 · 0=iso 1=interrupt 2=control 3=bulk（对应 04 节四类）</div>
+      </div>
+    </div>
+  </div>
+  <div class="lnx-note reveal">
+    <b>抓包思路：</b>usbmon 输出「一次 URB 两个事件」——<code>S</code>（提交）与 <code>C</code>（完成），
+    中间夹的就是总线上真正发生的事。调枚举问题看 <code>Co/Ci</code> 控制传输；调吞吐看批量；
+    HID 不动先 <code>cat /sys/kernel/debug/usb/devices</code> 确认 <code>C:</code> 行的轮询有没有跑。
+    格式细节见内核文档 <code>Documentation/usb/usbmon</code>。
+  </div>
+</section>
+
+<!-- ================= §10 踩坑 + 速查 ================= -->
+<section id="s10">
+  <div class="sec-head reveal"><span class="no">10</span><h2>踩坑指南 · 症状 → 病因</h2><span class="en">Troubleshooting</span></div>
+  <p class="sec-sub reveal">USB 的问题八成不在协议，而在<b>线缆和电</b>。按症状对号入座。</p>
+  <div class="pit-list reveal">
+    <div class="pit"><div class="symptom">插上<br>没反应</div><div class="fix"><b>完全枚举不到 · VBUS / 上拉 / 线序</b><p>查三处：VBUS 有没有 5 V（劣质延长线只通 D+/D− 也有）、设备 <code>1.5 kΩ</code> 上拉是否在 D+（FS）/D−（LS）、D+/D− 是否接反。dmesg 一行不吐 = 主机根本没看到上拉。</p></div></div>
+    <div class="pit"><div class="symptom">枚举<br>一半失败</div><div class="fix"><b><code>device descriptor read/64, error -71 / -110</code></b><p>-71（EPROTO）= 有响应但数据坏：线缆过长/劣质、EMI、SMA 走线；-110（超时）= 设备没理主机：上电时序没完成、复位太短。<b>先换一根短的原装线</b>再谈别的。</p></div></div>
+    <div class="pit"><div class="symptom">硬盘<br>咔哒掉线</div><div class="fix"><b>供电不足 · 压降与电流配额</b><p>2.5″ 硬盘起步 500 mA、寻道瞬间更高：总线供电 hub 每口只给 <code>100 mA</code>，长细线再压掉零点几伏（08 节计算器算过）。症状：认盘 → 掉盘循环。解法：自供电 hub / 双头取电线 / 短粗线。</p></div></div>
+    <div class="pit"><div class="symptom">hub 口<br>全失效</div><div class="fix"><b><code>over-current condition</code> 触发保护</b><p>某口设备短路或虚标电流，hub 整体断电自保，dmesg 刷屏 over-current。拔掉肇事设备即可恢复；若反复出现，查外设的 VBUS 对地短路。</p></div></div>
+    <div class="pit"><div class="symptom">高速<br>变全速</div><div class="fix"><b>Hi-Speed 握手失败降级</b><p>高速 chirp 协商（复位期间的 K/J 序列）对线缆质量敏感：握手失败就静默退回 480M→12M。<code>lsusb -t</code> 看到 12M 而设备标称 480M，先换线；dmesg 会有 <code>not running at top speed</code> 提示。</p></div></div>
+    <div class="pit"><div class="symptom">WiFi<br>跟着变卡</div><div class="fix"><b>USB 3.0 射频泄漏干扰 2.4 GHz</b><p>SS 高速信号的谐波正好落在 2.4 G 频段：USB3 硬盘挨着 WiFi 天线/接收器，吞吐腰斩。经典解法：换屏蔽良好的线缆、把设备挪远 20 cm、WiFi 改 5 GHz。</p></div></div>
+    <div class="pit"><div class="symptom">睡醒<br>失联</div><div class="fix"><b>autosuspend 把设备挂起了</b><p>内核默认对部分设备开自动挂起（线态维持 J 超过 3 ms 即 Suspend），唤醒失败的设备就失联：<code>echo -1 &gt; …/power/autosuspend</code> 或内核参数 <code>usbcore.autosuspend=-1</code> 排除。</p></div></div>
+  </div>
+
+  <div class="cheat-grid reveal">
+    <div class="cheat-panel">
+      <h5>包标识 PID 速查（低 4 位，后 4 位取反校验）</h5>
+      <table class="cmp-table" style="font-size:12.3px">
+        <tr><th>PID</th><th>编码</th><th>含义</th></tr>
+        <tr><td>OUT</td><td>0001</td><td>令牌：后续数据发给设备</td></tr>
+        <tr><td>IN</td><td>1001</td><td>令牌：让设备交数据</td></tr>
+        <tr><td>SOF</td><td>0101</td><td>帧开始 · 11 位帧号广播</td></tr>
+        <tr><td>SETUP</td><td>1101</td><td>令牌：控制传输开场</td></tr>
+        <tr><td>DATA0 / DATA1</td><td>0011 / 1011</td><td>数据包交替（防丢包）</td></tr>
+        <tr><td>ACK / NAK</td><td>0010 / 1010</td><td>收到 / 忙，下次再来</td></tr>
+        <tr><td>STALL</td><td>1110</td><td>端点出错，等主机干预</td></tr>
+        <tr><td>NYET / PING</td><td>0110 / 0100</td><td>仅高速：没准备好 / 探询</td></tr>
+      </table>
+    </div>
+    <div class="cheat-panel">
+      <h5>标准设备请求（bRequest）</h5>
+      <table class="cmp-table" style="font-size:12.3px">
+        <tr><th>bRequest</th><th>名称</th><th>枚举中的角色</th></tr>
+        <tr><td>0 / 1 / 3</td><td>GET/CLEAR/SET_FEATURE</td><td>功能开关（远程唤醒等）</td></tr>
+        <tr><td class="yes">5</td><td>SET_ADDRESS</td><td>分配设备地址（06 节第 4 步）</td></tr>
+        <tr><td class="yes">6</td><td>GET_DESCRIPTOR</td><td>读设备/配置/字符串描述符</td></tr>
+        <tr><td>7 / 8</td><td>SET_DESCRIPTOR / GET_CONFIG</td><td>少用 / 回读当前配置</td></tr>
+        <tr><td class="yes">9</td><td>SET_CONFIGURATION</td><td>激活配置，设备就绪</td></tr>
+        <tr><td>10 / 11</td><td>GET/SET_INTERFACE</td><td>接口备用设置切换</td></tr>
+        <tr><td>12</td><td>SYNCH_FRAME</td><td>同步端点帧号对齐</td></tr>
+      </table>
+    </div>
+    <div class="cheat-panel">
+      <h5>速度与位时间</h5>
+      <div class="notation">
+        <div class="n-item"><div class="nv">1.5M</div><small>LS · 667 ns/bit · 键鼠</small></div>
+        <div class="n-item"><div class="nv a">12M</div><small>FS · 83.3 ns/bit · 1 ms 帧</small></div>
+        <div class="n-item"><div class="nv c">480M</div><small>HS · 2.08 ns/bit · 125 µs 微帧</small></div>
+      </div>
+      <table class="cmp-table" style="font-size:12.3px">
+        <tr><th>量</th><th>数值</th></tr>
+        <tr><td>最大设备数</td><td>127（地址 0 保留）</td></tr>
+        <tr><td>级联深度</td><td>5 级集线器 · 每段 ≤5 m</td></tr>
+        <tr><td>控制传输 EP0 包长</td><td>8 / 16 / 32 / 64 B</td></tr>
+        <tr><td>令牌 / 数据校验</td><td>CRC5 / CRC16</td></tr>
+      </table>
+    </div>
+    <div class="cheat-panel">
+      <h5>六条铁律</h5>
+      <ul class="rules">
+        <li><span class="no">1</span><span><b>主机是唯一发起者</b>——没有令牌，设备一个字也不能说</span></li>
+        <li><span class="no">2</span><span><b>插入三件事</b>：上拉报速度 → 复位 → 地址 0 上读摸底 8 字节</span></li>
+        <li><span class="no">3</span><span><b>0 翻 1 保、六一塞零</b>——NRZI + 位填充是时钟恢复的命根</span></li>
+        <li><span class="no">4</span><span><b>四种传输各司其职</b>：控制必选，批量吃余量，中断保延迟，同步保带宽不重试</span></li>
+        <li><span class="no">5</span><span><b>描述符即真相</b>——lsusb -v 看到什么，主机就相信什么</span></li>
+        <li><span class="no">6</span><span><b>先算电再谈速</b>——压降超 0.25 V，再快的协议也白搭</span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="f-l">
+    <b>参考</b> · USB-IF《Universal Serial Bus Specification Revision 2.0》· USB 3.2 / USB4 / Type-C / USB PD 规范 ·
+    Linux 内核 Documentation/usb/{usbmon,usb} 与 drivers/usb · usbutils (lsusb) · 本页为单文件交互式图解，可离线打开 · 波形与动画由浏览器实时渲染
+  </div>
+  <div class="f-r">USB·LAB</div>
+</footer>
+</main>
+
+<script>
+(function(){
+"use strict";
+/* ================================================================
+   USB·LAB 交互引擎
+================================================================ */
+const $=s=>document.querySelector(s);
+const $$=s=>Array.from(document.querySelectorAll(s));
+const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const mod=(a,m)=>((a%m)+m)%m;
+const escHtml=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+  .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+const COL={g:'#34e08a',a:'#ffb02e',c:'#57d8f2',r:'#ff6478',
+  dim:'#8aa294',faint:'#5c7264',grid:'rgba(52,224,138,.07)',grid2:'rgba(52,224,138,.16)'};
+const MONO='"IBM Plex Mono",monospace';
+
+/* ---------------- 通用：数字序列 → 差分线段 ---------------- */
+/* seq 元素 {dp,dm,len,label}，len 单位=位时间 */
+function expandSeq(seq){
+  const ex=[],reg=[];let t=0;
+  for(const s of seq){
+    const r={s:t,label:s.label||null};
+    for(let i=0;i<s.len;i++) ex.push({dp:s.dp,dm:s.dm,ri:reg.length});
+    r.e=t+s.len;reg.push(r);t+=s.len;
+  }
+  return {ex,reg,N:t};
+}
+/* NRZI 段生成：从字节流（LSB 先发，前置 SYNC） */
+function nrzSeq(bytes){
+  const seq=[{dp:1,dm:0,len:10,label:'IDLE'}];
+  seq.push({dp:0,dm:1,len:1,label:'SYNC'},{dp:1,dm:0,len:1},{dp:0,dm:1,len:1},{dp:1,dm:0,len:1},
+           {dp:0,dm:1,len:1},{dp:1,dm:0,len:1},{dp:0,dm:1,len:2});
+  let dp=0,dm=1; /* SYNC 结束在 K，数据起始再按位走 */
+  const dataSegs=[];
+  bytes.forEach(b=>{ for(let i=0;i<8;i++){
+    const bit=(b>>i)&1;
+    if(bit===0){dp^=1;dm^=1;}
+    dataSegs.push({dp,dm,len:1});
+  }});
+  /* 合并成一段 */
+  let merged=[];
+  dataSegs.forEach(s=>{
+    if(merged.length&&merged[merged.length-1].dp===s.dp){merged[merged.length-1].len++;}
+    else merged.push({...s});
+  });
+  merged.forEach(s=>s.label='数据 · NRZI');
+  seq.push(...merged);
+  seq.push({dp:0,dm:0,len:2,label:'EOP'},{dp:1,dm:0,len:1});
+  seq.push({dp:1,dm:0,len:10,label:'IDLE'});
+  return seq;
+}
+
+/* ---------------- §02 迷你示波器 ---------------- */
+const MINI=[];
+class Mini{
+  constructor(cv,seq,opts){
+    this.cv=cv;this.ctx=cv.getContext('2d');
+    this.o=Object.assign({pb:15,speed:26,h:96,labels:true},opts||{});
+    const E=expandSeq(seq);this.ex=E.ex;this.reg=E.reg;this.N=E.N;
+    this.phase=0;this.visible=false;
+    MINI.push(this);
+    this.resize();
+    new ResizeObserver(()=>this.resize()).observe(cv.parentElement);
+    const io=new IntersectionObserver(es=>es.forEach(e=>this.visible=e.isIntersecting),{rootMargin:'60px'});
+    io.observe(cv);
+  }
+  resize(){
+    const r=this.cv.parentElement.getBoundingClientRect();
+    const dpr=Math.min(devicePixelRatio||1,2);
+    this.w=Math.max(280,r.width);this.h=this.o.h;
+    this.cv.width=this.w*dpr;this.cv.height=this.h*dpr;
+    this.cv.style.height=this.h+'px';
+    this.ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  tick(dt){ if(this.visible) this.phase+=this.o.speed*dt; this.draw(); }
+  xOf(t){ return (t-this.phase)*this.o.pb; }
+  draw(){
+    const c=this.ctx,w=this.w,h=this.h,pb=this.o.pb;
+    const t0=this.phase,t1=t0+w/pb;
+    c.clearRect(0,0,w,h);
+    const top=24,bot=10,rowH=(h-top-bot)/2,amp=rowH*.32;
+    const rows=[{k:'dp',y0:top+rowH/2,name:'D+',col:COL.g},{k:'dm',y0:top+rowH*1.5,name:'D−',col:COL.c}];
+    const state=i=>{const e=this.ex[mod(i,this.N)];
+      return e.dp===1&&e.dm===0?'J':e.dp===0&&e.dm===1?'K':e.dp===0&&e.dm===0?'Z':'X';};
+    /* 线态底色 */
+    if(pb>=6){
+      for(let i=Math.ceil(t0);i<t1;i++){
+        const x=this.xOf(i),st=state(i);
+        c.fillStyle= st==='J'?'rgba(52,224,138,.05)': st==='K'?'rgba(255,176,46,.05)':
+                     st==='Z'?'rgba(255,100,120,.06)':'rgba(255,100,120,.12)';
+        c.fillRect(x,top,Math.min(pb,w-x),h-top-bot);
+      }
+    }
+    /* 网格 */
+    for(let i=Math.ceil(t0);i<t1;i++){
+      const x=this.xOf(i);
+      c.strokeStyle=mod(i,this.N)===0?COL.grid2:COL.grid;
+      c.lineWidth=1;c.beginPath();c.moveTo(x+.5,top);c.lineTo(x+.5,h-bot);c.stroke();
+    }
+    /* 区域标签 */
+    c.font='600 9px '+MONO;c.textAlign='center';
+    for(let base=Math.floor(t0/this.N)*this.N;base<t1+this.N;base+=this.N){
+      for(const r of this.reg){
+        if(!r.label)continue;
+        const x1=Math.max(0,this.xOf(base+r.s)),x2=Math.min(w,this.xOf(base+r.e));
+        if(x2<=0||x1>=w||x2-x1<30)continue;
+        c.fillStyle='rgba(140,162,148,.85)';
+        c.fillText(r.label,(x1+x2)/2,14);
+      }
+    }
+    /* 波形 */
+    for(const r of rows){
+      const yHi=r.y0-amp,yLo=r.y0+amp;
+      c.strokeStyle=r.col;c.lineWidth=2;
+      if(r.k==='dm')c.globalAlpha=.65;
+      let py=null;c.beginPath();
+      const i0=Math.floor(t0)-2,i1=Math.ceil(t1)+2;
+      for(let i=i0;i<=i1;i++){
+        const e=this.ex[mod(i,this.N)];
+        const y=e[r.k==='dp'?'dp':'dm']?yHi:yLo;
+        if(py===null)c.moveTo(this.xOf(i),y);
+        else if(py!==y){c.lineTo(this.xOf(i),py);c.lineTo(this.xOf(i),y);}
+        c.lineTo(this.xOf(i+1),y);py=y;
+      }
+      c.stroke();c.globalAlpha=1;
+      /* 名字 */
+      c.fillStyle='rgba(7,11,9,.88)';c.fillRect(0,r.y0-8,30,16);
+      c.font='600 10px '+MONO;c.textAlign='left';c.fillStyle=r.col;
+      c.fillText(r.name,6,r.y0+3.5);
+    }
+    /* 线态字母 */
+    c.font='8px '+MONO;c.textAlign='center';c.fillStyle='rgba(140,162,148,.55)';
+    if(pb>=12){
+      for(let i=Math.ceil(t0);i<t1;i++){
+        const st=state(i);
+        c.fillText(st==='Z'?'SE0':st==='X'?'SE1':st,this.xOf(i+.5),h-2);
+      }
+    }
+  }
+}
+$$('[data-mini]').forEach(cv=>{
+  const kind=cv.dataset.mini;
+  const cfg={
+    diff:{seq:nrzSeq([0xA5,0x5A,0x0F]),o:{pb:13,speed:24}},
+    spd:{seq:[
+      {dp:0,dm:0,len:12,label:'插入前 · SE0'},
+      {dp:1,dm:0,len:24,label:'1.5kΩ 上拉 D+ → Full-Speed（D+≈3.0V）'},
+      {dp:0,dm:0,len:18,label:'复位 · SE0 ≥10 ms'},
+      {dp:1,dm:0,len:16,label:'空闲 J'},
+      {dp:0,dm:1,len:6,label:'K'},
+      {dp:1,dm:0,len:14,label:'空闲 J'}],o:{pb:9,speed:16}},
+    eop:{seq:[
+      {dp:1,dm:0,len:10,label:'空闲 J'},
+      {dp:0,dm:1,len:3},{dp:1,dm:0,len:2},{dp:0,dm:1,len:2},{dp:1,dm:0,len:3},
+      {dp:0,dm:1,len:2},{dp:1,dm:0,len:3},
+      {dp:0,dm:0,len:2,label:'EOP：SE0×2'},
+      {dp:1,dm:0,len:8,label:'+ J×1'},
+      {dp:0,dm:0,len:26,label:'复位 · SE0 ≥10 ms'},
+      {dp:1,dm:0,len:14,label:'空闲 J'}],o:{pb:9,speed:18}},
+  }[kind];
+  new Mini(cv,cfg.seq,cfg.o);
+});
+
+/* ---------------- Hero 数据包动画 ---------------- */
+const heroBus=(function(){
+  const svg=$('#heroSvg');if(!svg)return null;
+  const NS='http://www.w3.org/2000/svg';
+  const paths={hh:$('#pHH'),h1:$('#pH1'),h2:$('#pH2'),h3:$('#pH3')};
+  const lens={};for(const k in paths)lens[k]=paths[k].getTotalLength();
+  const RGB={g:'52,224,138',c:'87,216,242',a:'255,176,46',d:'138,162,148'};
+  const T=12;
+  const SCRIPT=[
+    {t:0.0, d:1.0, p:'hh', lb:'SOF', c:'d'},
+    {t:0.18,d:0.8, p:'h1', lb:'SOF', c:'d'},{t:0.18,d:0.8,p:'h2',lb:'SOF',c:'d'},{t:0.18,d:0.8,p:'h3',lb:'SOF',c:'d'},
+    {t:1.4, d:0.9, p:'hh', lb:'IN', c:'g'},
+    {t:1.7, d:0.9, p:'h2', lb:'IN', c:'g'},
+    {t:2.8, d:0.9, p:'h2', lb:'DATA1 64B', c:'c', rev:true},
+    {t:3.7, d:0.9, p:'hh', lb:'DATA1 64B', c:'c', rev:true},
+    {t:4.7, d:0.7, p:'hh', lb:'ACK', c:'a'},
+    {t:4.95,d:0.7, p:'h2', lb:'ACK', c:'a'},
+    {t:5.8, d:0.8, p:'hh', lb:'OUT', c:'g'},
+    {t:6.1, d:0.8, p:'h1', lb:'OUT', c:'g'},
+    {t:6.9, d:0.8, p:'hh', lb:'DATA0 4B', c:'c'},
+    {t:7.2, d:0.8, p:'h1', lb:'DATA0 4B', c:'c'},
+    {t:8.0, d:0.7, p:'h1', lb:'ACK', c:'a', rev:true},
+    {t:8.7, d:0.9, p:'hh', lb:'IN', c:'g'},
+    {t:9.0, d:0.9, p:'h3', lb:'IN', c:'g'},
+    {t:9.9, d:0.9, p:'h3', lb:'DATA0 1023B', c:'c', rev:true},
+    {t:10.8,d:0.9, p:'hh', lb:'DATA0', c:'c', rev:true},
+  ];
+  const layer=$('#sprites');
+  SCRIPT.forEach(s=>{
+    const g=document.createElementNS(NS,'g');g.style.opacity='0';
+    const w=Math.max(30,12+s.lb.length*7.4);
+    const r=document.createElementNS(NS,'rect');
+    r.setAttribute('x',-w/2);r.setAttribute('y',-11);
+    r.setAttribute('width',w);r.setAttribute('height',22);r.setAttribute('rx',5);
+    r.setAttribute('fill','rgba('+RGB[s.c]+',.16)');
+    r.setAttribute('stroke','rgba('+RGB[s.c]+',.9)');
+    r.setAttribute('stroke-width','1.2');
+    const t=document.createElementNS(NS,'text');
+    t.setAttribute('text-anchor','middle');t.setAttribute('y',4);
+    t.setAttribute('font-size','10.5');t.setAttribute('font-weight','600');
+    t.setAttribute('fill','rgb('+RGB[s.c]+')');
+    t.textContent=s.lb;
+    g.appendChild(r);g.appendChild(t);layer.appendChild(g);
+    s.el=g;
+  });
+  return {tick(now){
+    const tm=now/1000;
+    for(const s of SCRIPT){
+      let local=((tm-s.t)%T+T)%T/s.d;
+      if(local>=0&&local<1){
+        const p=s.rev?1-local:local;
+        const pt=paths[s.p].getPointAtLength(p*lens[s.p]);
+        s.el.setAttribute('transform','translate('+pt.x.toFixed(1)+','+pt.y.toFixed(1)+')');
+        s.el.style.opacity=String(Math.min(1,local*6,(1-local)*6));
+      }else s.el.style.opacity='0';
+    }
+  }};
+})();
+
+/* ---------------- §03 NRZI + 位填充实验室 ---------------- */
+const NRZ={
+  bytes:[0xFF,0x00],k:0,acc:0,playing:!reduced,speed:1.6,loopWait:0,
+  orig:[],stuff:[],levels:[],colOf:[],svgEl:null,
+};
+const NRZ_GEO={BW:32,PADL:96,H:342};
+function nrzBuild(){
+  NRZ.orig=[];
+  NRZ.bytes.forEach(b=>{for(let i=7;i>=0;i--)NRZ.orig.push((b>>i)&1);});
+  NRZ.stuff=[];let ones=0;
+  NRZ.orig.forEach((b,oi)=>{
+    NRZ.stuff.push({v:b,s:false,oi});
+    if(b===1){ones++;if(ones===6){NRZ.stuff.push({v:0,s:true,oi:-1});ones=0;}}
+    else ones=0;
+  });
+  let dp=1;
+  NRZ.levels=NRZ.stuff.map(s=>{if(s.v===0)dp^=1;return dp;});
+  NRZ.colOf=NRZ.orig.map(()=>-1);
+  NRZ.stuff.forEach((s,ci)=>{if(!s.s)NRZ.colOf[s.oi]=ci;});
+  NRZ.k=0;NRZ.acc=0;NRZ.loopWait=0;
+  nrzRender();nrzApply();
+}function nrzRender(){
+  const BW=NRZ_GEO.BW,PADL=NRZ_GEO.PADL,H=NRZ_GEO.H;
+  const n=NRZ.stuff.length;
+  const W=PADL+n*BW+24;
+  const x=i=>PADL+i*BW+BW/2;
+  const xe=i=>PADL+i*BW;
+  const svg=$('#nrzSvg');
+  svg.setAttribute('viewBox','0 0 '+W+' '+H);
+  let out='';
+  /* 字节标头 */
+  NRZ.bytes.forEach((b,bi)=>{
+    const c0=NRZ.colOf[bi*8],c1=NRZ.colOf[bi*8+7];
+    if(c0<0||c1<0)return;
+    out+='<rect x="'+(xe(c0)+2)+'" y="16" width="'+((c1-c0+1)*BW-4)+'" height="20" rx="4" fill="rgba(52,224,138,.06)" stroke="rgba(52,224,138,.35)"/>'+
+      '<text x="'+((xe(c0)+xe(c1)+BW)/2)+'" y="30" text-anchor="middle" font-size="10.5" fill="#34e08a" font-weight="600">0x'+b.toString(16).toUpperCase().padStart(2,'0')+'</text>';
+  });
+  /* 行标签 */
+  const lab=(y,t1,t2,col)=>'<text x="'+(PADL-14)+'" y="'+y+'" text-anchor="end" font-size="10.5" fill="'+col+'" font-weight="600">'+t1+'</text>'+
+    (t2?'<text x="'+(PADL-14)+'" y="'+(y+13)+'" text-anchor="end" font-size="8.5" fill="rgba(140,162,148,.7)">'+t2+'</text>':'');
+  /* Track 1 原始位 */
+  out+=lab(66,'① 原始位流','NRZ','#dcebe1');
+  NRZ.orig.forEach((b,oi)=>{
+    const ci=NRZ.colOf[oi];if(ci<0)return;
+    out+='<text id="no-'+oi+'" class="no-bt" x="'+x(ci)+'" y="70" text-anchor="middle" font-size="13" font-weight="600" fill="'+(b?COL.g:'rgba(140,162,148,.9)')+'">'+b+'</text>';
+  });
+  /* Track 2 填充后 */
+  out+=lab(118,'② 位填充后','STUFFED','#dcebe1');
+  NRZ.stuff.forEach((s,ci)=>{
+    const fill=s.s?'rgba(255,176,46,.16)':'rgba(255,255,255,.03)';
+    const st=s.s?'rgba(255,176,46,.8)':'rgba(39,57,45,1)';
+    out+='<rect id="ns-'+ci+'" class="ns-cell" data-stuff="'+(s.s?1:0)+'" x="'+(xe(ci)+2)+'" y="96" width="'+(BW-4)+'" height="34" rx="4" fill="'+fill+'" stroke="'+st+'" stroke-width="'+(s.s?1.4:1)+'"/>'+
+      '<text id="nst-'+ci+'" x="'+x(ci)+'" y="117" text-anchor="middle" font-size="12.5" font-weight="600" fill="'+(s.s?COL.a:(s.v?COL.g:'rgba(140,162,148,.95)'))+'">'+s.v+'</text>';
+  });
+  /* Track 3 NRZI */
+  out+=lab(172,'③ NRZI','0=翻转 · 1=保持','#57d8f2');
+  const yA=196,yB=252,amp=26;
+  const yP=l=>l?(yA+yB)/2-amp:(yA+yB)/2+amp;
+  const yM=l=>l?(yA+yB)/2+amp:(yA+yB)/2-amp;
+  let dP='M '+xe(0)+' '+yP(NRZ.levels[0]),dM='M '+xe(0)+' '+yM(NRZ.levels[0]);
+  NRZ.stuff.forEach((s,ci)=>{
+    dP+=' L '+xe(ci)+' '+yP(NRZ.levels[ci])+' L '+xe(ci+1)+' '+yP(NRZ.levels[ci]);
+    dM+=' L '+xe(ci)+' '+yM(NRZ.levels[ci])+' L '+xe(ci+1)+' '+yM(NRZ.levels[ci]);
+  });
+  out+='<defs><clipPath id="nrzClip"><rect id="nrzClipR" x="0" y="0" width="'+PADL+'" height="'+H+'"/></clipPath></defs>';
+  out+='<path d="'+dP+'" fill="none" stroke="rgba(52,224,138,.18)" stroke-width="2"/>';
+  out+='<path d="'+dM+'" fill="none" stroke="rgba(87,216,242,.13)" stroke-width="2"/>';
+  out+='<path id="nrzP" d="'+dP+'" fill="none" stroke="'+COL.g+'" stroke-width="2.4" stroke-linejoin="round" clip-path="url(#nrzClip)" style="filter:drop-shadow(0 0 4px rgba(52,224,138,.6))"/>';
+  out+='<path id="nrzM" d="'+dM+'" fill="none" stroke="'+COL.c+'" stroke-width="1.8" clip-path="url(#nrzClip)" opacity=".7"/>';
+  out+='<text x="'+(PADL-14)+'" y="'+(yA+4)+'" text-anchor="end" font-size="9" fill="'+COL.g+'">D+</text>';
+  out+='<text x="'+(PADL-14)+'" y="'+(yB+4)+'" text-anchor="end" font-size="9" fill="'+COL.c+'">D−</text>';
+  /* J/K 字母 */
+  out+=lab(292,'线态','J / K','rgba(140,162,148,.8)');
+  NRZ.stuff.forEach((s,ci)=>{
+    out+='<text id="njk-'+ci+'" x="'+x(ci)+'" y="292" text-anchor="middle" font-size="9" fill="rgba(140,162,148,.75)">'+(NRZ.levels[ci]?'J':'K')+'</text>';
+  });
+  /* 翻转箭头行 */
+  NRZ.stuff.forEach((s,ci)=>{
+    if(s.v===0){
+      out+='<text id="nar-'+ci+'" x="'+x(ci)+'" y="318" text-anchor="middle" font-size="11" fill="'+COL.a+'">↕</text>';
+    }
+  });
+  out+='<text x="'+(PADL-14)+'" y="318" text-anchor="end" font-size="8.5" fill="rgba(140,162,148,.6)">翻转</text>';
+  /* 播放头 */
+  out+='<line id="nrzHead" x1="'+PADL+'" y1="44" x2="'+PADL+'" y2="'+330+'" stroke="'+COL.r+'" stroke-width="1.4" stroke-dasharray="5,4"/>';
+  out+='<circle id="nrzDot" cx="'+PADL+'" cy="'+yP(NRZ.levels[0])+'" r="4" fill="'+COL.r+'"/>';
+  svg.innerHTML=out;
+  svg.style.cursor='pointer';
+}
+function nrzApply(){
+  const k=NRZ.k,n=NRZ.stuff.length;
+  const BW=NRZ_GEO.BW,PADL=NRZ_GEO.PADL;
+  const svg=$('#nrzSvg');
+  /* 清除高亮 */
+  svg.querySelectorAll('.ns-cell').forEach(el=>el.setAttribute('stroke',el.dataset.stuff==='1'?'rgba(255,176,46,.8)':'rgba(39,57,45,1)'));
+  svg.querySelectorAll('.no-bt').forEach(el=>el.setAttribute('opacity','.85'));
+  const upto=Math.min(k,n-1);
+  for(let i=0;i<=upto;i++){
+    const cell=svg.querySelector('#ns-'+i);
+    if(cell){
+      cell.dataset.stuff=NRZ.stuff[i].s?'1':'0';
+      if(i===upto)cell.setAttribute('stroke',NRZ.stuff[i].s?COL.a:COL.g);
+    }
+    const oi=NRZ.stuff[i].oi;
+    if(oi>=0){
+      const t=svg.querySelector('#no-'+oi);
+      if(t)t.setAttribute('opacity', i===upto?'1':'.85');
+    }
+  }
+  /* 播放头与裁剪 */
+  const hx=PADL+Math.min(k,n)*BW;
+  const head=svg.querySelector('#nrzHead'),dot=svg.querySelector('#nrzDot'),cr=svg.querySelector('#nrzClipR');
+  if(head){head.setAttribute('x1',hx);head.setAttribute('x2',hx);}
+  if(cr)cr.setAttribute('width',hx);
+  if(dot&&k<n){dot.setAttribute('cx',hx-BW/2);}
+  /* 读数 */
+  let tog=0,keep=0,stuff=0,ones=0,curOnes=0;
+  for(let i=0;i<Math.min(k,n);i++){
+    if(NRZ.stuff[i].v===0)tog++;else keep++;
+    if(NRZ.stuff[i].s)stuff++;
+  }
+  for(let i=0;i<Math.min(k,n);i++){
+    if(NRZ.stuff[i].v===1&&!NRZ.stuff[i].s){curOnes++;if(curOnes>ones)ones=curOnes;}else curOnes=0;
+  }
+  document.getElementById('nBit').textContent=k+' / '+n;
+  document.getElementById('nOnes').textContent=curOnes+' / 6';
+  document.getElementById('nStuff').textContent=String(stuff);
+  document.getElementById('nTog').textContent=tog+' / '+keep;
+  const pct=(NRZ.stuff.length-NRZ.orig.length)/NRZ.orig.length*100;
+  document.getElementById('nRatio').textContent='+'+pct.toFixed(1)+'%';
+  /* 说明文字 */
+  const msg=document.getElementById('nMsg');
+  if(k>=n){
+    msg.innerHTML='<b>完成：</b>共 '+NRZ.orig.length+' 个原始位 → 线上 '+n+' 位（含 '+stuff+' 个填充位），翻转 '+tog+' 次。';
+  }else{
+    const s=NRZ.stuff[k];
+    if(s.s){
+      msg.innerHTML='<b>填充位！</b>前面连续 6 个 1 → 此处强制插入 0 → NRZI 被迫<b style="color:var(--amber)">翻转</b>，时钟重新同步。接收端数到 6 个 1 后会自动丢弃它。';
+    }else if(s.v===1){
+      msg.innerHTML='<b>1 → 保持</b>：电平不动（'+(NRZ.levels[k]?'J':'K')+'），连续 1 计数 = '+curOnes+'。';
+    }else{
+      msg.innerHTML='<b>0 → 翻转</b>：电平跳到 '+(NRZ.levels[k]?'J':'K')+'。接收端靠这些翻转换取时钟。';
+    }
+  }
+}
+function nrzTick(dt){
+  if(!NRZ.playing)return;
+  if(NRZ.k>=NRZ.stuff.length){
+    NRZ.loopWait+=dt;
+    if(NRZ.loopWait>1.3){NRZ.k=0;NRZ.loopWait=0;nrzApply();}
+    return;
+  }
+  NRZ.acc+=dt*NRZ.speed;
+  while(NRZ.acc>=1&&NRZ.k<NRZ.stuff.length){NRZ.acc-=1;NRZ.k++;nrzApply();}
+}
+/* 控件 */
+function nrzSetPlay(p){
+  NRZ.playing=p;
+  const b=document.getElementById('nrzPlay');
+  b.textContent=p?'❚❚':'▶';b.classList.toggle('on',p);
+}
+document.getElementById('nrzPlay').addEventListener('click',()=>nrzSetPlay(!NRZ.playing));
+document.getElementById('nrzStep').addEventListener('click',()=>{
+  nrzSetPlay(false);
+  if(NRZ.k>=NRZ.stuff.length)NRZ.k=0;else NRZ.k++;
+  nrzApply();
+});
+document.getElementById('nrzReset').addEventListener('click',()=>{NRZ.k=0;NRZ.loopWait=0;nrzApply();});
+document.getElementById('nrzSpeed').addEventListener('input',e=>{NRZ.speed=+e.target.value;});
+function nrzSetBytes(str){
+  const parts=str.trim().split(/[\s,]+/).filter(x=>x.length).slice(0,6);
+  const bytes=parts.map(p=>{const v=parseInt(p.replace(/^0x/i,''),16);return isNaN(v)?0:(v&0xFF);});
+  if(!bytes.length)bytes.push(0);
+  NRZ.bytes=bytes;
+  const hexed=bytes.map(b=>b.toString(16).toUpperCase().padStart(2,'0'));
+  document.getElementById('byteIn').value=hexed.join(' ');
+  $$('#byteChips button').forEach(b=>b.classList.toggle('on',b.dataset.b===hexed.join(' ')));
+  nrzBuild();
+}
+document.getElementById('byteChips').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  $$('#byteChips button').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');
+  nrzSetBytes(b.dataset.b);
+});
+document.getElementById('byteIn').addEventListener('change',e=>{nrzSetBytes(e.target.value);});
+$('#nrzSvg').addEventListener('click',e=>{
+  const svg=$('#nrzSvg'),rect=svg.getBoundingClientRect();
+  const W=parseFloat(svg.viewBox.baseVal.width);
+  const vx=(e.clientX-rect.left)/rect.width*W;
+  const i=Math.floor((vx-NRZ_GEO.PADL)/NRZ_GEO.BW);
+  if(i>=0&&i<=NRZ.stuff.length){nrzSetPlay(false);NRZ.k=i;nrzApply();}
+});
+if(reduced)nrzSetPlay(false);
+nrzBuild();
+
+/* ---------------- §04 传输类型 ---------------- */
+const XF={
+  ctrl:{t:'控制传输',en:'CONTROL TRANSFER',dev:'枚举 · 描述符读写 · 所有设备的 EP0',
+    rows:[['带宽保证','<b>预留 10%（FS）/ 20%（HS）</b>——再忙也要留'],['延迟保证','尽力而为'],
+      ['出错重试','✓ 三阶段内重试，NAK 无限等待'],['方向','SETUP 固定 H→D · DATA 可双向 · STATUS 与 DATA 反向'],
+      ['端点','EP0 · 唯一的双向端点 · 必须实现'],['包长','8 / 16 / 32 / 64 B'],
+      ['令牌','SETUP 开场 · IN/OUT 走 DATA/STATUS']],
+    note:'控制传输是设备的「出生流程 + 控制面板」：枚举全程（06 节）都是它，运行期的自定义命令也走它。三阶段结构（05 节）保证「请求-数据-回执」原子完成。'},
+  bulk:{t:'批量传输',en:'BULK TRANSFER',dev:'U 盘 · 移动硬盘 · 扫描仪 · 打印机',
+    rows:[['带宽保证','<b>无</b>——吃掉帧内所有剩余时间'],['延迟保证','无 · 空闲时快如闪电，拥挤时排队'],
+      ['出错重试','✓ CRC 错重发，数据绝对可靠'],['方向','IN 或 OUT 端点 · 单向'],
+      ['端点','除 EP0 外任意端点'],['包长','FS 64 B · HS 512 B'],
+      ['差错检测','CRC16 · 三次重试仍失败则挂起端点']],
+    note:'总线空闲时批量传输能占到 90% 以上带宽，总线忙时它第一个让路——「有福同享，有难先当」。这就是拷文件时键鼠依然流畅、拔掉摄像头后拷贝速度暴涨的原因。'},
+  intr:{t:'中断传输',en:'INTERRUPT TRANSFER',dev:'键盘 · 鼠标 · 手柄 · 触摸屏 · 串口适配器',
+    rows:[['带宽保证','<b>按 bInterval 预留时隙</b>'],['延迟保证','✓ FS 最长 255 ms · HS 最短 125 µs'],
+      ['出错重试','✓ 下一个轮询周期重试'],['方向','IN 或 OUT（键鼠几乎全是 IN）'],
+      ['端点','除 EP0 外任意端点'],['包长','FS ≤64 B · HS ≤1024 B'],
+      ['调度','主机按时上门轮询，设备 NAK 表示没事']],
+    note:'名字叫「中断」，其实是「带截止日期的轮询」：设备无法主动打断主机，只能在描述符里申请一个轮询间隔（bInterval），主机保证不迟到。键盘填 10 ms，你感觉不到延迟。'},
+  iso:{t:'同步传输',en:'ISOCHRONOUS TRANSFER',dev:'摄像头 · 声卡 · 视频采集卡',
+    rows:[['带宽保证','<b>配置时整块预留</b>，不够则拒绝枚举'],['延迟保证','✓ 每帧固定时隙，抖动极小'],
+      ['出错重试','<b>不重试</b>——坏帧直接丢弃'],['方向','IN 或 OUT'],
+      ['端点','除 EP0 外任意端点'],['包长','FS ≤1023 B · HS ≤1024 B'],
+      ['握手','无 ACK/NAK —— 数据流不回头']],
+    note:'为实时流而生：一帧图像丢一个包，宁可花屏也不要重传打乱节奏。带宽在 SET_CONFIGURATION 时一次性谈定，谈不下来主机直接拒绝配置——摄像头在满负荷 hub 上插不进去就是这个原因。'},
+};
+const FS_SEGS=[
+  {k:'sof',w:'4%',lb:'SOF',c:'dim'},{k:'ctrl',w:'12%',lb:'控制预留',c:'a'},
+  {k:'intr',w:'18%',lb:'中断时隙',c:'g'},{k:'iso',w:'28%',lb:'同步预留',c:'c'},
+  {k:'bulk',w:'38%',lb:'批量（剩余全给它）',c:'bulk'},
+];
+const FS_COL={dim:'#5c7264',a:'#ffb02e',g:'#34e08a',c:'#57d8f2',bulk:'#8aa294'};
+(function initXf(){
+  const seg=$('#xfSeg');
+  Object.keys(XF).forEach((k,i)=>{
+    const b=document.createElement('button');
+    b.className='xf-btn'+(i===0?' on':'');b.type='button';b.dataset.xf=k;
+    b.innerHTML='<div class="xn">TYPE '+String(i+1).padStart(2,'0')+'</div><h4>'+XF[k].t+'</h4><p>'+XF[k].dev.split(' · ')[0]+' 等</p>';
+    seg.appendChild(b);
+  });
+  const bar=$('#fsBar');
+  FS_SEGS.forEach(s=>{
+    const d=document.createElement('div');
+    d.className='fs';d.style.width=s.w;d.dataset.k=s.k;
+    d.style.background='rgba('+hexToRgb(FS_COL[s.c])+',.12)';
+    d.style.color='rgb('+hexToRgb(FS_COL[s.c])+')';
+    d.textContent=s.lb;
+    bar.appendChild(d);
+  });
+  function select(k){
+    seg.querySelectorAll('.xf-btn').forEach(b=>b.classList.toggle('on',b.dataset.xf===k));
+    $('#xfTitle').textContent=XF[k].t;
+    $('#xfEn').textContent=XF[k].en;
+    $('#xfRows').innerHTML=XF[k].rows.map(r=>'<div class="xr"><div class="xk">'+r[0]+'</div><div class="xv">'+r[1]+'</div></div>').join('');
+    $('#xfNote').innerHTML='「<b>'+XF[k].t+'</b>」在 1 ms 帧中的位置：'+XF[k].note;
+    bar.querySelectorAll('.fs').forEach(d=>{
+      const ck=d.dataset.k==='sof'?'dim':FS_SEGS.find(s=>s.k===d.dataset.k).c;
+      const hot=d.dataset.k===k||(k==='ctrl'&&d.dataset.k==='sof');
+      d.classList.toggle('hot',hot);
+      d.style.background=hot?'rgba('+hexToRgb(FS_COL[ck])+',.55)':'rgba('+hexToRgb(FS_COL[ck])+',.12)';
+      d.style.color=hot?'#052013':'rgb('+hexToRgb(FS_COL[ck])+')';
+    });
+  }
+  function hexToRgb(hex){
+    return parseInt(hex.slice(1,3),16)+','+parseInt(hex.slice(3,5),16)+','+parseInt(hex.slice(5,7),16);
+  }
+  seg.addEventListener('click',e=>{const b=e.target.closest('.xf-btn');if(b)select(b.dataset.xf);});
+  select('ctrl');
+})();
+
+/* ---------------- §05 控制传输三阶段 ---------------- */
+const CT_REQS={
+  getd:{name:'GET_DESCRIPTOR · Device',setup:[0x80,0x06,0x00,0x01,0x00,0x00,0x12,0x00],
+    fields:[
+      ['bmRequestType','0x80','方向 IN · 类型 Standard · 接收方 Device'],
+      ['bRequest','0x06','GET_DESCRIPTOR（速查表里的 6 号请求）'],
+      ['wValue','0x0100','高字节=描述符类型 01 设备 · 低字节=索引 00'],
+      ['wIndex','0x0000','字符串描述符时才是语言 ID，此处为 0'],
+      ['wLength','18','主机想读 18 字节（正好一个设备描述符）']],
+    dataNote:'DATA0 · 18 B 设备描述符（07 节那张表的原样字节）',
+    statusNote:'STATUS：主机发 0 字节 DATA1，设备 ACK —— 「货已收讫」',
+    hasData:true},
+  seta:{name:'SET_ADDRESS · 5',setup:[0x00,0x05,0x05,0x00,0x00,0x00,0x00,0x00],
+    fields:[
+      ['bmRequestType','0x00','方向 OUT · 类型 Standard · 接收方 Device'],
+      ['bRequest','0x05','SET_ADDRESS（枚举第 4 步）'],
+      ['wValue','0x0005','新地址 = 5（7-bit，0 保留给未枚举设备）'],
+      ['wIndex','0x0000','保留'],
+      ['wLength','0','无数据阶段'],
+      ['生效时机','','设备在「完成 STATUS 阶段之后」才切换地址']],
+    dataNote:null,
+    statusNote:'STATUS：设备回 0 字节 DATA1，主机 ACK —— 地址即刻生效',
+    hasData:false},
+  setc:{name:'SET_CONFIGURATION · 1',setup:[0x00,0x09,0x01,0x00,0x00,0x00,0x00,0x00],
+    fields:[
+      ['bmRequestType','0x00','方向 OUT · 类型 Standard · 接收方 Device'],
+      ['bRequest','0x09','SET_CONFIGURATION（枚举收官）'],
+      ['wValue','0x0001','激活配置 #1（来自配置描述符 bConfigurationValue）'],
+      ['wIndex','0x0000','保留'],
+      ['wLength','0','无数据阶段'],
+      ['配置后','','非 EP0 端点全部上电 · 电流配额按 bMaxPower 生效']],
+    dataNote:null,
+    statusNote:'STATUS：设备回 0 字节 DATA1，主机 ACK —— 设备进入 CONFIGURED',
+    hasData:false},
+};
+const CT={req:'getd',k:0,steps:[],play:false,acc:0};
+function ctBuildSteps(){
+  const R=CT_REQS[CT.req],S=[];
+  const p=(g,p_,log,t)=>({g,p:p_,log,t});
+  S.push(p(0,0,'SETUP 令牌 · ADDR=0 EP0','<b>SETUP 阶段开场</b>：主机发出 SETUP 令牌——只有它允许打开一场控制传输，并会清掉 EP0 上未完成的事务。'));
+  S.push({g:0,p:1,f:0,log:'DATA0 · 8B 请求',t:'DATA0 载来 <b>8 字节标准请求</b>。逐字段亮起——先是 <b>bmRequestType</b>：一位方向 + 两位类型 + 五位接收方。'});
+  S.push({g:0,p:1,f:1,log:'',t:'<b>bRequest</b>：请求编号，决定这场戏演什么。'});
+  S.push({g:0,p:1,f:2,log:'',t:'<b>wValue</b>：请求的参数。对 GET_DESCRIPTOR 来说 = 描述符类型 + 索引。'});
+  S.push({g:0,p:1,f:4,log:'',t:'<b>wLength</b>：DATA 阶段要搬多少字节。为 0 就跳过 DATA 阶段直接 STATUS。'});
+  S.push(p(0,2,'设备 ACK','设备 <b>ACK</b>：请求收到。SETUP 阶段落幕。'));
+  if(R.hasData){
+    S.push(p(1,0,'IN 令牌','<b>DATA 阶段</b>：主机发 IN 令牌，向设备要数据。'));
+    S.push(p(1,1,'DATA0 · 18B 描述符','设备回 <b>DATA0：18 字节设备描述符</b>——07 节 lsusb 里那张表的原始字节。'));
+    S.push(p(1,2,'主机 ACK','主机 <b>ACK</b>。数据长的话重复「IN→DATA1→ACK」直到 wLength 搬完。'));
+  }else{
+    S.push(p(1,-1,'（无 DATA 阶段）','<b>此请求 wLength=0</b>：没有 DATA 阶段，SETUP 之后直接进 STATUS——「无数据控制传输」。'));
+  }
+  S.push(p(2,0,'STATUS 令牌','<b>STATUS 阶段</b>：方向与 DATA 阶段相反，相当于回执联单。'));
+  S.push({g:2,p:1,log:'DATA1 · 0B',t:R.statusNote+'（0 字节数据包也是一次合法的数据阶段，DATA 切换到 <b>DATA1</b>）'});
+  S.push(p(2,2,'ACK','最终 <b>ACK</b>——整场控制传输原子完成。'+(CT.req==='seta'?'（SET_ADDRESS 的妙处：地址在这之后才切换，这场戏本身还在旧地址上收尾）':'')));
+  CT.steps=S;
+}
+function ctRender(){
+  const R=CT_REQS[CT.req];
+  ctBuildSteps();
+  const stageDef=[
+    {n:'SETUP',d:'H→D · 8B 请求',chips:['SETUP 令牌','DATA0 · 8 B 请求','设备 ACK']},
+    {n:'DATA',d:R.hasData?'D→H · 搬数据':null,chips:R.hasData?['IN 令牌','DATA0 · 18 B','主机 ACK']:['（wLength=0 · 跳过）']},
+    {n:'STATUS',d:'反向确认',chips:['STATUS 令牌','DATA1 · 0 B','ACK']},
+  ];
+  $('#ctStages').innerHTML=stageDef.map((s,i)=>
+    '<div class="ct-stage" id="ctg-'+i+'"><div class="cs-h"><span class="cs-no">阶段 '+(i+1)+'</span><span class="cs-t">'+s.n+'</span><span class="cs-d">'+(s.d||'')+'</span></div>'+
+    s.chips.map((c,j)=>'<div class="ct-chip" id="ctc-'+i+'-'+j+'">'+c+'</div>').join('')+'</div>').join('');
+  $('#ctHex').innerHTML=R.setup.map((b,i)=>
+    '<div class="hb" data-f="'+(i===0?0:i===1?1:(i<4?2:(i<6?3:4)))+'">0x'+b.toString(16).toUpperCase().padStart(2,'0')+'<small>'+'BYTE'+i+'</small></div>').join('');
+  $('#ctFields').innerHTML=R.fields.map((f,i)=>
+    '<div class="xr" data-f="'+(i>=5?-1:i)+'"><div class="xk">'+f[0]+'</div><div class="xv">'+f[1]+'</div><div class="xd">'+f[2]+'</div></div>').join('');
+  CT.k=0;CT.acc=0;
+  $('#ctLog').innerHTML='';
+  ctApply();
+}
+function ctApply(){
+  const S=CT.steps,k=CT.k;
+  for(let g=0;g<3;g++){
+    const gEl=document.getElementById('ctg-'+g);
+    const active=k<S.length&&S[k].g===g;
+    const passed=k>0&&S[Math.min(k,S.length)-1].g>=g;
+    gEl.classList.toggle('cur',active);
+  }
+  /* 重新着色所有 chip */
+  for(let g=0;g<3;g++){
+    const n=$('#ctg-'+g).querySelectorAll('.ct-chip').length;
+    for(let j=0;j<n;j++){
+      const el=document.getElementById('ctc-'+g+'-'+j);
+      el.classList.remove('done','cur');
+      if(k>=S.length){el.classList.add('done');continue;}
+      const sg=S[k].g;
+      if(g<sg)el.classList.add('done');
+      else if(g===sg&&S[k].p>=0&&j<=S[k].p)el.classList.add(S[k].p===j?'cur':'done');
+    }
+  }
+  /* 字段高亮 */
+  const f=(k<S.length&&S[k].f!==undefined)?S[k].f:-1;
+  $$('#ctHex .hb').forEach(el=>el.classList.toggle('lit',+el.dataset.f===f));
+  $$('#ctFields .xr').forEach(el=>el.classList.toggle('lit',+el.dataset.f===f));
+  /* 文本 */
+  const R=CT_REQS[CT.req];
+  document.getElementById('ctMsg').innerHTML=k<S.length?S[k].t:'<b>完成 ✓</b> 这就是一场完整的「'+R.name+'」控制传输。';
+  document.getElementById('ctStage').textContent=k<S.length?['SETUP','DATA','STATUS'][S[k].g]:'完成';
+  document.getElementById('ctToggle').textContent=(k>=3&&k<S.length&&S[k].g===2)?'DATA1':'DATA0';
+  /* 日志 */
+  const log=$('#ctLog');
+  const shown=Math.min(k+1,S.length);
+  if(log.children.length!==shown){
+    log.innerHTML=S.slice(0,shown).map((s,i)=>
+      '<div><span class="cl-n">['+String(i+1).padStart(2,'0')+']</span> <span class="'+(i===shown-1?'cl-cur':'cl-t')+'">'+(s.log||'　')+'</span></div>').join('');
+    log.scrollTop=log.scrollHeight;
+  }
+}
+function ctTick(dt){
+  if(!CT.play)return;
+  CT.acc+=dt;
+  if(CT.acc>=1.35){
+    CT.acc=0;
+    if(CT.k>=CT.steps.length-1){CT.play=false;updatePlayBtns();}
+    else{CT.k++;ctApply();}
+  }
+}
+$('#ctReqSeg').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  $$('#ctReqSeg button').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');CT.req=b.dataset.r;ctRender();
+});
+$('#ctStep').addEventListener('click',()=>{
+  CT.play=false;updatePlayBtns();
+  if(CT.k<CT.steps.length-1){CT.k++;ctApply();}
+});
+$('#ctReset').addEventListener('click',()=>{CT.k=0;CT.acc=0;$('#ctLog').innerHTML='';ctApply();});
+$('#ctPlay').addEventListener('click',()=>{
+  if(CT.k>=CT.steps.length-1){CT.k=0;CT.acc=0;$('#ctLog').innerHTML='';}
+  CT.play=!CT.play;updatePlayBtns();
+});
+function updatePlayBtns(){
+  const b=$('#ctPlay');
+  b.textContent=CT.play?'❚❚ 暂停':'▶ 自动';
+  b.classList.toggle('play',true);
+  b.style.color=CT.play?'var(--green)':'var(--dim)';
+  b.style.borderColor=CT.play?'var(--green-dim)':'var(--line2)';
+}
+ctRender();updatePlayBtns();
+
+/* ---------------- §06 枚举状态机 ---------------- */
+const EM_STEPS=[
+  {st:0,t:'插入',act:'机械插入',bus:'—（电气事件：VBUS 5 V 上电）',
+   note:'设备检测到 VBUS，内部 LDO 上电。D+/D− 仍是 SE0（主机侧 15 kΩ 下拉主导）——主机此刻还「看不见」它。'},
+  {st:1,t:'速度识别',act:'设备挂上拉电阻',bus:'—（电气事件：1.5 kΩ 上拉 D+ ≈ 3.0 V）',
+   note:'设备把 1.5 kΩ 上拉接到 D+：<b>主机看到 D+ 被抬高 → Full-Speed</b>（拉 D− 则是 Low-Speed）。USB 世界里，设备的第一句自我介绍是一只电阻。'},
+  {st:2,t:'复位',act:'主机驱动 SE0 ≥10 ms',bus:'—（线态：SE0 ≥10 ms · 高速设备在此 chirp 协商）',
+   note:'复位后设备回到 <b>地址 0</b>、EP0 就绪——总线上所有未配地址的设备都挤在 0 号门口，所以接下来主机只跟「刚插上的那个」说话。'},
+  {st:2,t:'摸底读 8 字节',act:'GET_DESCRIPTOR(Device, wLength=8)',bus:'控制传输 ×1：SETUP 80 06 0100 0000 0008 → DATA0 8 B → ACK',
+   note:'为什么只读 8 字节？因为<b>还不知道 EP0 一个包装得下多少</b>（bMaxPacketSize0 可能是 8/16/32/64）。第 8 字节就是答案。'},
+  {st:3,t:'分配地址',act:'SET_ADDRESS(5)',bus:'控制传输 ×1：SETUP 00 05 0005 0000 0000 → STATUS',
+   note:'设备从此改用 <b>地址 5</b>；地址 0 重新留给下一个新设备。这就是 lsusb 里 Device 005 的由来。'},
+  {st:3,t:'读完整设备描述符',act:'GET_DESCRIPTOR(Device, 18 B) @addr5',bus:'控制传输 ×1：SETUP 80 06 0100 0000 0012 → DATA0 18 B → ACK',
+   note:'拿到 <b>VID/PID/版本/配置数</b>——内核立刻用 modalias（usb:v046DpC52B…）匹配驱动，通常从这一步起设备已「有人认领」。'},
+  {st:3,t:'读配置描述符树',act:'GET_DESCRIPTOR(Config, 9 B → wTotalLength → 全部)',bus:'控制传输 ×2~3：先读 9 B 拿 wTotalLength，再整棵读回',
+   note:'配置 → 接口 → 端点整棵树（07 节）。驱动据此知道有几个功能面、每个端点的方向/类型/包长/轮询间隔，并预留带宽（同步/中断端点）。'},
+  {st:3,t:'读字符串（可选）',act:'GET_DESCRIPTOR(String)',bus:'控制传输 ×N：语言 ID → 厂商名 → 产品名',
+   note:'lsusb 显示的 "Logitech, Inc. Keyboard K120" 就是这么来的。跳过不影响功能，只影响「颜值」。'},
+  {st:4,t:'激活配置',act:'SET_CONFIGURATION(1)',bus:'控制传输 ×1：SETUP 00 09 0001 0000 0000 → STATUS',
+   note:'<b>非 EP0 端点全部上电</b>，电流配额从 100 mA 提到描述符申报值（最高 500 mA）。设备进入 CONFIGURED——软件意义上的「就绪」。'},
+  {st:4,t:'应用层开始',act:'接口驱动接管',bus:'按 04 节的传输类型开始 IN/OUT 轮询',
+   note:'HID 每 bInterval 轮询中断端点、MSC 排队批量传输、UVC 预留同步时隙——dmesg 里的 input/hiddev 事件、lsusb 里闪亮的新行，都是这场戏的谢幕花絮。'},
+];
+const EM={k:0,play:false,acc:0};
+(function emInit(){
+  const AR='marker-end="url(#arE)"';
+  const states=[['ATTACHED','机械连接',60],['POWERED','VBUS 有效 · 上拉报速度',120],['DEFAULT','复位后 · 地址 0',180],['ADDRESS','已分配地址',240],['CONFIGURED','已选配置 · 就绪',300]];
+  let s='<svg viewBox="0 0 520 368" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono,monospace">';
+  s+='<defs><marker id="arE" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="context-stroke"/></marker></defs>';
+  s+='<text x="14" y="24" fill="rgba(140,162,148,.7)" font-size="10.5">USB 设备状态机（规范第 9.1 章）——枚举 = 沿这条轴向右走</text>';
+  states.forEach((st,i)=>{
+    s+='<g id="est-'+i+'" class="est" style="cursor:default">'+
+      '<rect x="30" y="'+(st[2]-24)+'" width="176" height="48" rx="24" fill="rgba(52,224,138,.05)" stroke="rgba(52,224,138,.45)" stroke-width="1.4"/>'+
+      '<text x="118" y="'+(st[2]-2)+'" text-anchor="middle" fill="#dcebe1" font-size="12.5" font-weight="600">'+st[0]+'</text>'+
+      '<text x="118" y="'+(st[2]+14)+'" text-anchor="middle" fill="rgba(140,162,148,.8)" font-size="8.5">'+st[1]+'</text></g>';
+    if(i<states.length-1){
+      s+='<path d="M206,'+(st[2])+' L306,'+(st[2])+'" stroke="rgba(220,235,225,.5)" stroke-width="1.5" fill="none" '+AR+'/>';
+    }
+  });
+  const lbl=(y,t,c)=>'<text x="320" y="'+(y+3)+'" fill="'+c+'" font-size="9.5">'+t+'</text>';
+  s+=lbl(120,'插入并检测到 VBUS','rgba(140,162,148,.9)');
+  s+=lbl(180,'复位 · SE0 ≥10 ms（地址清 0）','rgba(255,176,46,.85)');
+  s+=lbl(240,'SET_ADDRESS','rgba(87,216,242,.9)');
+  s+=lbl(300,'SET_CONFIGURATION','rgba(52,224,138,.9)');
+  s+='<rect x="320" y="96" width="182" height="102" rx="6" fill="rgba(87,216,242,.04)" stroke="rgba(87,216,242,.3)" stroke-dasharray="4 3"/>';
+  s+='<text x="411" y="116" text-anchor="middle" fill="rgba(87,216,242,.85)" font-size="9.5">DEFAULT / ADDRESS 期间</text>';
+  s+='<text x="411" y="134" text-anchor="middle" fill="rgba(140,162,148,.85)" font-size="9">主机反复读描述符：</text>';
+  s+='<text x="411" y="150" text-anchor="middle" fill="rgba(140,162,148,.85)" font-size="9">设备 8B → 完整 → 配置树</text>';
+  s+='<text x="411" y="166" text-anchor="middle" fill="rgba(140,162,148,.85)" font-size="9">→ 字符串（可选）</text>';
+  s+='<text x="411" y="186" text-anchor="middle" fill="rgba(92,114,100,.9)" font-size="8.5">每一步 = 05 节的一场控制传输</text>';
+  s+='<text x="14" y="356" fill="rgba(92,114,100,.95)" font-size="9.5">SUSPEND：空闲 J 超 3 ms 整体挂起 · RESUME：K 信号唤醒 · 断电回到 ATTACHED</text>';
+  s+='</svg>';
+  $('#emSvg').innerHTML=s;
+  const list=$('#emSteps');
+  EM_STEPS.forEach((st,i)=>{
+    const b=document.createElement('button');
+    b.className='em-step';b.type='button';
+    b.innerHTML=String(i+1).padStart(2,'0')+'<br>'+st.t;
+    b.addEventListener('click',()=>{EM.k=i;EM.play=false;updateEmPlay();emApply();});
+    list.appendChild(b);
+  });
+})();
+function emApply(){
+  const k=EM.k,st=EM_STEPS[k];
+  $$('#emSteps .em-step').forEach((b,i)=>{
+    b.classList.toggle('on',i===k);
+    b.classList.toggle('done',i<k);
+  });
+  for(let i=0;i<5;i++){
+    const g=document.getElementById('est-'+i);
+    if(g){
+      const r=g.querySelector('rect'),on=i===st.st,passed=i<st.st;
+      r.setAttribute('stroke',on?'#34e08a':passed?'rgba(52,224,138,.45)':'rgba(52,224,138,.2)');
+      r.setAttribute('fill',on?'rgba(52,224,138,.13)':'rgba(52,224,138,.03)');
+      r.setAttribute('stroke-width',on?2:1.4);
+      r.setAttribute('filter',on&&i>0?'drop-shadow(0 0 6px rgba(52,224,138,.5))':'');
+    }
+  }
+  document.getElementById('emNo').textContent='STEP '+(k+1)+'/'+EM_STEPS.length;
+  document.getElementById('emTitle').textContent=st.t;
+  document.getElementById('emBus').textContent=st.bus;
+  document.getElementById('emNote').innerHTML='<b style="color:var(--ink)">'+st.act+'</b> · '+st.note;
+  document.getElementById('emAddr').textContent=k>=4?'5':(k>=2?'0':'—');
+  document.getElementById('emState').textContent=['ATTACHED','POWERED','DEFAULT','ADDRESS','CONFIGURED'][st.st];
+  document.getElementById('emMps').textContent=k>=3?'64 B':(k>=2?'8 B?':'未知');
+}
+function updateEmPlay(){
+  const b=$('#emPlay');
+  b.textContent=EM.play?'❚❚ 暂停':'▶ 自动';
+  b.style.color=EM.play?'var(--green)':'var(--dim)';
+  b.style.borderColor=EM.play?'var(--green-dim)':'var(--line2)';
+}
+function emTick(dt){
+  if(!EM.play)return;
+  EM.acc+=dt;
+  if(EM.acc>=1.7){
+    EM.acc=0;
+    if(EM.k>=EM_STEPS.length-1){EM.play=false;updateEmPlay();}
+    else{EM.k++;emApply();}
+  }
+}
+$('#emNext').addEventListener('click',()=>{EM.play=false;updateEmPlay();if(EM.k<EM_STEPS.length-1){EM.k++;emApply();}});
+$('#emPrev').addEventListener('click',()=>{EM.play=false;updateEmPlay();if(EM.k>0){EM.k--;emApply();}});
+$('#emReset').addEventListener('click',()=>{EM.k=0;EM.play=false;updateEmPlay();emApply();});
+$('#emPlay').addEventListener('click',()=>{
+  if(EM.k>=EM_STEPS.length-1)EM.k=0;
+  EM.play=!EM.play;updateEmPlay();
+});
+emApply();updateEmPlay();
+
+/* ---------------- §07 描述符树 + lsusb ---------------- */
+(function descInit(){
+  const AR='marker-end="url(#arD)"';
+  let s='<svg viewBox="0 0 470 400" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono,monospace">';
+  s+='<defs><marker id="arD" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="context-stroke"/></marker></defs>';
+  const box=(id,x,y,w,h,t1,t2,col)=>{
+    const rgb=parseInt(col.slice(1,3),16)+','+parseInt(col.slice(3,5),16)+','+parseInt(col.slice(5,7),16);
+    return '<g class="dn" data-k="'+id+'" style="cursor:pointer">'+
+      '<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="6" fill="rgba('+rgb+',.06)" stroke="rgba('+rgb+',.55)" stroke-width="1.3"/>'+
+      '<text x="'+(x+w/2)+'" y="'+(y+h/2-3)+'" text-anchor="middle" fill="#dcebe1" font-size="11.5" font-weight="600">'+t1+'</text>'+
+      '<text x="'+(x+w/2)+'" y="'+(y+h/2+12)+'" text-anchor="middle" fill="rgba(140,162,148,.85)" font-size="8.5">'+t2+'</text></g>';
+  };
+  s+=box('dev',150,14,170,46,'Device Descriptor','VID 046D · PID C31C','#34e08a');
+  s+=box('conf',150,96,170,46,'Configuration #1','2 接口 · MaxPower 90mA','#ffb02e');
+  s+=box('if0',20,186,196,46,'Interface 0 · HID 键盘','ic03/sc01/ip01','#57d8f2');
+  s+=box('if1',254,186,196,46,'Interface 1 · HID 消费键','ic03/sc01/ip00','#57d8f2');
+  s+=box('ep81',20,278,196,46,'EP 0x81 IN','中断 · 8 B · 10 ms','#b98cff');
+  s+=box('ep82',254,278,196,46,'EP 0x82 IN','中断 · 4 B · 10 ms','#b98cff');
+  s+=box('str',362,14,96,46,'String','iMfg·iProd','#8aa294');
+  s+='<line x1="235" y1="60" x2="235" y2="96" stroke="rgba(220,235,225,.45)" stroke-width="1.5" '+AR+'/>';
+  s+='<path d="M180,142 L118,186" stroke="rgba(220,235,225,.45)" stroke-width="1.5" fill="none" '+AR+'/>';
+  s+='<path d="M290,142 L352,186" stroke="rgba(220,235,225,.45)" stroke-width="1.5" fill="none" '+AR+'/>';
+  s+='<line x1="118" y1="232" x2="118" y2="278" stroke="rgba(220,235,225,.45)" stroke-width="1.5" '+AR+'/>';
+  s+='<line x1="352" y1="232" x2="352" y2="278" stroke="rgba(220,235,225,.45)" stroke-width="1.5" '+AR+'/>';
+  s+='<path d="M320,37 L360,37" stroke="rgba(140,162,148,.5)" stroke-width="1.2" stroke-dasharray="3 3" fill="none" '+AR+'/>';
+  s+='<text x="235" y="378" text-anchor="middle" fill="rgba(92,114,100,.95)" font-size="9.5">一个物理设备 = 1 设备描述符 × N 配置 × 每配置 M 接口 × 每接口 K 端点</text>';
+  s+='</svg>';
+  $('#svgDesc').innerHTML=s;
+  const LINES=[
+    ['cmd','$ lsusb -v -d 046d:c31c',''],
+    ['out','',''],
+    ['out','Bus 001 Device 004: ID 046d:c31c Logitech, Inc. Keyboard K120','dev'],
+    ['out','Device Descriptor:','dev'],
+    ['out','  bLength                18','dev'],
+    ['out','  bcdUSB               2.00','dev'],
+    ['out','  bDeviceClass            0 (Defined at Interface level)','dev'],
+    ['out','  idVendor           0x046d Logitech, Inc.','dev'],
+    ['out','  idProduct          0xc31c Keyboard K120','dev'],
+    ['out','  bNumConfigurations     1','dev'],
+    ['out','  Configuration Descriptor:','conf'],
+    ['out','    bLength                 9','conf'],
+    ['out','    bNumInterfaces          2','conf'],
+    ['out','    bConfigurationValue     1','conf'],
+    ['out','    bmAttributes         0xa0 (Bus Powered) Remote Wakeup','conf'],
+    ['out','    MaxPower              90mA','conf'],
+    ['out','    Interface Descriptor:','if0'],
+    ['out','      bInterfaceNumber        0','if0'],
+    ['out','      bInterfaceClass         3 Human Interface Device','if0'],
+    ['out','      bInterfaceSubClass      1 Boot Interface','if0'],
+    ['out','      bInterfaceProtocol      1 Keyboard','if0'],
+    ['out','      Endpoint Descriptor:','ep81'],
+    ['out','        bEndpointAddress     0x81  EP 1 IN','ep81'],
+    ['out','        bmAttributes            3 Interrupt','ep81'],
+    ['out','        wMaxPacketSize 0x0008  1x 8 bytes','ep81'],
+    ['out','        bInterval              10','ep81'],
+    ['out','    Interface Descriptor:','if1'],
+    ['out','      bInterfaceNumber        1','if1'],
+    ['out','      bInterfaceClass         3 Human Interface Device','if1'],
+    ['out','      bInterfaceProtocol      0 None','if1'],
+    ['out','      Endpoint Descriptor:','ep82'],
+    ['out','        bEndpointAddress     0x82  EP 2 IN','ep82'],
+    ['out','        wMaxPacketSize 0x0004  1x 4 bytes','ep82'],
+    ['out','        bInterval              10','ep82'],
+  ];
+  const body=$('#lsBody');
+  body.innerHTML=LINES.map(l=>{
+    if(l[0]==='cmd')return '<div><span class="t-ps">$ </span><code class="t-cmd" data-copy="lsusb -v -d 046d:c31c">'+escHtml(l[1].slice(2))+'</code></div>';
+    if(!l[1])return '<div class="t-out">&nbsp;</div>';
+    return '<div class="t-line'+(l[2]?' has-k" data-k="'+l[2]:'"')+'"><span class="t-out">'+escHtml(l[1])+'</span></div>';
+  }).join('');
+  const term=$('#lsTerm');
+  let litCur=null;
+  function lit(k){
+    const on=k!==null;
+    term.classList.toggle('lit-on',on);
+    term.querySelectorAll('.t-line').forEach(el=>el.classList.toggle('lit',on&&el.dataset.k===k));
+    $$('#svgDesc .dn').forEach(g=>{
+      const hit=on&&g.dataset.k===k;
+      const r=g.querySelector('rect');
+      r.setAttribute('stroke-width',hit?2.4:1.3);
+      g.setAttribute('opacity',on&&!hit?'.35':'1');
+    });
+  }
+  $$('#svgDesc .dn').forEach(g=>{
+    g.addEventListener('mouseenter',()=>{if(litCur===null)lit(g.dataset.k);});
+    g.addEventListener('mouseleave',()=>{if(litCur===null)lit(null);});
+    g.addEventListener('click',()=>{litCur=(litCur===g.dataset.k)?null:g.dataset.k;lit(litCur);});
+  });
+})();
+
+/* ---------------- §08 计算器 ---------------- */
+const VERS8={
+  ls:{rate:1.5e6, enc:'NRZI+塞位', eff:.98},
+  fs:{rate:12e6,  enc:'NRZI+塞位', eff:.95},
+  hs:{rate:480e6, enc:'NRZI+塞位', eff:.95},
+  ss5:{rate:5e9,  enc:'8b/10b',    eff:.80},
+  ss10:{rate:10e9,enc:'128b/132b', eff:.9697},
+  ss20:{rate:20e9,enc:'128b/132b×2',eff:.9697},
+  u4:{rate:40e9,  enc:'隧道化',     eff:.9697},
+};
+function calc8(){
+  const v=VERS8[document.getElementById('cVer').value];
+  const L=+document.getElementById('cLen').value,R=+document.getElementById('cAwg').value;
+  const I=+document.getElementById('cAmp').value/1000,thr=v.rate*v.eff/8/1e6;
+  document.getElementById('oThr').innerHTML=(thr>=100?thr.toFixed(0):thr.toFixed(1))+'<small>MB/s</small>';
+  document.getElementById('oEnc').innerHTML=(v.eff*100).toFixed(1)+'<small>% · '+v.enc+'</small>';
+  const drop=I*(R*L*2),volt=5-drop;
+  document.getElementById('oDrop').innerHTML=drop.toFixed(3)+'<small>V</small>';
+  document.getElementById('oVolt').innerHTML=volt.toFixed(2)+'<small>V</small>';
+  const vd=document.getElementById('oVerdict');
+  if(volt>=4.75){vd.innerHTML='正常 ✓';vd.className='ov';}
+  else if(volt>=4.5){vd.innerHTML='边缘 ⚠';vd.className='ov warn';}
+  else{vd.innerHTML='欠压 ✗';vd.className='ov bad';}
+}
+['cVer','cLen','cAwg','cAmp'].forEach(id=>document.getElementById(id).addEventListener('change',calc8));
+calc8();
+
+/* ---------------- §09 打字终端 ---------------- */
+const UT={
+  lines:[
+    {c:'dmesg -wH',n:'① 挂上实时日志，然后插入无线接收器…'},
+    {o:'[  122.405180] usb 1-3: new full-speed USB device number 7 using xhci_hcd',d:.9},
+    {o:'[  122.536471] usb 1-3: New USB device found, idVendor=046d, idProduct=c52b',d:.5},
+    {o:'[  122.536489] usb 1-3: New USB device strings: Mfr=1, Product=2, SerialNumber=0',d:.3},
+    {o:'[  122.536495] usb 1-3: Product: USB Receiver',d:.3},
+    {o:'[  122.536498] usb 1-3: Manufacturer: Logitech',d:.3},
+    {n:'② 「new full-speed」= 02 节的速度识别 · 「number 7」= 06 节的 SET_ADDRESS',d:.2},
+    {o:'[  122.740156] logitech 0003:046D:C52B.0006: hidraw4: USB HID v1.11 Device',d:.7},
+    {o:'[  122.740171]                 [Logitech USB Receiver] on usb-0000:00:14.0-3/input1',d:.2},
+    {n:'③ 0003:046D:C52B = modalias 匹配到的 HID 驱动 · 1-3 = 拓扑路径（01 节的树）',d:.4},
+    {o:'[  122.748884] input: Logitech USB Receiver Mouse as /devices/pci…/input/input21',d:.5},
+    {n:'④ CONFIGURED 完成，应用层（input 事件）上线 —— 枚举全剧终',d:.3},
+  ],
+  li:0,ci:0,wait:.4,done:0,visible:false,playing:!reduced,
+};
+function utReset(){$('#utBody').innerHTML='';UT.li=0;UT.ci=0;UT.wait=.4;UT.done=0;}
+function utTick(dt){
+  if(!UT.visible)return;
+  if(reduced){utStatic();return;}
+  if(!UT.playing)return;
+  if(UT.li>=UT.lines.length){
+    UT.done+=dt;
+    if(UT.done>4)utReset();
+    return;
+  }
+  if(UT.wait>0){UT.wait-=dt;if(UT.wait>0)return;}
+  const L=UT.lines[UT.li],b=$('#utBody');
+  if(L.c!==undefined){
+    let div=b.querySelector('.ut-c[data-i="'+UT.li+'"]');
+    if(!div){
+      div=document.createElement('div');div.className='t-line ut-c';div.dataset.i=UT.li;
+      div.innerHTML='<span class="t-ps">$ </span><span class="t-cmd2"></span><span class="t-cmt"></span><span class="t-cur"></span>';
+      b.appendChild(div);
+    }
+    UT.ci+=dt*42;
+    const nCh=Math.min(L.c.length,Math.floor(UT.ci));
+    div.querySelector('.t-cmd2').textContent=L.c.slice(0,nCh);
+    if(nCh>=L.c.length){
+      if(L.n)div.querySelector('.t-cmt').textContent='  # '+L.n;
+      const cu=div.querySelector('.t-cur');if(cu)cu.remove();
+      UT.li++;UT.ci=0;UT.wait=L.d||.55;
+    }
+  }else{
+    const d=document.createElement('div');
+    if(L.o!==undefined){d.className='t-line t-out';d.textContent=L.o;}
+    else{d.className='t-line t-cmt';d.textContent='# '+L.n;}
+    b.appendChild(d);
+    UT.li++;UT.wait=L.d||.5;
+  }
+  b.scrollTop=b.scrollHeight;
+}
+function utStatic(){
+  const b=$('#utBody');
+  if(b.children.length)return;
+  UT.lines.forEach(L=>{
+    const d=document.createElement('div');
+    if(L.c!==undefined){d.className='t-line';d.innerHTML='<span class="t-ps">$ </span><span class="t-cmd2" style="color:var(--green)">'+escHtml(L.c)+'</span>'+(L.n?'<span class="t-cmt">  # '+escHtml(L.n)+'</span>':'');}
+    else if(L.o!==undefined){d.className='t-line t-out';d.textContent=L.o;}
+    else{d.className='t-line t-cmt';d.textContent='# '+L.n;}
+    b.appendChild(d);
+  });
+}
+$('#utReplay').addEventListener('click',()=>{utReset();UT.playing=true;});
+const utIO=new IntersectionObserver(es=>es.forEach(e=>UT.visible=e.isIntersecting),{rootMargin:'60px'});
+utIO.observe($('#utBody'));
+
+/* ---------------- 命令点击复制 ---------------- */
+document.addEventListener('click',async e=>{
+  const el=e.target.closest('.t-cmd');
+  if(!el)return;
+  const txt=el.dataset.copy||el.textContent;
+  let okFlag=false;
+  try{await navigator.clipboard.writeText(txt);okFlag=true;}
+  catch{
+    const ta=document.createElement('textarea');
+    ta.value=txt;ta.style.position='fixed';ta.style.opacity='0';
+    document.body.appendChild(ta);ta.select();
+    try{okFlag=document.execCommand('copy');}catch{}
+    ta.remove();
+  }
+  const old=el.textContent;
+  el.classList.add('copied');
+  el.textContent=okFlag?'已复制 ✓':'复制失败';
+  setTimeout(()=>{el.classList.remove('copied');el.textContent=old;},900);
+});
+
+/* ---------------- 滚动显现 ---------------- */
+const io=new IntersectionObserver(es=>es.forEach(e=>{
+  if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}
+}),{threshold:.12});
+$$('.reveal').forEach(el=>io.observe(el));
+
+/* ---------------- 主循环 ---------------- */
+let lastT=performance.now();
+function loop(now){
+  const dt=Math.min((now-lastT)/1000,.1);lastT=now;
+  try{
+    if(heroBus)heroBus.tick(now);
+    for(const m of MINI)m.tick(dt);
+    nrzTick(dt);ctTick(dt);emTick(dt);utTick(dt);
+  }catch(err){
+    if(!window.__usbLabErr){window.__usbLabErr=1;console.error(err);}
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

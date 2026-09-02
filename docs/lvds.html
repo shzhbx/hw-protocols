@@ -1,0 +1,1799 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LVDS 与 V-by-One 显示接口 · 交互式图解</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%23070b09'/><path d='M2 11 h4 M2 21 h4 M10 11 h4 M10 21 h4 M18 11 h4 M18 21 h4 M26 11 h4 M26 21 h4 M6 16 h2 M14 16 h2 M22 16 h2' stroke='%2334e08a' stroke-width='2' fill='none'/><path d='M8 16 l3 -3 M8 16 l3 3' stroke='%23ffb02e' stroke-width='2' fill='none'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#070b09; --bg2:#0a100c; --panel:#0d1510; --panel2:#101a13; --line:#1d2c22; --line2:#27392d;
+  --ink:#dcebe1; --dim:#8aa294; --faint:#5c7264; --green:#34e08a; --green-dim:#1d8a55;
+  --amber:#ffb02e; --cyan:#57d8f2; --red:#ff6478;
+  --mono:'IBM Plex Mono',ui-monospace,monospace; --disp:'Chakra Petch','Noto Sans SC',sans-serif; --sans:'Noto Sans SC',-apple-system,sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth} body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-weight:300;line-height:1.8;letter-spacing:.01em;overflow-x:hidden}
+/* 全局网格纸背景 */
+body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:linear-gradient(rgba(52,224,138,.028) 1px,transparent 1px),linear-gradient(90deg,rgba(52,224,138,.028) 1px,transparent 1px),
+    linear-gradient(rgba(52,224,138,.014) 1px,transparent 1px),linear-gradient(90deg,rgba(52,224,138,.014) 1px,transparent 1px);
+  background-size:120px 120px,120px 120px,24px 24px,24px 24px}
+body::after{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(ellipse 120% 90% at 50% 0%,transparent 60%,rgba(0,0,0,.5))}
+main{position:relative;z-index:1} ::selection{background:rgba(52,224,138,.3)}
+
+/* ============ 导航 ============ */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;gap:16px;padding:0 22px;height:52px;
+  background:rgba(7,11,9,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+nav .logo{font-family:var(--disp);font-weight:700;font-size:16px;color:var(--green);letter-spacing:.04em;white-space:nowrap}
+nav .logo b{color:var(--amber);font-weight:700}
+nav a.nl{color:var(--dim);text-decoration:none;font-size:12px;font-family:var(--mono);letter-spacing:.04em;transition:color .2s;white-space:nowrap}
+nav a.nl:hover{color:var(--green)} nav .nav-links{display:flex;gap:3px;min-width:0;overflow:hidden}
+nav .spacer{flex:1} nav .live{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:10.5px;color:var(--faint);white-space:nowrap}
+nav .live i{width:7px;height:7px;border-radius:50%;background:var(--green);animation:blink 1.6s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+/* ---- 跨页导航（全站清单，去掉自己）---- */
+nav .xnav{display:flex;gap:4px;margin-left:2px;padding-left:12px;border-left:1px solid var(--line);
+  white-space:nowrap;overflow-x:auto;scrollbar-width:none;min-width:0;max-width:62vw}
+nav .xnav::-webkit-scrollbar{display:none}
+nav .xnav a{display:inline-block;font-size:10.5px;letter-spacing:.05em;font-family:var(--mono);
+  color:var(--dim);padding:4px 8px;border:1px solid var(--line);border-radius:3px;text-decoration:none}
+nav .xnav a:hover{color:var(--green);border-color:rgba(52,224,138,.45)}
+@media (max-width:1360px){nav .nav-links{display:none}nav .xnav{max-width:none}}
+@media (max-width:760px){nav .live{display:none}}
+
+/* ============ Hero ============ */
+.hero{min-height:94vh;display:flex;flex-direction:column;justify-content:center;padding:104px 6vw 36px;position:relative}
+.hero .eyebrow{font-family:var(--mono);font-size:12px;color:var(--amber);letter-spacing:.32em;margin-bottom:20px;display:flex;align-items:center;gap:14px}
+.hero .eyebrow::before{content:"";width:44px;height:1px;background:var(--amber)}
+.hero h1{font-family:var(--disp);font-weight:700;font-size:clamp(52px,10vw,132px);line-height:.95;letter-spacing:-.01em;color:var(--ink)}
+.hero h1 sup{color:var(--green);font-size:.5em}
+.hero h1 .zh{display:block;font-family:var(--sans);font-weight:300;font-size:clamp(17px,2.2vw,27px);color:var(--dim);letter-spacing:.38em;margin-top:16px}
+.hero p.lede{max-width:680px;margin-top:30px;font-size:15.5px;color:var(--dim)} .hero p.lede b{color:var(--ink);font-weight:500}
+.hero .chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:26px}
+.hero .chips span{font-family:var(--mono);font-size:11.5px;padding:5px 12px;border:1px solid var(--line2);border-radius:3px;color:var(--dim);background:rgba(13,21,16,.6)}
+.hero .chips span b{color:var(--green);font-weight:500} .hero .chips span.ba b{color:var(--amber)}
+.hero .chips span.bc b{color:var(--cyan)} .hero .cta{display:flex;gap:12px;margin-top:28px;flex-wrap:wrap}
+.hero .cta a{font-family:var(--disp);font-weight:600;font-size:14px;letter-spacing:.06em;text-decoration:none;
+  padding:11px 22px;border-radius:5px;transition:.2s;border:1px solid transparent;cursor:pointer}
+.hero .cta .p{color:#052013;background:var(--green);box-shadow:0 0 22px rgba(52,224,138,.3)}
+.hero .cta .p:hover{transform:translateY(-2px);box-shadow:0 6px 28px rgba(52,224,138,.45)}
+.hero .cta .g{color:var(--ink);border-color:var(--line2);background:rgba(255,255,255,.02)} .hero .cta .g:hover{border-color:rgba(52,224,138,.4);color:var(--green)}
+.hero .fig{margin-top:44px;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:rgba(9,14,11,.8);position:relative}
+.hero .fig::after{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.14) 3px 4px)}
+.hero .fig svg{display:block;width:100%;height:auto}
+.hero .fig .cap{display:flex;flex-wrap:wrap;gap:6px 22px;align-items:center;padding:10px 16px;border-top:1px solid var(--line);
+  font-family:var(--mono);font-size:11px;color:var(--faint)}
+.hero .fig .cap b{color:var(--dim);font-weight:500}
+.hero .fig .cap .sw{display:inline-block;width:12px;height:12px;border-radius:2px;vertical-align:-1px;background:#000;border:1px solid var(--line2)}
+.hero .scroll-hint{margin-top:34px;font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.2em;display:flex;align-items:center;gap:10px}
+.hero .scroll-hint svg{animation:bounce 1.8s infinite}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(6px)}}
+
+/* ============ 通用 section ============ */
+section{padding:92px 6vw;max-width:1280px;margin:0 auto;position:relative} .sec-head{display:flex;align-items:baseline;gap:20px;margin-bottom:16px}
+.sec-head .no{font-family:var(--mono);font-size:13px;color:var(--green);letter-spacing:.1em;border:1px solid var(--green-dim);padding:3px 10px;border-radius:3px;white-space:nowrap}
+.sec-head h2{font-family:var(--disp);font-weight:600;font-size:clamp(25px,3.4vw,38px);letter-spacing:.01em}
+.sec-head .en{font-family:var(--mono);font-size:12px;color:var(--faint);letter-spacing:.24em;text-transform:uppercase;margin-left:auto;white-space:nowrap}
+.sec-sub{color:var(--dim);max-width:800px;margin-bottom:42px;font-size:15px}
+.sec-sub b{color:var(--ink);font-weight:500} .reveal{opacity:0;transform:translateY(26px);transition:opacity .7s ease,transform .7s ease}
+.reveal.in{opacity:1;transform:none}
+
+/* ============ §01 ============ */
+.two-col{display:grid;grid-template-columns:1.25fr .95fr;gap:44px;align-items:start} .prose p{margin-bottom:18px;color:var(--dim);font-size:15px}
+.prose p b{color:var(--ink);font-weight:500} .prose .kw{color:var(--green);font-family:var(--mono);font-size:.92em}
+.prose .kw2{color:var(--amber);font-family:var(--mono);font-size:.92em}
+.prose a,.fact p a,.arch p a{color:var(--cyan);text-decoration:none;border-bottom:1px dotted rgba(87,216,242,.5)}
+.prose a:hover,.fact p a:hover,.arch p a:hover{color:var(--green);border-color:var(--green)} .cmp-table{width:100%;border-collapse:collapse;font-size:13px}
+.cmp-table th{font-family:var(--mono);font-weight:500;color:var(--faint);text-align:left;padding:9px 12px;border-bottom:1px solid var(--line2);font-size:11.5px;letter-spacing:.06em}
+.cmp-table td{padding:10px 12px;border-bottom:1px solid var(--line);color:var(--dim);vertical-align:top}
+.cmp-table td:first-child{color:var(--ink);font-weight:400;white-space:nowrap} .cmp-table .yes{color:var(--green)}
+.cmp-table .no{color:var(--red)} .fact-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:36px}
+.fact{border:1px solid var(--line);border-radius:6px;padding:20px 20px 18px;background:linear-gradient(160deg,var(--panel) 0%,rgba(13,21,16,.4) 100%);transition:border-color .25s,transform .25s}
+.fact:hover{border-color:var(--green-dim);transform:translateY(-3px)} .fact .f-no{font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.14em}
+.fact h4{font-family:var(--disp);font-size:16.5px;font-weight:600;margin:8px 0 8px}
+.fact h4 code{font-family:var(--mono);font-size:.85em;color:var(--green)} .fact p{font-size:12.8px;color:var(--dim);line-height:1.7}
+
+/* ============ 通用 lab 骨架 ============ */
+.lab{border:1px solid var(--line);border-radius:10px;background:var(--panel);overflow:hidden}
+.lab-bar{display:flex;flex-wrap:wrap;align-items:center;gap:14px 20px;padding:15px 20px;border-bottom:1px solid var(--line);background:rgba(10,16,12,.7)}
+.ctrl{display:flex;align-items:center;gap:9px} .ctrl label{font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.1em}
+.seg{display:flex;border:1px solid var(--line2);border-radius:5px;overflow:hidden}
+.seg button{font-family:var(--mono);font-size:12px;padding:7px 12px;border:none;cursor:pointer;background:transparent;color:var(--dim);border-right:1px solid var(--line2);transition:all .18s;letter-spacing:.02em}
+.seg button:last-child{border-right:none} .seg button:hover{color:var(--ink);background:rgba(52,224,138,.06)}
+.seg button.on{background:var(--green);color:#052013;font-weight:600}
+.icon-btn{min-width:32px;height:32px;border:1px solid var(--line2);border-radius:5px;background:transparent;color:var(--dim);cursor:pointer;font-family:var(--mono);font-size:12px;transition:all .18s;display:flex;align-items:center;justify-content:center;padding:0 9px}
+.icon-btn:hover{color:var(--green);border-color:var(--green-dim)} .icon-btn.play.on{color:var(--green);border-color:var(--green-dim);background:rgba(52,224,138,.08)}
+input[type=range]{-webkit-appearance:none;width:110px;height:2px;background:var(--line2);border-radius:2px;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--green);cursor:pointer;box-shadow:0 0 8px rgba(52,224,138,.5)}
+select.sl-sel{font-family:var(--mono);font-size:12px;color:var(--ink);background:#080d0a;border:1px solid var(--line2);border-radius:5px;padding:7px 9px;outline:none;cursor:pointer}
+select.sl-sel:focus{border-color:var(--green-dim)}
+.lab-body{display:grid;grid-template-columns:1fr 268px;gap:0} .scope-main{position:relative;background:#080d0a;min-width:0}
+.scope-main::after{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.13) 3px 4px)}
+.scope-main canvas{display:block;width:100%}
+.readout{border-left:1px solid var(--line);background:#0a110d;padding:18px 18px 14px;display:flex;flex-direction:column;min-width:0}
+.readout .r-title{font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.22em;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.readout .r-title::before{content:"";width:6px;height:6px;background:var(--red);border-radius:50%;animation:blink 1.4s infinite}
+.r-row{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-family:var(--mono);padding:7px 0;border-bottom:1px dashed var(--line)}
+.r-row .k{font-size:10.5px;color:var(--faint);letter-spacing:.06em;white-space:nowrap} .r-row .v{font-size:12.5px;color:var(--ink);text-align:right;min-width:0}
+.r-row .v.g{color:var(--green)} .r-row .v.a{color:var(--amber)}
+.r-row .v.c{color:var(--cyan)} .r-note{font-size:11px;color:var(--faint);line-height:1.65;margin-top:12px;font-family:var(--mono)}
+.r-note b{color:var(--dim);font-weight:500}
+.lab-foot{padding:13px 20px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:8px 26px;background:rgba(10,16,12,.6)}
+.legend{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;color:var(--dim)} .legend i{width:18px;height:2px;border-radius:2px}
+.lab-cap{font-size:11px;color:var(--faint);font-family:var(--mono);margin-top:14px;line-height:1.7} .lab-cap b{color:var(--dim);font-weight:500}
+
+/* ============ §02 差分物理层 ============ */
+.ph-grid{display:grid;grid-template-columns:1.06fr .94fr;gap:18px;align-items:start}
+.schem{border:1px solid var(--line);border-radius:8px;background:#080d0a;padding:18px;overflow:hidden}
+.schem svg{width:100%;height:auto;display:block} .schem .cap{font-family:var(--mono);font-size:11px;color:var(--faint);margin-top:10px;line-height:1.7}
+.schem .cap b{color:var(--dim);font-weight:500}
+.kv-row{display:flex;flex-wrap:wrap;gap:8px 22px;padding:11px 16px;border-top:1px solid var(--line);font-family:var(--mono);font-size:11.5px;color:var(--dim);background:rgba(10,16,12,.55)}
+.kv-row b{color:var(--green);font-weight:500} .kv-row .a{color:var(--amber)}
+.kv-row .c{color:var(--cyan)} .kv-row .r{color:var(--red)} .emi-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px}
+.emi-card{border:1px solid var(--line);border-radius:8px;background:var(--panel);overflow:hidden}
+.emi-card .eh{padding:13px 18px 8px;border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:10px}
+.emi-card .eh b{font-family:var(--disp);font-size:15.5px;font-weight:600}
+.emi-card .eh span{font-family:var(--mono);font-size:10px;color:var(--faint);margin-left:auto;letter-spacing:.12em}
+.emi-card svg{display:block;width:100%;height:auto;background:#080d0a}
+.emi-card .eb{padding:12px 18px 15px;font-size:12.6px;color:var(--dim);line-height:1.75} .emi-card .eb b{color:var(--ink);font-weight:500}
+.arc{animation:arcpulse 2.2s infinite} .arc.a2{animation-delay:.7s} .arc.a3{animation-delay:1.4s}
+@keyframes arcpulse{0%,100%{opacity:.12}50%{opacity:.55}}
+@media (prefers-reduced-motion:reduce){.arc{animation:none;opacity:.25}}
+
+/* ============ §03 并行总线面板 ============ */
+.par-zone{padding:14px 16px 10px;border-bottom:1px solid var(--line);background:rgba(10,17,13,.85)}
+.par-zone .pz-t{font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.2em;margin-bottom:9px;display:flex;flex-wrap:wrap;gap:4px 18px}
+.par-zone .pz-t b{color:var(--dim);font-weight:500;letter-spacing:.05em} .pix-strip{display:flex;gap:4px;margin-bottom:11px;flex-wrap:nowrap;overflow:hidden}
+.px-chip{flex:1;min-width:16px;height:22px;border-radius:3px;border:1px solid var(--line2);position:relative;transition:transform .15s}
+.px-chip.cur{transform:translateY(-3px);box-shadow:0 0 10px rgba(52,224,138,.5);border-color:var(--green)}
+.px-chip.blk{background:repeating-linear-gradient(45deg,#0b120e 0 4px,#0f1712 4px 8px)} .pb-bus{display:flex;flex-wrap:wrap;gap:10px 22px;align-items:flex-end}
+.pb-g{display:flex;gap:3px;align-items:flex-end} .pb-t{font-family:var(--mono);font-size:10px;color:var(--faint);margin-right:5px;letter-spacing:.1em}
+.pb-c{width:30px;border:1px solid var(--line2);border-radius:4px;background:#0a100d;display:flex;flex-direction:column;align-items:center;padding:2px 0 1px;transition:all .12s}
+.pb-c i{font-style:normal;font-family:var(--mono);font-size:9px;color:var(--faint);line-height:1.3}
+.pb-c b{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--dim);line-height:1.3}
+.pb-c.on{border-color:var(--green);background:rgba(52,224,138,.12);transform:translateY(-2px)} .pb-c.on b{color:var(--green)} .pb-c.kR b.v1{color:#ff6478}
+.pb-c.kG b.v1{color:#34e08a} .pb-c.kB b.v1{color:#57d8f2}
+.pb-c.kX b.v1{color:var(--amber)} .mapline{font-family:var(--mono);font-size:10.5px;color:var(--faint);margin-top:10px;line-height:1.7}
+.mapline b{color:var(--green);font-weight:500}
+
+/* ============ §04 位映射 ============ */
+.mlab-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:0;overflow:hidden} .mlab-left{padding:20px;min-width:0}
+.mlab-left .ml-head{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;margin-bottom:16px}
+.sliders{display:flex;flex-direction:column;gap:8px;min-width:200px;flex:1}
+.sliders .row{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:11.5px} .sliders .row label{width:14px;color:var(--dim)}
+.sliders .row input{flex:1;min-width:0} .sliders .row b{width:6ch;text-align:right;color:var(--ink);font-weight:500}
+.presets{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.presets button{font-family:var(--mono);font-size:11px;color:var(--dim);background:transparent;border:1px solid var(--line2);border-radius:3px;padding:4px 10px;cursor:pointer;transition:.18s}
+.presets button:hover{color:var(--green);border-color:var(--green-dim)}
+.ml-ch{display:grid;grid-template-columns:44px repeat(7,1fr);gap:5px;margin-bottom:9px;align-items:stretch}
+.ml-lab{font-family:var(--mono);font-size:11px;color:var(--cyan);display:flex;flex-direction:column;justify-content:center;border:1px dashed var(--line2);border-radius:4px;padding:2px 4px;line-height:1.35}
+.ml-lab small{font-size:8.5px;color:var(--faint)}
+.ml-cell{border:1px solid var(--line2);border-radius:4px;background:#0a100d;text-align:center;padding:3px 0 2px;position:relative;transition:border-color .18s;min-width:0}
+.ml-cell b{display:block;font-family:var(--mono);font-size:15px;font-weight:600;color:var(--dim);line-height:1.4}
+.ml-cell i{display:block;font-style:normal;font-family:var(--mono);font-size:8.5px;color:var(--faint);line-height:1.3}
+.ml-cell em{display:block;font-style:normal;font-family:var(--mono);font-size:8px;color:var(--red);line-height:1.3;margin-top:1px;white-space:nowrap}
+.ml-cell.kR i{color:rgba(255,100,120,.85)} .ml-cell.kG i{color:rgba(52,224,138,.8)}
+.ml-cell.kB i{color:rgba(87,216,242,.85)} .ml-cell.kX i{color:rgba(255,176,46,.85)} .ml-cell.kN i{color:var(--faint)} .ml-cell.kR b.v1{color:#ff6478}
+.ml-cell.kG b.v1{color:#34e08a} .ml-cell.kB b.v1{color:#57d8f2} .ml-cell.kX b.v1{color:#ffb02e} .ml-cell.bad{border-color:var(--red);background:rgba(255,100,120,.07)}
+.mlab-right{border-left:1px solid var(--line);background:#0a110d;padding:20px;display:flex;flex-direction:column;gap:0}
+.sw-box{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px}
+.sw{border:1px solid var(--line2);border-radius:6px;overflow:hidden;text-align:center} .sw .sq{height:56px;display:flex;align-items:center;justify-content:center}
+.sw .sq span{font-family:var(--mono);font-size:10px;color:rgba(7,11,9,.85);background:rgba(255,255,255,.75);padding:1px 6px;border-radius:2px}
+.sw .st{font-family:var(--mono);font-size:10px;color:var(--faint);padding:5px 6px;border-top:1px solid var(--line);letter-spacing:.08em}
+.trav{margin-top:14px;width:100%;border-collapse:collapse;font-size:11.5px}
+.trav th{font-family:var(--mono);font-weight:500;color:var(--faint);text-align:left;padding:6px 8px;border-bottom:1px solid var(--line2);font-size:10px;letter-spacing:.08em}
+.trav td{font-family:var(--mono);padding:5.5px 8px;border-bottom:1px solid var(--line);color:var(--dim)} .trav td.ok{color:var(--green)}
+.trav td.ng{color:var(--red)}
+.mlab-verdict{margin-top:14px;padding:13px 15px;border-left:2px solid var(--green);border-radius:0 5px 5px 0;background:rgba(52,224,138,.05);font-size:12.6px;color:var(--dim);line-height:1.7}
+.mlab-verdict.bad{border-color:var(--red);background:rgba(255,100,120,.06)} .mlab-verdict b{color:var(--ink);font-weight:500} .mlab-verdict.bad b{color:var(--red)}
+.fmt-note{margin-top:26px;padding:18px 22px;border-left:2px solid var(--amber);background:rgba(255,176,46,.05);border-radius:0 6px 6px 0;font-size:13.5px;color:var(--dim);line-height:1.8}
+.fmt-note b{color:var(--amber);font-weight:500} .fmt-note code{font-family:var(--mono);font-size:.9em;color:var(--green)}
+
+/* ============ §05 双通道 ============ */
+.ldi-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--panel)}
+.ldi-svg{padding:22px;background:#080d0a;min-width:0}
+.ldi-svg svg{width:100%;height:auto;display:block} .ldi-read{border-left:1px solid var(--line);background:#0a110d;padding:20px;display:flex;flex-direction:column}
+.ldi-read h5{font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.22em;margin-bottom:16px}
+.arch-cards{display:flex;flex-direction:column;gap:12px;margin-top:18px} .arch{border:1px solid var(--line);border-radius:6px;padding:17px 20px;background:var(--panel)}
+.arch h5{font-family:var(--disp);font-size:15px;font-weight:600;display:flex;align-items:center;gap:10px}
+.arch h5 .b{font-family:var(--mono);font-size:10px;color:var(--green);border:1px solid var(--green-dim);padding:1px 7px;border-radius:3px}
+.arch p{font-size:12.8px;color:var(--dim);margin-top:8px;line-height:1.7} .arch p b{color:var(--ink);font-weight:500}
+
+/* ============ §06 V-by-One ============ */
+.vby-hdr{padding:13px 18px;border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;gap:8px 20px;font-family:var(--mono);font-size:11.5px;color:var(--dim);background:rgba(10,16,12,.7)}
+.vby-hdr b{color:var(--cyan);font-weight:500}
+.vby-note{margin-top:26px;display:grid;grid-template-columns:auto 1fr;gap:22px;align-items:center;border:1px solid rgba(87,216,242,.3);border-radius:8px;padding:20px 26px;background:linear-gradient(120deg,rgba(87,216,242,.06),transparent 60%)}
+.vby-note .mnemonic{font-family:var(--disp);font-weight:700;font-size:clamp(18px,2.4vw,24px);color:var(--cyan);letter-spacing:.06em;white-space:nowrap}
+.vby-note .mnemonic small{display:block;font-size:11px;font-weight:500;color:var(--faint);letter-spacing:.24em;margin-top:6px;font-family:var(--mono)}
+.vby-note p{font-size:13.5px;color:var(--dim);line-height:1.8}
+.vby-note p b{color:var(--ink);font-weight:500}
+
+/* ============ §07 演进 ============ */
+.evol-wrap{border:1px solid var(--line);border-radius:10px;background:var(--panel);overflow:hidden}
+.evol-wrap .ev-t{padding:15px 20px 0;font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.2em}
+.evol-wrap svg{display:block;width:100%;height:auto;background:#080d0a;padding:6px 10px 2px} .evol-wrap .tbl{padding:6px 20px 18px;overflow-x:auto}
+.evol-wrap table{min-width:760px}
+
+/* ============ §08 上电时序 ============ */
+.dbg-steps{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.dbg-step{flex:1;min-width:120px;display:flex;align-items:center;gap:10px;padding:11px 13px;border:1px solid var(--line2);border-radius:6px;
+  background:var(--panel);cursor:pointer;transition:all .18s;text-align:left;font-family:inherit;color:var(--dim);font-size:12.5px}
+.dbg-step .n{font-family:var(--mono);font-size:14px;font-weight:600;color:var(--faint);min-width:1.5em;text-align:center;transition:color .18s}
+.dbg-step:hover{border-color:var(--green-dim);color:var(--ink)}
+.dbg-step.on{border-color:var(--green);background:rgba(52,224,138,.08);color:var(--ink)} .dbg-step.on .n{color:var(--green)}
+.pw-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:18px;align-items:start}
+.pw-diagram{border:1px solid var(--line);border-radius:8px;background:#080d0a;padding:18px} .pw-diagram svg{width:100%;height:auto;display:block}
+.dbg-verdict{border-left:2px solid var(--amber);background:rgba(255,176,46,.06);padding:14px 18px;border-radius:0 5px 5px 0;font-size:13px;color:var(--dim);line-height:1.75;margin-bottom:16px}
+.dbg-verdict b{color:var(--amber);font-weight:500} .dbg-verdict code{font-family:var(--mono);font-size:.9em;color:var(--green)}
+/* ---- 终端 ---- */
+.term-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin-top:18px}
+.term{border:1px solid var(--line);border-radius:8px;background:#070c09;overflow:hidden;display:flex;flex-direction:column;min-width:0;transition:border-color .25s}
+.term:hover{border-color:var(--line2)}
+.term-bar{display:flex;align-items:center;gap:7px;padding:10px 14px;border-bottom:1px solid var(--line);background:rgba(10,16,12,.85)}
+.term-bar i{width:10px;height:10px;border-radius:50%} .term-bar .d1{background:rgba(255,100,120,.55)}
+.term-bar .d2{background:rgba(255,176,46,.5)} .term-bar .d3{background:rgba(52,224,138,.5)}
+.term-bar span{margin-left:8px;font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.12em}
+.term-body{padding:15px 18px 17px;font-family:var(--mono);font-size:12.2px;line-height:1.95;overflow-x:auto;flex:1}
+.term-body div{white-space:pre;min-height:1.35em} .t-ps{color:#3f5247;user-select:none}
+.t-cmd{color:var(--green);cursor:pointer;font-family:inherit;border-bottom:1px dotted transparent;transition:border-color .15s}
+.t-cmd:hover{border-bottom-color:var(--green)} .t-cmd.copied{color:#052013;background:var(--green);border-radius:2px;padding:0 4px} .t-out{color:var(--dim)}
+.t-hl{color:var(--amber)} .t-cmt{color:#516657}
+/* ---- 踩坑 ---- */
+.pit-list{display:flex;flex-direction:column;gap:12px}
+.pit{display:grid;grid-template-columns:56px 1fr;gap:18px;align-items:start;border:1px solid var(--line);border-radius:6px;padding:17px 20px;background:var(--panel);transition:border-color .2s}
+.pit:hover{border-color:rgba(255,100,120,.4)}
+.pit .symptom{font-family:var(--mono);font-size:10px;letter-spacing:.04em;color:var(--red);border:1px solid rgba(255,100,120,.35);border-radius:4px;padding:5px 6px;text-align:center;line-height:1.5;background:rgba(255,100,120,.05);height:fit-content}
+.pit .fix b{display:block;font-size:14px;font-weight:500;color:var(--ink);margin-bottom:4px} .pit .fix b code{font-family:var(--mono);font-size:.88em;color:var(--green)}
+.pit .fix p{font-size:12.8px;color:var(--dim);line-height:1.7} .pit .fix p code{font-family:var(--mono);font-size:.9em;color:var(--amber)}
+.pit .fix p a{color:var(--cyan);text-decoration:none;border-bottom:1px dotted rgba(87,216,242,.5)}
+
+/* ============ §09 速查 ============ */
+.cheat-strip{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin:6px 0 30px} .cs-item{text-align:center}
+.cs-item .cv{font-family:var(--mono);font-size:24px;color:var(--green);border:1px solid rgba(52,224,138,.4);padding:8px 16px;border-radius:8px;background:rgba(52,224,138,.06);min-width:96px;display:inline-block}
+.cs-item .cv.a{color:var(--amber);border-color:rgba(255,176,46,.4);background:rgba(255,176,46,.06)}
+.cs-item .cv.c{color:var(--cyan);border-color:rgba(87,216,242,.4);background:rgba(87,216,242,.06)}
+.cs-item small{display:block;font-size:11.5px;color:var(--dim);margin-top:6px}
+.cheat-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px} .panel9{border:1px solid var(--line);border-radius:10px;background:var(--panel);overflow:hidden}
+.panel9 .p9h{padding:16px 20px 10px;font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.22em} .panel9 .p9b{padding:0 20px 18px}
+dl.gloss{display:grid;grid-template-columns:repeat(2,1fr);gap:0 30px} dl.gloss dt{font-family:var(--mono);color:var(--green);font-size:13px;margin-top:13px}
+dl.gloss dd{color:var(--dim);font-size:12.8px;line-height:1.7;margin-top:2px} ul.rules{list-style:none;display:flex;flex-direction:column;gap:10px}
+ul.rules li{display:flex;gap:12px;align-items:flex-start;padding:11px 14px;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.015)}
+ul.rules .no{font-family:var(--mono);color:#052013;background:var(--green);border-radius:6px;min-width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:13px;flex:none;margin-top:2px}
+ul.rules b{color:var(--ink);font-weight:500} ul.rules li span.txt{color:var(--dim);font-size:13px;line-height:1.7}
+
+/* ============ footer ============ */
+footer{border-top:1px solid var(--line);padding:44px 6vw 60px;margin-top:40px;display:flex;flex-wrap:wrap;gap:24px;align-items:baseline;justify-content:space-between}
+footer .f-l{font-family:var(--mono);font-size:11.5px;color:var(--faint);line-height:2.1}
+footer .f-l b{color:var(--dim);font-weight:500} footer .f-r{font-family:var(--disp);font-weight:700;font-size:22px;color:var(--green)}
+
+/* ============ 响应式 ============ */
+@media (max-width:1000px){
+  .two-col,.ph-grid,.mlab-grid,.ldi-grid,.pw-grid,.term-grid,.cheat-grid{grid-template-columns:1fr} .lab-body{grid-template-columns:1fr}
+.readout{border-left:none;border-top:1px solid var(--line)} .mlab-right{border-left:none;border-top:1px solid var(--line)}
+.ldi-read{border-left:none;border-top:1px solid var(--line)}
+}
+@media (max-width:720px){
+  .fact-grid,.emi-grid{grid-template-columns:1fr} nav .xnav a{padding:4px 6px;font-size:10px} section{padding:70px 5vw} .sec-head .en{display:none}
+.ml-ch{grid-template-columns:34px repeat(7,1fr)} .ml-cell b{font-size:13px}
+}
+</style>
+</head>
+<body>
+<nav>
+  <div class="logo">LVDS<b>·</b>LAB</div>
+  <div class="nav-links">
+    <a class="nl" href="#s1">概述</a><a class="nl" href="#s2">物理层</a><a class="nl" href="#s3">串行化实验室</a><a class="nl" href="#s4">位映射</a><a class="nl" href="#s5">双通道</a><a class="nl" href="#s6">V-by-One</a><a class="nl" href="#s7">演进</a><a class="nl" href="#s8">上电与故障</a><a class="nl" href="#s9">速查表</a>
+  </div>
+  <div class="xnav"><a href="index.html">« HOME</a>
+<a href="i2c.html">I²C</a><a href="spi.html">SPI</a><a href="uart.html">UART</a><a href="ir.html">IR</a>
+<a href="rs485.html">RS-485</a><a href="onewire.html">1-WIRE</a><a href="can.html">CAN</a>
+<a href="i2s.html">I²S</a><a href="dmic.html">DMIC</a><a href="tdm.html">TDM</a>
+<a href="sdio.html">SDIO</a><a href="emmc.html">eMMC</a><a href="ddr.html">DDR</a>
+<a href="rgb.html">RGB</a><a href="mipi-dsi.html">DSI</a><a href="csi2.html">CSI-2</a>
+<a href="hdmi.html">HDMI</a><a href="usb.html">USB</a><a href="pcie.html">PCIE</a><a href="jtag.html">JTAG</a></div>
+  <div class="spacer"></div>
+  <div class="live"><i></i>DIFF&nbsp;LINK&nbsp;LIVE</div>
+</nav>
+
+<main>
+<!-- ================= HERO ================= -->
+<header class="hero">
+  <div class="eyebrow">LOW-VOLTAGE DIFFERENTIAL SIGNALING · 图解硬件协议</div>
+  <h1>LV<sup>DS</sup>
+    <span class="zh">RGB 并 口 的 串 行 化 革 命 · 显 示 接 口 详 解</span>
+  </h1>
+  <p class="lede">
+    <a href="rgb.html" style="color:var(--cyan);text-decoration:none;border-bottom:1px dotted rgba(87,216,242,.5)">RGB 并口</a>
+    要 28 根单端线同时翻转，EMI 与线束一起爆炸。LVDS 的答案：<b>21~27 根并行信号，按 7bit 一组塞进 4 对差分线</b>，摆幅只有 ±350 mV，恒流 3.5 mA。每一台电视主板到面板的排线里，跑的都是这套戏法。<b>往下滚动：亲眼看一整个像素被拆成位流。</b>
+  </p>
+  <div class="chips">
+    <span><b>±350 mV</b> 差分摆幅</span> <span class="ba"><b>3.5 mA</b> 恒流源</span> <span><b>100 Ω</b> 接收端端接</span>
+    <span><b>7 × PCLK</b> 串行化</span> <span class="bc"><b>4+1</b> 差分对 / 通道</span> <span class="bc"><b>8b/10b</b> V-by-One</span>
+  </div>
+  <div class="cta">
+    <a class="p" href="#s3">▶ 进入 7:1 串行化实验室</a>
+    <a class="g" href="rgb.html">↩ 先看 RGB 并口前身</a>
+  </div>
+  <div class="fig"><svg id="heroSvg" viewBox="0 0 880 322" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono,monospace" aria-label="LVDS 发送器到面板的差分链路示意">
+      <!-- 发送芯片 -->
+      <rect x="34" y="92" width="170" height="178" rx="12" fill="#0d181d" stroke="#1d2c22" stroke-width="1.5"/>
+      <rect x="44" y="102" width="150" height="158" rx="8" fill="none" stroke="rgba(52,224,138,.18)"/>
+      <circle cx="186" cy="114" r="4" fill="#34e08a" class="hled"/>
+      <text x="62" y="140" fill="#dcebe1" font-size="15" font-weight="600" font-family="Chakra Petch">SoC / T-CON</text>
+      <text x="62" y="158" fill="#8aa294" font-size="10">LVDS 发送器</text>
+      <text x="62" y="238" fill="#8aa294" font-size="9.5">7:1 串行化 · PLL ×7</text>
+      <!-- 恒流源符号 -->
+      <circle cx="168" cy="186" r="13" fill="none" stroke="#ffb02e" stroke-width="1.4"/>
+      <path d="M168 177 v5 M168 190 h5" stroke="#ffb02e" stroke-width="1.2" fill="none"/>
+      <text x="168" y="214" fill="#ffb02e" font-size="9" text-anchor="middle">3.5 mA</text>
+      <text x="168" y="227" fill="#8aa294" font-size="8.5" text-anchor="middle">恒流源</text>
+      <!-- 接收芯片 -->
+      <rect x="676" y="92" width="170" height="178" rx="12" fill="#0d181d" stroke="#1d2c22" stroke-width="1.5"/>
+      <rect x="686" y="102" width="150" height="158" rx="8" fill="none" stroke="rgba(87,216,242,.18)"/>
+      <text x="700" y="140" fill="#dcebe1" font-size="15" font-weight="600" font-family="Chakra Petch">液晶面板</text>
+      <text x="700" y="158" fill="#8aa294" font-size="10">LVDS 接收器 · T-CON</text>
+      <!-- 端接电阻 -->
+      <path d="M688 196 l5 -7 l6 14 l6 -14 l6 14 l6 -14 l4 7" fill="none" stroke="#57d8f2" stroke-width="1.6"/>
+      <text x="700" y="222" fill="#57d8f2" font-size="9">100 Ω × 5（内建）</text>
+      <text x="700" y="234" fill="#8aa294" font-size="8.5">1:7 解串器 · 双沿采样</text>
+      <!-- 5 对差分线 -->
+      <g id="heroWires" stroke-linecap="round">
+        <g><line x1="204" y1="122" x2="676" y2="122" stroke="rgba(52,224,138,.75)" stroke-width="1.8"/>
+           <line x1="204" y1="130" x2="676" y2="130" stroke="rgba(255,176,46,.6)" stroke-width="1.8"/>
+           <text x="206" y="114" fill="#34e08a" font-size="9.5" font-weight="600">CLK</text>
+           <text x="666" y="114" fill="#5c7264" font-size="9" text-anchor="end">×3.5 PCLK</text></g>
+        <g><line x1="204" y1="156" x2="676" y2="156" stroke="rgba(52,224,138,.75)" stroke-width="1.8"/>
+           <line x1="204" y1="164" x2="676" y2="164" stroke="rgba(255,176,46,.6)" stroke-width="1.8"/>
+           <text x="206" y="148" fill="#57d8f2" font-size="9.5" font-weight="600">D0</text>
+           <text x="666" y="148" fill="#5c7264" font-size="9" text-anchor="end">×7 PCLK</text></g>
+        <g><line x1="204" y1="190" x2="676" y2="190" stroke="rgba(52,224,138,.75)" stroke-width="1.8"/>
+           <line x1="204" y1="198" x2="676" y2="198" stroke="rgba(255,176,46,.6)" stroke-width="1.8"/>
+           <text x="206" y="182" fill="#57d8f2" font-size="9.5" font-weight="600">D1</text>
+           <text x="666" y="182" fill="#5c7264" font-size="9" text-anchor="end">×7 PCLK</text>
+           <path d="M330 202 h5 M330 220 h5 M332.5 202 v18" stroke="#5c7264" stroke-width="1" fill="none"/>
+           <text x="342" y="214" fill="#8aa294" font-size="9">VOD ±350 mV（每对摆幅）</text>
+           <text x="578" y="214" fill="#8aa294" font-size="8.5" text-anchor="middle">共模 ≈1.25 V · 电流方向随数据翻转</text></g>
+        <g><line x1="204" y1="224" x2="676" y2="224" stroke="rgba(52,224,138,.75)" stroke-width="1.8"/>
+           <line x1="204" y1="232" x2="676" y2="232" stroke="rgba(255,176,46,.6)" stroke-width="1.8"/>
+           <text x="206" y="216" fill="#57d8f2" font-size="9.5" font-weight="600">D2</text>
+           <text x="666" y="216" fill="#5c7264" font-size="9" text-anchor="end">×7 PCLK</text></g>
+        <g><line x1="204" y1="252" x2="676" y2="252" stroke="rgba(52,224,138,.75)" stroke-width="1.8"/>
+           <line x1="204" y1="260" x2="676" y2="260" stroke="rgba(255,176,46,.6)" stroke-width="1.8"/>
+           <text x="206" y="246" fill="#57d8f2" font-size="9.5" font-weight="600">D3</text>
+           <text x="666" y="246" fill="#5c7264" font-size="9" text-anchor="end">×7 PCLK</text></g>
+      </g>
+      <g id="heroDots"></g>
+      <text x="440" y="298" fill="#5c7264" font-size="9.5" text-anchor="middle">每对 = 两根线电流恒相反（回路自闭合） · 绿 = P（正端） · 琥珀 = N（负端）</text>
+    </svg>
+    <div class="cap">
+      <span>正在发送</span><span class="sw" id="heroSw"></span><b id="heroPix">像素 #0</b>
+      <b id="heroBits">CH0[6..0] = ·······</b><b id="heroCtl">DE ·</b>
+      <span style="margin-left:auto">10 根信号线替代 28 根</span>
+    </div>
+  </div>
+  <div class="scroll-hint"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg> SCROLL · 串行化实验室在 03 节</div>
+</header>
+
+<!-- ================= §01 ================= -->
+<section id="s1">
+  <div class="sec-head reveal"><span class="no">01</span><h2>它是什么，为什么需要它</h2><span class="en">What &amp; Why</span></div>
+  <p class="sec-sub reveal">
+    一句话：<b>LVDS 把「位宽换线宽」的 RGB 并口，翻转成「线宽换位宽」的低压差分串行链路</b>——解决的正是显示带宽上去之后，<a href="rgb.html" style="color:var(--cyan);text-decoration:none;border-bottom:1px dotted rgba(87,216,242,.5)">RGB 并口</a> 引脚太多、EMI 太大、线束太贵这三个死穴。
+  </p>
+  <div class="two-col">
+    <div class="prose reveal">
+      <p>
+        LVDS（<b>Low-Voltage Differential Signaling</b>，低压差分信号）1990 年代中期由 National Semiconductor 推出，随后被标准化为 <span class="kw">ANSI/TIA/EIA-644</span> 与 <span class="kw">IEEE 1596.3</span>。
+        它不是完整的「协议」，而是一层<b>电气传输标准</b>：两根线、一个 3.5 mA 恒流源、接收端一个 100 Ω 电阻，
+        电流方向随数据翻转，摆幅天然钳在 <b>±350 mV</b>。
+      </p>
+      <p>
+        显示行业把它发扬光大：NS 的 <span class="kw2">FPD-Link</span> 与后来的 <span class="kw2">OpenLDI</span> 规范
+        在 LVDS 电气层上定义了 RGB → 差分对的 <b>7:1 串行化</b>（每通道每像素时钟传 7 bit），
+        于是 27 根 RGB888 + DE/HS/VS 被压进 <b>4 对数据 + 1 对时钟 = 10 根线</b>。谁在用？<b>TV 主板→面板的屏线</b>（最典型）、工控/车规屏、笔记本主板→屏（2010 年代中期后被 eDP 接替）。</p>
+      <p>
+        而 4K 时代 LVDS 的 5 对线也扛不住了，THine 的 <b>V-by-One HS</b> 用 8b/10b + 嵌入时钟把每对线速率推到 Gbps 级，成为高端电视的新屏线标准——本页 06 节会拆开看。差分传输并非显示专属：
+        <a href="rs485.html">RS-485</a> 是它的总线形态，<a href="pcie.html">PCIe</a> 与
+        <a href="uart.html">UART</a> 的对比恰好展示了「单端 vs 差分」两个世界。
+      </p>
+    </div>
+    <table class="cmp-table reveal">
+      <tr><th></th><th>LVDS（单通道）</th><th>RGB 并口</th></tr>
+      <tr><td>信号形式</td><td class="yes">低压差分串行 ×4</td><td class="no">单端 CMOS 并行 ×27</td></tr>
+      <tr><td>信号线数</td><td class="yes">10（4 数据对+1 时钟对）</td><td class="no">≈28（含 PCLK/DE/HS/VS）</td></tr>
+      <tr><td>电压摆幅</td><td class="yes">±350 mV 差分</td><td class="no">0 ↔ 3.3 V 全摆幅</td></tr>
+      <tr><td>每线速率</td><td>7×PCLK（455–595 Mbps）</td><td>PCLK（≤85 MHz）</td></tr>
+      <tr><td>EMI</td><td class="yes">低（场相消 + 低 dV/dt）</td><td class="no">高（同步翻转地弹）</td></tr>
+      <tr><td>传输距离</td><td class="yes">屏线 0.3–1 m</td><td>板级 ≤20 cm</td></tr>
+      <tr><td>成本</td><td>需 SERDES / 面板支持</td><td class="yes">直连即用</td></tr>
+    </table>
+  </div>
+  <div class="fact-grid reveal">
+    <div class="fact"><div class="f-no">FACT / A</div><h4>它是电气层，不是协议 <code>644-A</code></h4><p>LVDS 标准只定义驱动器/接收器电气特性（摆幅、共模、速率上限 655 Mbps，产品可超 1 Gbps）。位怎么排、怎么串行化，是 FPD-Link / OpenLDI 等显示规范在它之上定义的。</p></div>
+    <div class="fact"><div class="f-no">FACT / B</div><h4>一根线上的 3.5 mA 电流环 <code>±350mV</code></h4><p>驱动器是恒流源：数据为 1 时电流走 P 线去 N 线，为 0 时反向。流过接收端 100 Ω 电阻产生 3.5mA×100Ω = 350 mV——摆幅天生就这么大，想改都不行。</p></div>
+    <div class="fact"><div class="f-no">FACT / C</div><h4>功耗几乎与速率无关 <code>恒流</code></h4><p>单端 CMOS 的动态功耗 ∝ C·V²·f，频率越高越烫；LVDS 线上电流恒为 3.5 mA，1 Mbps 和 600 Mbps 的线损几乎一样——这是它能上高速的根本原因之一。</p></div>
+    <div class="fact"><div class="f-no">FACT / D</div><h4>端接只在接收端放一个 <code>100Ω</code></h4><p>差分对在接收端跨接一只 100 Ω（多数面板<b>内建</b>，外部别再并！）。没有上拉电阻排、没有串阻匹配网络——与 I²C/RGB 那套单端偏置完全不同。</p></div>
+  </div>
+</section>
+
+<!-- ================= §02 ================= -->
+<section id="s2">
+  <div class="sec-head reveal"><span class="no">02</span><h2>物理层 · 一对线上的电流方向就是数据</h2><span class="en">Differential Pair</span></div>
+  <p class="sec-sub reveal">
+    先把「差分」两个字拆开看：驱动器不输出电压，而是<b>控制 3.5 mA 电流从哪根线流出、从哪根线回来</b>；
+    接收器只问一个问题——<b>现在 P 和 N 谁更高？</b>高就是 1，低就是 0。切换数据位 = 翻转电流方向。
+  </p>
+  <div class="lab reveal">
+    <div class="lab-bar">
+      <div class="ctrl"><label>数据流</label> <div class="seg" id="phSeg">
+          <button data-ph="prbs" class="on">伪随机</button><button data-ph="clk">时钟 1010</button><button data-ph="zero">常 0</button>
+        </div>
+      </div>
+      <div class="ctrl"><label>速度</label><input type="range" id="phSpeed" min="2" max="30" value="9"></div>
+      <div class="ctrl">
+        <button class="icon-btn play on" id="phPlay" title="暂停/播放">❚❚</button>
+      </div>
+    </div>
+    <div class="ph-grid">
+      <div class="schem">
+        <svg viewBox="0 0 520 208" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono,monospace">
+          <rect x="16" y="52" width="96" height="104" rx="8" fill="#0d181d" stroke="#1d2c22" stroke-width="1.5"/>
+          <text x="64" y="90" fill="#dcebe1" font-size="12" text-anchor="middle" font-weight="600">LVDS 驱动</text>
+          <text x="64" y="106" fill="#8aa294" font-size="8.5" text-anchor="middle">3.5 mA 恒流</text>
+          <text x="64" y="144" fill="#ffb02e" font-size="13" text-anchor="middle" font-weight="700" id="phBit">1</text>
+          <!-- P 线：电流方向箭头随数据位翻转 -->
+          <line x1="112" y1="74" x2="408" y2="74" stroke="#34e08a" stroke-width="2"/>
+          <text x="126" y="64" fill="#34e08a" font-size="10" font-weight="600">P（OUT+）</text>
+          <g id="phAP"><polygon points="288,68 302,74 288,80" fill="#34e08a"/><line x1="278" y1="74" x2="290" y2="74" stroke="#34e08a" stroke-width="2"/></g>
+          <g id="phAPr" style="display:none"><polygon points="302,68 288,74 302,80" fill="#34e08a"/><line x1="300" y1="74" x2="292" y2="74" stroke="#34e08a" stroke-width="2"/></g>
+          <!-- N 线 -->
+          <line x1="112" y1="134" x2="408" y2="134" stroke="#ffb02e" stroke-width="2" opacity=".8"/>
+          <text x="126" y="156" fill="#ffb02e" font-size="10" font-weight="600">N（OUT−）</text>
+          <g id="phAN"><polygon points="302,128 288,134 302,140" fill="#ffb02e"/><line x1="300" y1="134" x2="292" y2="134" stroke="#ffb02e" stroke-width="2"/></g>
+          <g id="phANr" style="display:none"><polygon points="288,128 302,134 288,140" fill="#ffb02e"/><line x1="278" y1="134" x2="290" y2="134" stroke="#ffb02e" stroke-width="2"/></g>
+          <!-- 电压标注 + 接收器 -->
+          <text id="phLp" x="418" y="78" fill="#34e08a" font-size="10.5">≈1.60 V</text>
+          <text id="phLn" x="418" y="138" fill="#ffb02e" font-size="10.5">≈0.90 V</text>
+          <rect x="408" y="52" width="96" height="104" rx="8" fill="#0d181d" stroke="#1d2c22" stroke-width="1.5"/>
+          <path d="M424 104 l6 -8 l7 16 l7 -16 l7 16 l7 -16 l6 8" fill="none" stroke="#57d8f2" stroke-width="1.6"/>
+          <text x="468" y="132" fill="#57d8f2" font-size="9.5" text-anchor="middle">100 Ω</text>
+          <text x="468" y="90" fill="#dcebe1" font-size="11" text-anchor="middle" font-weight="600">比较器</text>
+          <text x="468" y="146" fill="#8aa294" font-size="8" text-anchor="middle">VOD &gt; 0 → 1</text>
+          <path d="M400 74 h10 M400 134 h10 M404 74 v60" stroke="#5c7264" stroke-width="1" fill="none"/>
+          <text id="phVod" x="378" y="108" fill="#57d8f2" font-size="10.5" text-anchor="middle">+350 mV</text>
+          <text x="260" y="190" fill="#5c7264" font-size="9.5" text-anchor="middle">共模电压恒 ≈1.25 V（两线电压中点不动）· 翻转的只有电流方向</text>
+          <text x="260" y="204" fill="#5c7264" font-size="9.5" text-anchor="middle">箭头 = 电流方向：数据 1 → P 流出 / 数据 0 → N 流出</text>
+        </svg>
+        <div class="cap">▲ 上图：电流方向随数据位翻转；<b>接收端只比较两线高低</b>。下图：对应的三条电压轨迹（P、N、差 VOD）。</div>
+        <div class="kv-row">
+          <span>当前位 <b class="r" id="phBitR">1</b></span>
+          <span>电流方向 <b class="a" id="phDirR">P → N</b></span>
+          <span>VOD <b class="c" id="phVodR">+350 mV</b></span>
+          <span>线电流 <b>3.5 mA 恒定</b></span>
+          <span>VCM <b>≈1.25 V</b></span>
+        </div>
+      </div>
+      <div class="schem" style="display:flex;flex-direction:column">
+        <div class="scope-main" style="border-bottom:1px solid var(--line)"><canvas id="phScope"></canvas></div>
+        <div class="cap" style="padding:12px 14px 4px">
+          ▲ P（绿）与 N（琥珀）围绕 <b>1.25 V 共模</b>反向摆动 ±175 mV；最下一条是它们的<b>差 VOD</b>（±350 mV 方波）。红点 = 接收比较器的采样时刻（每位中点）。切换到「常 0」可以看到：即使数据不变，电流也恒定——<b>静态零功耗差异</b>。
+        </div>
+      </div>
+    </div>
+    <div class="lab-foot">
+      <div class="legend"><i style="background:var(--green)"></i>P（OUT+）</div> <div class="legend"><i style="background:var(--amber)"></i>N（OUT−）</div> <div class="legend"><i style="background:var(--cyan)"></i>VOD = P − N</div>
+      <div class="legend"><i style="background:var(--red);height:8px;width:8px;border-radius:50%"></i>采样点</div>
+      <div class="legend">接收灵敏度 ±100 mV · 边沿 slew 受控</div>
+    </div>
+  </div>
+
+  <div class="emi-grid reveal">
+    <div class="emi-card">
+      <div class="eh"><b>单端 CMOS</b><span>0 ↔ 3.3 V</span></div>
+      <svg viewBox="0 0 480 150" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono,monospace">
+        <path d="M30 110 h40 v-70 h45 v70 h45 v-70 h45 v70 h45 v-70 h45 v70 h55" fill="none" stroke="#ff6478" stroke-width="2.2"/>
+        <g stroke="#ff6478" fill="none" stroke-width="1.2">
+          <circle class="arc" cx="115" cy="75" r="16"/><circle class="arc a2" cx="115" cy="75" r="30"/><circle class="arc a3" cx="115" cy="75" r="46"/>
+          <circle class="arc" cx="250" cy="75" r="16"/><circle class="arc a2" cx="250" cy="75" r="30"/><circle class="arc a3" cx="250" cy="75" r="46"/>
+          <circle class="arc a2" cx="385" cy="75" r="16"/><circle class="arc a3" cx="385" cy="75" r="30"/>
+        </g>
+        <text x="240" y="140" fill="#5c7264" font-size="9.5" text-anchor="middle">3.3 V 全摆幅 · 快边沿 · 回流走地平面 → 大 di/dt 与辐射</text>
+      </svg>
+      <div class="eb">每根线 3.3 V 摆幅、<b>ns 级边沿</b>，27 根同时翻转：地弹、串扰、EMI 全部超标。返回电流摊在地平面上，<b>回路面积大 = 天线</b>。</div>
+    </div>
+    <div class="emi-card">
+      <div class="eh"><b>LVDS 差分</b><span>±350 mV</span></div>
+      <svg viewBox="0 0 480 150" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono,monospace">
+        <path d="M30 75 h40 v-14 h45 v28 h45 v-28 h45 v28 h45 v-14 h45 v-14 h45 v28 h55" fill="none" stroke="#34e08a" stroke-width="2"/>
+        <path d="M30 89 h40 v14 h45 v-28 h45 v28 h45 v-28 h45 v14 h45 v14 h45 v-28 h55" fill="none" stroke="#ffb02e" stroke-width="1.4" opacity=".65"/>
+        <g stroke="#34e08a" fill="none" stroke-width="1">
+          <circle class="arc" cx="137" cy="75" r="10"/><circle class="arc a2" cx="137" cy="75" r="17"/>
+          <circle class="arc" cx="317" cy="75" r="10"/><circle class="arc a3" cx="317" cy="75" r="17"/>
+        </g>
+        <text x="240" y="140" fill="#5c7264" font-size="9.5" text-anchor="middle">±350 mV 摆幅 · 回流就在对内另一根线 → 场近似相消</text>
+      </svg>
+      <div class="eb">摆幅低约 <b>10 倍</b>、边沿 slew 被刻意压慢；两根线电流恒等反向，<b>返回路径就是彼此</b>，对外场几乎相消——这是 05 类 EMC 认证能过的屏线。</div>
+    </div>
+  </div>
+
+  <div class="lab reveal" style="margin-top:18px">
+    <div class="lab-bar" style="justify-content:space-between">
+      <div class="ctrl"><label>为什么噪声打不穿差分对</label></div>
+      <div class="ctrl"><span style="font-family:var(--mono);font-size:11.5px;color:var(--dim)">V<sub>diff</sub> = (V<sub>P</sub>+n) − (V<sub>N</sub>+n) = V<sub>P</sub> − V<sub>N</sub></span></div>
+    </div>
+    <div class="schem" style="border:none;border-radius:0">
+      <svg viewBox="0 0 960 148" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono,monospace">
+        <line x1="40" y1="52" x2="380" y2="52" stroke="#34e08a" stroke-width="2"/>
+        <line x1="40" y1="96" x2="380" y2="96" stroke="#ffb02e" stroke-width="2" opacity=".8"/>
+        <path id="cmN1" d="M120 52 q30 -26 60 0 q30 26 60 0" fill="none" stroke="#ff6478" stroke-width="1.4" stroke-dasharray="4 3"/>
+        <path id="cmN2" d="M120 96 q30 -26 60 0 q30 26 60 0" fill="none" stroke="#ff6478" stroke-width="1.4" stroke-dasharray="4 3"/>
+        <text x="210" y="24" fill="#ff6478" font-size="9.5" text-anchor="middle">同样的噪声 n 同时耦合到两根线（共模）</text>
+        <path d="M380 52 h40 M380 96 h40 M396 52 v44" stroke="#5c7264" stroke-width="1"/>
+        <text x="430" y="79" fill="#57d8f2" font-size="11">−（相减）</text>
+        <path d="M500 74 h70 l8 -10 l12 20 l12 -20 l12 20 l8 -10 h66" fill="none" stroke="#57d8f2" stroke-width="2.2"/>
+        <text x="620" y="52" fill="#57d8f2" font-size="10">VOD 方波完好</text>
+        <text x="620" y="96" fill="#8aa294" font-size="9.5">噪声被减法完全抵消（共模抑制）</text>
+        <text x="480" y="132" fill="#5c7264" font-size="9.5" text-anchor="middle">前提：两根线紧耦合、等长、并排走——噪声才「equally」耦合；这也是布线铁律的由来</text>
+      </svg>
+      <div class="cap" style="padding:12px 16px 6px">▲ 共模抑制：只要噪声对两根线<b>一样</b>（紧耦合就能保证），接收端的减法就把它消掉。单端信号没有这道保险。</div>
+    </div>
+  </div>
+
+  <div class="fact-grid reveal">
+    <div class="fact"><div class="f-no">SPEC / 摆幅</div><h4>±350 mV 是「典型」 <code>250–450</code></h4><p>644-A 允许 ±250 ~ ±450 mV，由 3.5 mA（±0.5 mA 容差）× 100 Ω 决定。接收灵敏度只要 ±100 mV——大量裕量留给噪声。</p></div>
+    <div class="fact"><div class="f-no">SPEC / 共模</div><h4>中点钉在 1.25 V <code>VCM</code></h4><p>规范窗口 1.125–1.375 V。不管数据怎么翻，两线中点不动——这就是「低压」：相对地只有几百 mV 跳变，连供电噪声都懒得理会。</p></div>
+    <div class="fact"><div class="f-no">SPEC / 速率</div><h4>规范 655 Mbps 起 <code>&gt;1 Gbps</code></h4><p>644-A 定义到 655 Mbps，实际器件短距可跑 1 Gbps 以上。显示用 FPD-Link 常见 455/595 Mbps（65/85 MHz PCLK ×7）。</p></div>
+    <div class="fact"><div class="f-no">SPEC / 拓扑</div><h4>点到点，不总线 <code>1:1</code></h4><p>一个驱动器对一个接收器（一个 100 Ω）。想多点？那是 <a href="rs485.html">RS-485/BLVD</a> 的差分总线世界——LVDS 显示链路永远一对一。</p></div>
+  </div>
+</section>
+
+<!-- ================= §03 ================= -->
+<section id="s3">
+  <div class="sec-head reveal"><span class="no">03</span><h2>串行化实验室 · 7 bit 一组塞进 4 对线</h2><span class="en">7:1 Serialization Lab</span></div>
+  <p class="sec-sub reveal">
+    这是本页的核心实验：上面是 <b>并行侧</b>（PCLK 域，21 或 27 根 RGB+控制信号同时有效，彩色竖条=正在传输的像素），
+    下面是 <b>串行侧</b>（7×PCLK 域，4 对数据线各把 7 bit 依次吐出 + 1 对时钟线以 3.5×PCLK 供接收端<b>双沿采样</b>）。
+    红色探针停在哪个串行位，上方并行面板里<b>对应的那 4 根信号就会亮起</b>——每 7 个串行位送走一个完整像素。
+  </p>
+  <div class="lab reveal">
+    <div class="lab-bar">
+      <div class="ctrl"><label>位深</label> <div class="seg" id="slMode">
+          <button data-md="vesa24" class="on">24bit · RGB888</button><button data-md="vesa18">18bit · RGB666</button>
+        </div>
+      </div>
+      <div class="ctrl"><label>PCLK</label> <select class="sl-sel" id="slPclk">
+          <option value="25">25 MHz · VGA</option>
+          <option value="40">40 MHz · SVGA</option>
+          <option value="65" selected>65 MHz · XGA</option>
+          <option value="74.25">74.25 MHz · 720p</option>
+          <option value="85.5">85.5 MHz · WXGA</option>
+          <option value="148.5">148.5 MHz · 1080p</option>
+        </select>
+      </div>
+      <div class="ctrl"><label>速度</label><input type="range" id="slSpd" min="2" max="40" value="13"></div>
+      <div class="ctrl">
+        <button class="icon-btn" id="slZoomOut" title="缩小">−</button> <button class="icon-btn" id="slZoomIn" title="放大">＋</button>
+        <button class="icon-btn" id="slStepBit" title="单步 1 个串行位">+1bit</button> <button class="icon-btn" id="slStepPx" title="单步 1 个像素">+1px</button>
+        <button class="icon-btn play on" id="slPlay" title="暂停/播放">❚❚</button>
+      </div>
+    </div>
+    <div class="lab-body">
+      <div class="scope-main">
+        <div class="par-zone">
+          <div class="pz-t">
+            <b>并行侧 · PCLK 域</b> <span id="slPxCnt">每格 1 像素</span> <span style="margin-left:auto">亮起 = 此串行位正在发送的信号</span>
+          </div>
+          <div class="pix-strip" id="slPix"></div>
+          <div class="pb-bus" id="slBus"></div>
+          <div class="mapline" id="slLeg"></div>
+        </div>
+        <canvas id="slCanvas"></canvas>
+      </div>
+      <div class="readout">
+        <div class="r-title">RECEIVER · 实时状态</div>
+        <div class="r-row"><span class="k">模式</span><span class="v g" id="roMode">24bit · 4 数据对+1 CLK</span></div>
+        <div class="r-row"><span class="k">PCLK</span><span class="v" id="roPclk">65 MHz</span></div>
+        <div class="r-row"><span class="k">每线串行速率</span><span class="v a" id="roSer">455 Mbps</span></div>
+        <div class="r-row"><span class="k">CLK 对频率</span><span class="v c" id="roClk">227.5 MHz</span></div>
+        <div class="r-row"><span class="k">通道建议</span><span class="v" id="roLane">单通道 OK</span></div>
+        <div class="r-row"><span class="k">当前像素</span><span class="v" id="roPix">—</span></div>
+        <div class="r-row"><span class="k">槽位</span><span class="v g" id="roSlot">—</span></div>
+        <div class="r-row"><span class="k">正在发送</span><span class="v" id="roAir" style="font-size:11px">—</span></div>
+        <div class="r-note">
+          <b>规则</b>：每个 PCLK，4 对数据线各传 7 bit → 4×7=28 槽位装下 RGB888+DE/HS/VS+保留。
+          CLK 对频率 = 7×PCLK÷2 = 3.5×PCLK，接收端<b>双沿采样</b>，一拍一位。
+        </div>
+        <div class="r-note">
+          <b>试试</b>：切到 18bit 看 21 根信号 / 3 对线；把 PCLK 拨到 148.5 MHz，看「通道建议」翻红——那是 05 节双通道的伏笔。
+        </div>
+      </div>
+    </div>
+    <div class="lab-foot">
+      <div class="legend"><i style="background:var(--green)"></i>P（正端）</div>
+      <div class="legend"><i style="background:var(--amber)"></i>N（负端·取反）</div>
+      <div class="legend"><i style="background:var(--red);height:8px;width:8px;border-radius:50%"></i>采样探针</div>
+      <div class="legend">背景竖条 = 1 像素（7 bit）</div>
+      <div class="legend">黑色区 = 消隐（DE=0）</div>
+    </div>
+  </div>
+  <div class="lab-cap reveal">
+    <b>读懂这张图：</b>同一时刻并行侧 27 根线（24bit 模式）各自摆好电平，串行化器每个 PCLK 把它们切成 4 组 7bit；数据线上<b>每 7 个串行位对应一个像素</b>，位的先后顺序（槽位 1→7）由映射表决定——那正是 04 节的主角。
+    真实器件（DS90C385 一类）内部用 PLL 把 PCLK 倍频 ×7 完成这一切，引脚上你只会看到 5 对安安静静的差分线。
+  </div>
+</section>
+
+<!-- ================= §04 ================= -->
+<section id="s4">
+  <div class="sec-head reveal"><span class="no">04</span><h2>JEIDA vs VESA · 同一像素的两种装法</h2><span class="en">Bit Mapping</span></div>
+  <p class="sec-sub reveal">
+    4×7 = 28 个槽位，把 27 个信号放进去，业界放出了两种互不兼容的标准：<b>VESA</b> 与 <b>JEIDA</b>（日系屏居多）。
+    发送端用 A 表、面板用 B 表，位就会落进错误的抽屉——<b>这就是「花屏 / 偏色」的头号根源</b>。
+    下面亲手配错一次：左侧选「发送端映射 / 面板端映射」，拖动 RGB 滑杆，右侧看面板到底收到了什么颜色。
+  </p>
+  <div class="lab reveal">
+    <div class="lab-bar">
+      <div class="ctrl"><label>色深</label> <div class="seg" id="mDepth">
+          <button data-d="24" class="on">24bit</button><button data-d="18">18bit</button>
+        </div>
+      </div>
+      <div class="ctrl"><label>发送端映射</label> <div class="seg" id="mTx">
+          <button data-m="vesa" class="on">VESA</button><button data-m="jeida">JEIDA</button>
+        </div>
+      </div>
+      <div class="ctrl"><label>面板端映射</label> <div class="seg" id="mRx">
+          <button data-m="vesa" class="on">VESA</button><button data-m="jeida">JEIDA</button>
+        </div>
+      </div>
+      <div class="ctrl"><label>高亮差异位</label><input type="checkbox" id="mHl" checked style="accent-color:var(--green)"></div>
+    </div>
+    <div class="mlab-grid">
+      <div class="mlab-left">
+        <div class="ml-head">
+          <div class="sliders">
+            <div class="row"><label>R</label><input type="range" id="mR" min="0" max="255" value="231"><b id="mRv">231</b></div>
+            <div class="row"><label>G</label><input type="range" id="mG" min="0" max="255" value="32"><b id="mGv">32</b></div>
+            <div class="row"><label>B</label><input type="range" id="mB" min="0" max="255" value="120"><b id="mBv">120</b></div>
+          </div>
+          <div class="presets" id="mPre">
+            <button data-p="r">红</button><button data-p="g">绿</button><button data-p="b">蓝</button><button data-p="w">白</button><button data-p="y">黄</button><button data-p="c">青</button><button data-p="rand">随机</button>
+          </div>
+        </div>
+        <div id="mGrid"></div>
+        <div class="r-note" style="margin-top:8px">格内大字 = 线上实际电平；小字 = 信号来源。红框 = 面板端在此槽位期待的是<b style="color:var(--red)">另一个信号</b>（位被错误解读）。槽位从左到右依次发送。</div>
+      </div>
+      <div class="mlab-right">
+        <div class="sw-box">
+          <div class="sw"><div class="sq" id="mSwTx"><span>TX</span></div><div class="st">发送颜色<br><span id="mHexTx">#E72078</span></div></div> <div class="sw"><div class="sq" id="mSwRx"><span>RX</span></div><div class="st">面板收到<br><span id="mHexRx">#E72078</span></div></div>
+        </div>
+        <table class="trav" id="mTravel"></table>
+        <div class="mlab-verdict" id="mVerdict"></div>
+        <div class="r-note" style="margin-top:12px">位旅行表：代表性 bit 从「发送端抽屉」被「面板端抽屉」读成了谁。只要有一行错位，颜色就不对。</div>
+      </div>
+    </div>
+    <div class="lab-foot">
+      <div class="legend"><i style="background:#ff6478"></i>R 位</div>
+      <div class="legend"><i style="background:#34e08a"></i>G 位</div>
+      <div class="legend"><i style="background:#57d8f2"></i>B 位</div>
+      <div class="legend"><i style="background:#ffb02e"></i>控制位 DE/HS/VS</div>
+      <div class="legend">灰 = 保留位</div>
+      <div class="legend">18bit：只有 3 对数据线（21 信号）</div>
+    </div>
+  </div>
+  <div class="fmt-note reveal">
+    <b>工程冷知识：</b>JEIDA-24 把低位（R0/R1、G0/G1、B0/B1）全部挪进 <code>CH3</code>，
+    于是 <b>18bit 主机接 24bit JEIDA 面板时，把第 4 对数据线悬空</b>就能降级工作——高位照传、低位丢弃，正好等效 RGB666。
+    而 VESA 两种位深的排布不同轴，没这个便利。换屏 / 换板时 mapping 与位深必须同时核对。
+  </div>
+</section>
+
+<!-- ================= §05 ================= -->
+<section id="s5">
+  <div class="sec-head reveal"><span class="no">05</span><h2>OpenLDI 与单 / 双通道</h2><span class="en">OpenLDI · Dual-Link</span></div>
+  <p class="sec-sub reveal">
+    分辨率上去，PCLK 超过单通道能力（器件普遍 <b>≤85~112 MHz</b>）怎么办？答案粗暴有效：<b>再铺一条一模一样的通道</b>，
+    奇偶像素各走一条——线对数翻倍到 10 对，但每对速率不变。点击切换，对比两种拓扑。
+  </p>
+  <div class="ldi-grid reveal">
+    <div class="ldi-svg" id="ldiSvgA">
+      <svg viewBox="0 0 560 300" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono,monospace">
+        <text x="280" y="34" fill="#34e08a" font-size="12" text-anchor="middle" font-weight="600">单通道 SINGLE CHANNEL</text>
+        <text x="280" y="52" fill="#5c7264" font-size="9.5" text-anchor="middle">4 数据对 + 1 时钟对</text>
+        <rect x="18" y="86" width="120" height="128" rx="10" fill="#0d181d" stroke="#1d2c22" stroke-width="1.5"/>
+        <text x="78" y="128" fill="#dcebe1" font-size="13" text-anchor="middle" font-weight="600">SoC / T-CON</text>
+        <text x="78" y="148" fill="#8aa294" font-size="9.5" text-anchor="middle">单通道发送</text>
+        <text x="78" y="194" fill="#5c7264" font-size="9" text-anchor="middle">PCLK ≤ 85 MHz</text>
+        <rect x="422" y="86" width="120" height="128" rx="10" fill="#0d181d" stroke="#1d2c22" stroke-width="1.5"/>
+        <text x="482" y="128" fill="#dcebe1" font-size="13" text-anchor="middle" font-weight="600">面板</text>
+        <text x="482" y="148" fill="#8aa294" font-size="9.5" text-anchor="middle">1:7 解串 ×4</text>
+        <line x1="138" y1="102" x2="422" y2="102" stroke="#34e08a" stroke-width="1.8"/><line x1="138" y1="108" x2="422" y2="108" stroke="#ffb02e" stroke-width="1.4" opacity=".7"/>
+        <text x="280" y="96" fill="#5c7264" font-size="9" text-anchor="middle">CLK 对</text>
+        <line x1="138" y1="130" x2="422" y2="130" stroke="#57d8f2" stroke-width="1.8"/><line x1="138" y1="136" x2="422" y2="136" stroke="#ffb02e" stroke-width="1.4" opacity=".7"/>
+        <text x="280" y="124" fill="#5c7264" font-size="9" text-anchor="middle">D0 对 · 7bit/PCLK</text>
+        <line x1="138" y1="158" x2="422" y2="158" stroke="#57d8f2" stroke-width="1.8"/><line x1="138" y1="164" x2="422" y2="164" stroke="#ffb02e" stroke-width="1.4" opacity=".7"/>
+        <text x="280" y="152" fill="#5c7264" font-size="9" text-anchor="middle">D1 对</text>
+        <line x1="138" y1="186" x2="422" y2="186" stroke="#57d8f2" stroke-width="1.8"/><line x1="138" y1="192" x2="422" y2="192" stroke="#ffb02e" stroke-width="1.4" opacity=".7"/>
+        <text x="280" y="180" fill="#5c7264" font-size="9" text-anchor="middle">D2 对</text>
+        <line x1="138" y1="214" x2="422" y2="214" stroke="#57d8f2" stroke-width="1.8"/><line x1="138" y1="220" x2="422" y2="220" stroke="#ffb02e" stroke-width="1.4" opacity=".7"/>
+        <text x="280" y="208" fill="#5c7264" font-size="9" text-anchor="middle">D3 对</text>
+        <text x="280" y="252" fill="#8aa294" font-size="10.5" text-anchor="middle">全部像素挤一条通道 · 10 根信号线</text>
+        <text x="280" y="270" fill="#5c7264" font-size="9.5" text-anchor="middle">85 MHz × 7 = 595 Mbps / 线 —— 单通道的现实上限</text>
+      </svg>
+    </div>
+    <div class="ldi-svg" id="ldiSvgB" style="display:none">
+      <svg viewBox="0 0 560 300" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono,monospace">
+        <text x="280" y="34" fill="#34e08a" font-size="12" text-anchor="middle" font-weight="600">双通道 DUAL CHANNEL（奇 / 偶）</text>
+        <text x="280" y="52" fill="#5c7264" font-size="9.5" text-anchor="middle">2 ×（4 数据对 + 1 时钟对）</text>
+        <rect x="18" y="86" width="120" height="128" rx="10" fill="#0d181d" stroke="#1d2c22" stroke-width="1.5"/>
+        <text x="78" y="122" fill="#dcebe1" font-size="13" text-anchor="middle" font-weight="600">SoC / T-CON</text>
+        <text x="78" y="142" fill="#8aa294" font-size="9.5" text-anchor="middle">奇/偶像素分离</text>
+        <text x="78" y="192" fill="#5c7264" font-size="9" text-anchor="middle">PCLK ≤ 150 MHz</text>
+        <rect x="422" y="86" width="120" height="128" rx="10" fill="#0d181d" stroke="#1d2c22" stroke-width="1.5"/>
+        <text x="482" y="128" fill="#dcebe1" font-size="13" text-anchor="middle" font-weight="600">面板</text>
+        <text x="482" y="148" fill="#8aa294" font-size="9.5" text-anchor="middle">奇+偶重组</text>
+        <line x1="138" y1="98" x2="422" y2="98" stroke="#57d8f2" stroke-width="1.8"/><line x1="138" y1="104" x2="422" y2="104" stroke="#ffb02e" stroke-width="1.4" opacity=".7"/>
+        <text x="280" y="92" fill="#5c7264" font-size="9" text-anchor="middle">偶通道 · D0-D3 + CLK（传偶数像素）</text>
+        <text x="280" y="122" fill="#8aa294" font-size="9" text-anchor="middle">5 对</text>
+        <line x1="138" y1="150" x2="422" y2="150" stroke="#57d8f2" stroke-width="1.8"/><line x1="138" y1="156" x2="422" y2="156" stroke="#ffb02e" stroke-width="1.4" opacity=".7"/>
+        <text x="280" y="144" fill="#5c7264" font-size="9" text-anchor="middle">奇通道 · D0-D3 + CLK（传奇数像素）</text>
+        <text x="280" y="176" fill="#8aa294" font-size="9" text-anchor="middle">5 对</text>
+        <text x="280" y="196" fill="#57d8f2" font-size="9.5" text-anchor="middle">每通道只背一半像素率（PCLK ÷ 2）</text>
+        <text x="280" y="252" fill="#8aa294" font-size="10.5" text-anchor="middle">20 根信号线 · 一条通道断 = 半屏花屏（08 节伏笔）</text>
+        <text x="280" y="270" fill="#5c7264" font-size="9.5" text-anchor="middle">148.5 MHz 1080p → 每通道 74.25 MHz × 7 = 519.75 Mbps</text>
+      </svg>
+    </div>
+    <div class="ldi-read">
+      <h5>TOPOLOGY · 切换观察</h5>
+      <div class="ctrl" style="margin-bottom:16px">
+        <div class="seg" id="ldiSeg">
+          <button data-ld="a" class="on">单通道</button><button data-ld="b">双通道</button>
+        </div>
+      </div>
+      <div class="r-row"><span class="k">差分对数</span><span class="v g" id="ldPairs">5 对</span></div>
+      <div class="r-row"><span class="k">信号线数</span><span class="v" id="ldWires">10 根</span></div>
+      <div class="r-row"><span class="k">每通道像素率</span><span class="v c" id="ldRate">PCLK（全部）</span></div>
+      <div class="r-row"><span class="k">典型上限</span><span class="v a" id="ldMax">≤ 85~112 MHz · WXGA</span></div>
+      <div class="r-row"><span class="k">典型分辨率</span><span class="v" id="ldRes">1366×768@60</span></div>
+      <div class="r-note">OpenLDI（国半开放显示接口规范）在 FPD-Link 基础上定义了双像素 / 48bit / 低频 LF 模式等扩展；i.MX6 的 <b>LDB</b>、TI Sitara 的 <b>OLDI</b> 输出的都是这套信号。</div>
+    </div>
+  </div>
+  <div class="arch-cards reveal">
+    <div class="arch">
+      <h5><span class="b">FPD-Link</span>LVDS 显示接口的原型</h5>
+      <p>NS（后来的 TI）1990 年代的 <b>DS90C365/385 → DS90C385A</b> 家族：28 位 CMOS 进、4 对 LVDS + 1 对时钟出，85~87.5 MHz PCLK 下每线 595~612.5 Mbps。今天电视盒 / 工控板上的 LVDS TX 模块（含 THC63LVD 系列）全是它的精神续作。</p>
+    </div>
+    <div class="arch">
+      <h5><span class="b">OpenLDI</span>开放规范 · 双像素扩展</h5>
+      <p>DS90C387/388 时代成形的开放规范：兼容单通道，增加<b>双像素（dual-link）</b>、48bit 色深、LF 低频模式（降 EMI）。它是「LVDS 屏接口」的事实规范——<a href="rgb.html">RGB 并口</a>到它的迁移路径，就是 28 根单端线 → 10 根差分线。</p>
+    </div>
+    <div class="arch">
+      <h5><span class="b">何时上双通道</span>工程判据</h5>
+      <p>PCLK × 7 超过所选器件每线上限（常见 595~755 Mbps）就上双通道：1080p@60（148.5 MHz）是典型分水岭。注意面板端<b>也要支持双通道</b>（WXGA 以上屏多数支持）——单双不匹配同样表现为花屏或半屏无图。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= §06 ================= -->
+<section id="s6">
+  <div class="sec-head reveal"><span class="no">06</span><h2>V-by-One · 8b/10b 与嵌入时钟</h2><span class="en">V-by-One HS</span></div>
+  <p class="sec-sub reveal">
+    4K 面板需要 ≈ 600 MHz PCLK，LVDS 的 7 倍串行化在铜线上到不了这个数。THine 的 <b>V-by-One HS</b> 换了思路：
+    不再用独立时钟对，而是把每个字节编成 <b>10 bit 码字</b>（8b/10b，保证 0/1 平衡与足够跳变），时钟<b>嵌在数据里</b>由 CDR 恢复；
+    控制信号（DE/HS/VS）打包成专用控制码字（如 K28.5 逗号码）穿插传输。下面把这条流水线拆开看。
+  </p>
+  <div class="lab reveal">
+    <div class="lab-bar">
+      <div class="ctrl"><label>lane 数</label> <div class="seg" id="vbLanes">
+          <button data-ln="1" class="on">1 lane</button><button data-ln="2">2 lane</button><button data-ln="4">4 lane</button>
+        </div>
+      </div>
+      <div class="ctrl"><label>lane 速率</label> <select class="sl-sel" id="vbRate">
+          <option value="250">250 Mbps</option>
+          <option value="600">600 Mbps</option>
+          <option value="1000" selected>1.0 Gbps</option>
+          <option value="2000">2.0 Gbps</option>
+          <option value="3750">3.75 Gbps</option>
+        </select>
+      </div>
+      <div class="ctrl"><label>速度</label><input type="range" id="vbSpd" min="0.5" max="6" step="0.25" value="2.5"></div>
+      <div class="ctrl">
+        <button class="icon-btn" id="vbStep" title="单步一个码字">+1sym</button> <button class="icon-btn play on" id="vbPlay" title="暂停/播放">❚❚</button>
+      </div>
+    </div>
+    <div class="vby-hdr">
+      <span>字节流来源：<b>RGB888 像素 → 3 字节 + 控制码</b></span> <span>当前符号：<b id="vbLane">→ lane 0</b></span> <span style="margin-left:auto">编码后码元宽度 <b id="vbBitW">1.0 ns</b></span> <span>有效载荷 <b id="vbBw">100.0 MB/s</b></span>
+    </div>
+    <div class="lab-body">
+      <div class="scope-main"><canvas id="vbCanvas"></canvas></div>
+      <div class="readout">
+        <div class="r-title">CDR · 实时编码状态</div>
+        <div class="r-row"><span class="k">当前字节</span><span class="v g" id="vbByte">0x55</span></div>
+        <div class="r-row"><span class="k">码字 (10bit)</span><span class="v c" id="vbCode">—</span></div>
+        <div class="r-row"><span class="k">码字中 1 的个数</span><span class="v" id="vbOnes">—</span></div>
+        <div class="r-row"><span class="k">游走不一致 RD</span><span class="v a" id="vbRD">0</span></div>
+        <div class="r-row"><span class="k">已传码字</span><span class="v" id="vbCount">0</span></div>
+        <div class="r-note">
+          <b>RD（Running Disparity）</b>：累计「1 比 0 多几个」。编码器在互为反相的两个码字里挑一个，
+          永远把 RD 往回拉 —— 这就是 8b/10b 的<b>直流平衡</b>。
+        </div>
+        <div class="r-note">
+          <b>注意</b>：本页为演示实现了一个简化编码器（半字节+奇校验→5bit，再按 RD 选正相/反相码字），
+          真实 8b/10b 有 267 个标准码字，但思想完全一致。
+        </div>
+      </div>
+    </div>
+    <div class="lab-foot">
+      <div class="legend"><i style="background:var(--green)"></i>P（串行数据）</div>
+      <div class="legend"><i style="background:var(--amber)"></i>N（取反）</div>
+      <div class="legend"><i style="background:rgba(255,176,46,.6);height:8px"></i>K28.5 控制码（逗号对齐）</div>
+      <div class="legend">底部 = RD 平衡表</div>
+      <div class="legend">多 lane 时非本 lane 字节显示为暗段</div>
+    </div>
+  </div>
+  <div class="vby-note reveal">
+    <div class="mnemonic">无时钟线 · 时钟长在数据里<small>EMBEDDED CLOCK · CDR</small></div>
+    <p>
+      LVDS 用专门的时钟对同步；V-by-One 每 10 bit 里保证足够跳变，接收端 PLL 直接从数据里<b>恢复时钟（CDR）</b>——
+      少一对线、还天然免疫时钟/数据 skew。速率也自适应：上电<b>链路训练</b>从低速起步，两端协商出可用的 lane 数与速率（250 Mbps ~ 3.75 Gbps/lane），PHY 电气上与 PCIe Gen2 同族。4K 电视 4 条 lane 就够，屏线比 LVDS 双通道还少。
+    </p>
+  </div>
+  <div class="two-col reveal" style="margin-top:26px">
+    <table class="cmp-table">
+      <tr><th></th><th>LVDS（FPD-Link）</th><th>V-by-One HS</th></tr>
+      <tr><td>编码</td><td>原始位直传（7:1）</td><td class="yes">8b/10b（DC 平衡）</td></tr>
+      <tr><td>时钟</td><td>独立 CLK 对（3.5×PCLK）</td><td class="yes">嵌入数据 · CDR</td></tr>
+      <tr><td>lane 速率</td><td>7×PCLK，≤ 595~755 Mbps</td><td class="yes">250 Mbps – 3.75 Gbps</td></tr>
+      <tr><td>线对数（4K60）</td><td class="no">双通道 10 对仍不够</td><td class="yes">4 对</td></tr>
+      <tr><td>速率协商</td><td class="no">固定（跟 PCLK 走）</td><td class="yes">链路训练自适应</td></tr>
+      <tr><td>线缆距离</td><td>0.3–1 m 屏线</td><td class="yes">数 m（信号调理）</td></tr>
+      <tr><td>典型阵地</td><td>HD/全高清 TV · 工控屏</td><td>4K TV · 高分笔记本</td></tr>
+    </table>
+    <div class="prose">
+      <p>
+        引脚账很好算：1080p 用 LVDS 双通道要 <b>20 根</b>，V-by-One 两条 lane 加训练开销只要 <b>4 根</b>；
+        到 4K@60（≈594 MHz PCLK）LVDS 已无解，V-by-One 4 lane × 3.75 Gbps 仍有余量。
+        <b>8b/10b 的代价</b>是 25% 带宽开销——换来直流平衡（面板端交流耦合也行）、密集跳变（CDR 锁得住）和逗号码对齐。
+      </p>
+      <p>
+        同样是「差分对 + 嵌入时钟 + 8b/10b 家族」的还有 <a href="mipi-dsi.html">MIPI DSI</a>（转向 1.5 对差分 + LP/HS 双模）
+        和 <a href="hdmi.html">HDMI</a>（TMDS 8b/10b 直系亲戚）——07 节把整条演进线串起来。
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= §07 ================= -->
+<section id="s7">
+  <div class="sec-head reveal"><span class="no">07</span><h2>演进 · 从 28 根单端线到 4 根 Gbps</h2><span class="en">Evolution</span></div>
+  <p class="sec-sub reveal">
+    显示接口 30 年的主旋律只有一句：<b>同样一帧画面，用更少的线、更低压的信号搬过去</b>。每一步都拿「引脚数 × EMI」换「每线速率」。
+  </p>
+  <div class="evol-wrap reveal">
+    <div class="ev-t">EVOLUTION PATH · 点亮同一块屏的四种方式</div>
+    <svg viewBox="0 0 980 132" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono,monospace">
+      <defs><marker id="arE" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="context-stroke"/></marker></defs>
+      <rect x="16" y="44" width="176" height="46" rx="6" fill="rgba(255,100,120,.06)" stroke="rgba(255,100,120,.5)"/>
+      <text x="104" y="62" fill="#ff6478" font-size="11.5" text-anchor="middle" font-weight="600">RGB 并行</text>
+      <text x="104" y="78" fill="#8aa294" font-size="9" text-anchor="middle">≈28 根单端 · ≤85 MHz</text>
+      <line x1="196" y1="67" x2="238" y2="67" stroke="rgba(220,235,225,.55)" stroke-width="1.6" marker-end="url(#arE)"/>
+      <rect x="242" y="44" width="176" height="46" rx="6" fill="rgba(52,224,138,.07)" stroke="rgba(52,224,138,.5)"/>
+      <text x="330" y="62" fill="#34e08a" font-size="11.5" text-anchor="middle" font-weight="600">LVDS</text>
+      <text x="330" y="78" fill="#8aa294" font-size="9" text-anchor="middle">10 根差分 · 595 Mbps/线</text>
+      <line x1="422" y1="67" x2="464" y2="67" stroke="rgba(220,235,225,.55)" stroke-width="1.6" marker-end="url(#arE)"/>
+      <rect x="468" y="44" width="176" height="46" rx="6" fill="rgba(87,216,242,.07)" stroke="rgba(87,216,242,.5)"/>
+      <text x="556" y="62" fill="#57d8f2" font-size="11.5" text-anchor="middle" font-weight="600">V-by-One HS</text>
+      <text x="556" y="78" fill="#8aa294" font-size="9" text-anchor="middle">4-8 根 · 3.75 Gbps/线</text>
+      <line x1="648" y1="67" x2="690" y2="67" stroke="rgba(220,235,225,.55)" stroke-width="1.6" marker-end="url(#arE)"/>
+      <rect x="694" y="44" width="270" height="46" rx="6" fill="rgba(255,176,46,.05)" stroke="rgba(255,176,46,.45)"/>
+      <text x="829" y="62" fill="#ffb02e" font-size="11.5" text-anchor="middle" font-weight="600">MIPI DSI / HDMI…</text>
+      <text x="829" y="78" fill="#8aa294" font-size="9" text-anchor="middle">协议化 · 指令模式 · 双模</text>
+      <text x="16" y="28" fill="#5c7264" font-size="9.5">引脚数 28 → 10 → 4 …　·　每线速率 85 MHz → 595 Mbps → 3.75 Gbps …</text>
+      <text x="16" y="116" fill="#5c7264" font-size="9.5">EMI 高 → 低 → 更低 …　·　距离 板级 → 1 m → 数 m …</text>
+    </svg>
+    <div class="tbl">
+      <table class="cmp-table">
+        <tr><th></th><th>RGB 并口</th><th>LVDS</th><th>V-by-One HS</th><th>MIPI DSI / HDMI</th></tr>
+        <tr><td>信号形式</td><td>单端并行</td><td>低压差分 · 7:1</td><td>低压差分 · 8b/10b</td><td>差分 · 分组/通道化</td></tr>
+        <tr><td>典型信号数</td><td class="no">≈28 根</td><td>10 根（双通道 20）</td><td class="yes">4-8 根</td><td class="yes">DSI 2-4 对 / HDMI 3+1 对</td></tr>
+        <tr><td>每线速率</td><td>≤85 MHz</td><td>≤595~755 Mbps</td><td class="yes">≤3.75 Gbps</td><td class="yes">DSI ≤2.5 G/lane · HDMI ≤12 G</td></tr>
+        <tr><td>时钟方式</td><td>并行 PCLK</td><td>独立时钟对</td><td>嵌入（CDR）</td><td>嵌入 / 独立时钟通道</td></tr>
+        <tr><td>EMI 表现</td><td class="no">差</td><td>好</td><td class="yes">更好</td><td class="yes">好</td></tr>
+        <tr><td>典型距离</td><td>板级</td><td>≤1 m 屏线</td><td class="yes">数 m</td><td>板级 / 线缆数 m</td></tr>
+        <tr><td>接力页面</td><td><a href="rgb.html" style="color:var(--cyan)">rgb.html</a></td><td>本页</td><td>本页 06 节</td><td><a href="mipi-dsi.html" style="color:var(--cyan)">mipi-dsi.html</a> · <a href="hdmi.html" style="color:var(--cyan)">hdmi.html</a></td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ================= §08 ================= -->
+<section id="s8">
+  <div class="sec-head reveal"><span class="no">08</span><h2>上电与背光时序 · 症状 → 病因</h2><span class="en">Power Sequence &amp; Debug</span></div>
+  <p class="sec-sub reveal">
+    LVDS 链路最常见的「无图 / 残影 / 炸背光」不是协议问题，是<b>顺序问题</b>：上电永远 <b>面板电源 → LVDS 信号 → 背光使能</b>；断电严格倒过来。点击下面十步，看时序图里每一步的状态与违规后果。
+  </p>
+  <div class="pw-grid reveal">
+    <div>
+      <div class="dbg-steps" id="pwSteps"></div>
+      <div class="dbg-verdict" id="pwVerdict"></div>
+    </div>
+    <div class="pw-diagram">
+      <svg id="pwSvg" viewBox="0 0 640 268" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono,monospace"></svg>
+      <div class="cap" style="font-family:var(--mono);font-size:11px;color:var(--faint);margin-top:8px;line-height:1.7">
+        红色竖列 = 当前步骤 · t1/t2/t4 = 面板手册给的最小等待（典型值 t1≥10~50ms，t2≥1 帧，t4≥200ms）
+      </div>
+    </div>
+  </div>
+  <div class="term-grid reveal">
+    <div class="term">
+      <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span>backlight — 背光链路在哪</span></div>
+      <div class="term-body">
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="ls /sys/class/backlight/">ls /sys/class/backlight/</code></div>
+        <div class="t-out">pwm_backlight</div>
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="cat /sys/class/backlight/pwm_backlight/{brightness,bl_power}">cat .../pwm_backlight/{brightness,bl_power}</code></div>
+        <div class="t-out">128  0    <span class="t-cmt"># 亮度 128 · bl_power=0 已点亮</span></div>
+        <div class="t-cmt"># 黑屏但背光亮 → 问题在 LVDS 链路（见下方病因表）</div>
+        <div class="t-cmt"># 背光也不亮 → 先查 enable-gpios 与 PWM 频率</div>
+      </div>
+    </div>
+    <div class="term">
+      <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span>panel — LVDS 面板大多没有 EDID</span></div>
+      <div class="term-body">
+        <div><span class="t-ps">$ </span><code class="t-cmd" data-copy="dmesg | grep -iE 'panel|lvds|drm'">dmesg | grep -iE 'panel|lvds|drm'</code></div>
+        <div class="t-out">panel-simple supply panel-vcc not ready, retry</div>
+        <div class="t-out"><span class="t-hl">panel-simple supply panel-vcc ready</span>  <span class="t-cmt"># 上电时序由驱动按 dt 定义执行</span></div>
+        <div class="t-cmt"># 时序参数写进设备树 panel 节点：compatible 匹配 panel driver</div>
+        <div class="t-cmt"># （比 HDMI 的 EDID 世界硬核：参数错一行就是无图）</div>
+      </div>
+    </div>
+  </div>
+  <p class="sec-sub reveal" style="margin-top:44px;margin-bottom:24px">
+    维修与调试时按<b>症状</b>对号入座——LVDS 的故障指纹非常清晰：
+  </p>
+  <div class="pit-list reveal">
+    <div class="pit"><div class="symptom">半屏<br>花屏</div><div class="fix"><b>某对差分线断线 / 接触不良（重灾区：连接器与屏线）</b><p>双通道屏一组通道断 → 左或右半屏花屏、另半屏正常；单通道屏某对数据断 → 对应位丢失 → 整屏花屏或规律性偏色。压一下排线头症状变化 = 实锤。万用表量通断，示波器看那对线有没有 ±350 mV 摆动。</p></div></div>
+    <div class="pit"><div class="symptom">颜色<br>错了</div><div class="fix"><b>mapping / 位深配错（JEIDA vs VESA、18 vs 24bit）</b><p>画面结构正常但偏色、红蓝互换、色块诡异——<a href="#s4">04 节的实验</a>就是它的复现器。查 SoC 端 LVDS mapping 寄存器 / 设备树属性（如 data-mapping）与面板规格书是否同名，两端必须一个标准。</p></div></div>
+    <div class="pit"><div class="symptom">无图<br>白屏</div><div class="fix"><b>面板供电 / 上电时序违规 · PCLK 缺失</b><p>白屏 = 面板有电但没收到有效数据：查 VDD 时序是否先于 LVDS（08 节上方）、PCLK 有没有输出、DE 极性对不对。整屏黑 + 背光不亮 → 先修背光（BL_EN / PWM / 升压电路）。</p></div></div>
+    <div class="pit"><div class="symptom">雪花<br>噪点</div><div class="fix"><b>信号完整性：线缆 / 等长 / 阻抗 / 干扰</b><p>±350 mV 的摆幅经不起折腾：劣质屏线、对内不等长（应 ±10 mil 级）、差分阻抗偏离 100 Ω、旁边有 DC-DC 开关噪声都会出随机噪点。降 PCLK 复测：噪声变好 = 走线 / 线缆问题实锤。</p></div></div>
+    <div class="pit"><div class="symptom">抖动<br>撕裂</div><div class="fix"><b>PCLK 超规格或抖动过大 · 对间 skew 超限</b><p>面板规格书标 PCLK 范围（如 60~75 MHz），超出必抖；对间偏差需在一位串行码元内。另外确认 DE 模式与 SYNC 模式没配反——多数屏只认一种。</p></div></div>
+    <div class="pit"><div class="symptom">关机<br>残影</div><div class="fix"><b>断电顺序违规：背光没先关 / 未放电就断 VDD</b><p>背光还亮着就断数据或断电源，面板内残电荷让液晶停在错误极性 → 鬼影数秒到数分钟。严格走 08 节第 7-10 步（先关背光、等 t4、再断 VDD），并在驱动里实现 .unprepare 顺序。</p></div></div>
+    <div class="pit"><div class="symptom">睡醒<br>黑屏</div><div class="fix"><b>resume 时序被跳过 · 面板没重新走上电流程</b><p>挂起恢复必须完整重放「VDD→等待→信号→背光」。常见坑： regulators 未声明 enable-delay / panel-off-delay；backlight enable 早于 panel prepare。用 dmesg 里 panel-simple 的 supply ready 日志核对顺序。</p></div></div>
+  </div>
+</section>
+
+<!-- ================= §09 ================= -->
+<section id="s9">
+  <div class="sec-head reveal"><span class="no">09</span><h2>速查表 &amp; 术语表</h2><span class="en">Cheat Sheet</span></div>
+  <div class="cheat-strip reveal">
+    <div class="cs-item"><div class="cv">±350 mV</div><small>差分摆幅（250-450）</small></div> <div class="cs-item"><div class="cv a">3.5 mA</div><small>恒流源电流</small></div>
+    <div class="cs-item"><div class="cv">100 Ω</div><small>接收端端接</small></div> <div class="cs-item"><div class="cv c">7 ×</div><small>PCLK 串行化</small></div>
+    <div class="cs-item"><div class="cv c">3.5 ×</div><small>PCLK 时钟对频率</small></div> <div class="cs-item"><div class="cv a">28</div><small>槽位 = 4 通道 × 7bit</small></div>
+  </div>
+  <div class="cheat-grid reveal">
+    <div class="panel9">
+      <div class="p9h">PCLK → LVDS 速率速查（单通道）</div>
+      <div class="p9b">
+        <table class="cmp-table" id="pclkTable">
+          <tr><th>分辨率@60</th><th>PCLK</th><th>每线速率</th><th>CLK 对</th><th>通道</th></tr>
+        </table>
+      </div>
+    </div>
+    <div class="panel9">
+      <div class="p9h">六条铁律</div>
+      <div class="p9b">
+        <ul class="rules">
+          <li><span class="no">1</span><span class="txt"><b>端接只放接收端一个 100 Ω</b>——面板多已内建，外面再并一个等于把摆幅砍半。</span></li>
+          <li><span class="no">2</span><span class="txt"><b>差分对紧耦合等长</b>（对内 ±10 mil 级），对间偏差控制在一个串行码元内。</span></li>
+          <li><span class="no">3</span><span class="txt"><b>mapping 与位深两端一致</b>：JEIDA/VESA、18/24bit，配错就是偏色花屏。</span></li>
+          <li><span class="no">4</span><span class="txt"><b>上电：VDD → 信号 → 背光；断电倒序</b>，等待时间照抄面板手册。</span></li>
+          <li><span class="no">5</span><span class="txt"><b>PCLK ×7 是每线速率</b>，超 ~85 MHz 上双通道，超 4K 量级换 V-by-One。</span></li>
+          <li><span class="no">6</span><span class="txt"><b>测 LVDS 用差分探头减法</b>——万用表量出的「1.25 V 左右」不代表任何逻辑电平。</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="panel9 reveal" style="margin-top:18px">
+    <div class="p9h">GLOSSARY · 术语表</div>
+    <div class="p9b">
+      <dl class="gloss">
+        <dt>LVDS</dt><dd>Low-Voltage Differential Signaling，低压差分信号；ANSI/TIA/EIA-644 定义的电气层标准。</dd>
+        <dt>FPD-Link</dt><dd>国半/TI 的 LVDS 显示 SerDes 家族，定义 7:1 串行化与映射，是「LVDS 屏线」的原型。</dd>
+        <dt>OpenLDI</dt><dd>开放的 LVDS 显示接口规范：单/双像素、48bit、LF 模式等扩展；i.MX LDB、TI OLDI 兼容。</dd>
+        <dt>T-CON</dt><dd>Timing Controller，面板时序控制器；LVDS 接收端就在它门里（含 1:7 解串与 100 Ω 端接）。</dd>
+        <dt>Mapping（VESA/JEIDA）</dt><dd>RGB+控制信号到 4×7 槽位的排布表；两种标准互不兼容，配错即偏色。</dd>
+        <dt>Dual-Link</dt><dd>双通道 LVDS：奇/偶像素分走两组 5 对线，支撑 1080p 级 PCLK。</dd>
+        <dt>V-by-One HS</dt><dd>THine 的显示 SerDes 标准：8b/10b + 嵌入时钟（CDR），每 lane 最高 3.75 Gbps。</dd>
+        <dt>8b/10b</dt><dd>8bit 数据编成 10bit 码字，保证直流平衡与跳变密度；K 码（如 K28.5）作控制/对齐。</dd>
+        <dt>CDR</dt><dd>Clock Data Recovery，从数据跳变中恢复采样时钟——无时钟线接口的基石。</dd>
+        <dt>DE 模式 / SYNC 模式</dt><dd>面板同步方式：DE only（多数 LVDS 屏）或 HS/VS 同步，配反则无图或错位。</dd>
+      </dl>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="f-l">
+    <b>参考</b> · ANSI/TIA/EIA-644-A · IEEE 1596.3 · TI SNLA014《How to Map RGB Signals to LVDS/OpenLDI Displays》 ·
+    DS90C385A / DS90CF363 FPD-Link 数据手册 · THine《V-by-One HS》技术资料 · Rockchip《LVDS 接口开发指南》 ·<br>
+    本页为单文件交互式图解，可离线打开 · 波形由浏览器实时渲染
+  </div>
+  <div class="f-r">LVDS·LAB</div>
+</footer>
+</main>
+
+<script>
+(function(){
+"use strict";
+/* ================================================================
+   LVDS·LAB 交互引擎
+   共享模型：像素图案（彩条+消隐）→ 按 VESA/JEIDA 映射表拆成
+   4 通道 × 7 槽位 → 串行位流。所有动画从这一个模型取位。
+================================================================ */
+const $=s=>document.querySelector(s);
+const $$=s=>Array.from(document.querySelectorAll(s));
+const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const COL={green:'#34e08a',amber:'#ffb02e',cyan:'#57d8f2',red:'#ff6478',
+  grid:'rgba(52,224,138,.07)',grid2:'rgba(52,224,138,.18)'};
+const mod=(a,m)=>((a%m)+m)%m;
+const MONO='"IBM Plex Mono",monospace';
+
+/* ---------- 映射表（VESA / JEIDA，24bit 与 18bit）----------
+   槽位顺序 = 发送顺序（左起第 1 个 bit 先上线） */
+const MAPS={
+  vesa24:{name:'VESA·24bit',depth:24,ch:[['R0','R1','R2','R3','R4','R5','G0'],['G1','G2','G3','G4','G5','B0','B1'],['B2','B3','B4','B5','HS','VS','DE'],['R6','R7','G6','G7','B6','B7','RSV']]},
+  jeida24:{name:'JEIDA·24bit',depth:24,ch:[['R2','R3','R4','R5','R6','R7','G2'],['G3','G4','G5','G6','G7','B2','B3'],['B4','B5','B6','B7','HS','VS','DE'],['R0','R1','G0','G1','B0','B1','RSV']]},
+  vesa18:{name:'VESA·18bit',depth:18,ch:[['R0','R1','R2','R3','R4','R5','G0'],['G1','G2','G3','G4','G5','B0','B1'],['B2','B3','B4','B5','HS','VS','DE']]},
+  jeida18:{name:'JEIDA·18bit',depth:18,ch:[['R2','R3','R4','R5','R6','R7','G2'],['G3','G4','G5','G6','G7','B2','B3'],['B4','B5','B6','B7','HS','VS','DE']]}
+};
+
+/* ---------- 像素图案：9 根彩条 ×8px + 6px 消隐 ---------- */
+const BARS=[[255,0,0],[0,255,0],[0,0,255],[0,255,255],[255,0,255],[255,255,0],[235,235,235],[0,0,0],[128,128,128]];
+const BARW=8,BLANK=6,VIS=BARS.length*BARW,CYC=VIS+BLANK;
+function pixelAt(i){
+  const m=mod(i,CYC);
+  if(m<VIS){const b=BARS[(m/BARW)|0];return{r:b[0],g:b[1],b:b[2],de:1,hs:0,vs:0};}
+  const k=m-VIS;
+  return{r:0,g:0,b:0,de:0,hs:(k===2||k===3)?1:0,vs:k===0?1:0};
+}
+function sigVal(n,p){
+  if(n==='DE')return p.de; if(n==='HS')return p.hs; if(n==='VS')return p.vs; if(n==='RSV')return 0;
+  const v=n[0]==='R'?p.r:n[0]==='G'?p.g:p.b;
+  return(v>>+n.slice(1))&1;
+}
+/* 预生成整个图案周期内每个像素的 4×7 槽位值 */
+const SL={};
+for(const k in MAPS){ SL[k]=[];
+  for(let i=0;i<CYC;i++){ const p=pixelAt(i);
+    SL[k].push(MAPS[k].ch.map(row=>row.map(n=>sigVal(n,p))));
+  }
+}
+
+/* ---------- 画布适配 ---------- */
+function fit(cv,h){
+  const w=Math.max(300,(cv.parentElement&&cv.parentElement.getBoundingClientRect().width)||600);
+  const dpr=Math.min(devicePixelRatio||1,2);
+  if(cv.__w!==w||cv.__h!==h||cv.__dpr!==dpr){
+    cv.width=w*dpr; cv.height=h*dpr; cv.__w=w; cv.__h=h; cv.__dpr=dpr; cv.style.height=h+'px';
+  }
+  const ctx=cv.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  return{ctx,w,h};
+}
+/* 半步采样阶梯波（level 在每个半整数边界才可能变化） */
+function stepWave(c,xOf,t0,t1,yc,amp,fn,col,lw){
+  c.strokeStyle=col;c.lineWidth=lw||1.8;c.lineJoin='round';
+  c.beginPath();
+  let prevY=null;
+  for(let q=Math.floor(t0*2);q<=Math.ceil(t1*2)+2;q++){
+    const t=q/2,x=xOf(t),y=fn(t)?yc-amp:yc+amp;
+    if(prevY===null)c.moveTo(x,y);
+    else{ if(y!==prevY)c.lineTo(x,prevY); c.lineTo(x,y); }
+    prevY=y;
+  }
+  c.stroke();
+}/* ================= HERO 动画 ================= */
+const hero={phase:0,visible:true,playing:!reduced,lastPix:-1};
+(function heroInit(){
+  const NS='http://www.w3.org/2000/svg';
+  const g=document.getElementById('heroDots');
+  const X1=206,X2=674,SPAN=X2-X1;
+  const pairs=[{y:122,clk:true},{y:156},{y:190},{y:224},{y:252}];
+  pairs.forEach(p=>{
+    p.P=[];p.N=[];
+    const mk=(fill,glow)=>{
+      const el=document.createElementNS(NS,'circle');
+      el.setAttribute('r','2.4');el.setAttribute('fill',fill);
+      if(glow)el.style.filter='drop-shadow(0 0 3px rgba(52,224,138,.8))';
+      g.appendChild(el);return el;
+    };
+    for(let j=0;j<5;j++){
+      p.P.push({el:mk('#34e08a',true),off:j*SPAN/5});
+      p.N.push({el:mk('rgba(255,176,46,.9)',false),off:j*SPAN/5+SPAN/10});
+    }
+  });
+  hero.tick=function(dt){ if(hero.visible&&hero.playing)hero.phase+=dt*26; };
+  hero.draw=function(){
+    const ph=hero.phase,pix=Math.floor(ph/7),slot=Math.floor(mod(ph,7));
+    const px=pixelAt(mod(pix,CYC));
+    pairs.forEach((p,pi)=>{
+      const dir=pi===0?((Math.floor(ph)%2===0)?1:-1):(SL.vesa24[mod(pix,CYC)][pi-1][slot]?1:-1);
+      [p.P,p.N].forEach((arr,side)=>{
+        arr.forEach(d=>{
+          const u=mod(d.off+ph*3.2,SPAN);
+          const fwd=side===0?(dir>0):(dir<0);
+          d.el.setAttribute('cx',(fwd?X1+u:X2-u).toFixed(1));
+          d.el.setAttribute('cy',p.y+side*8);
+          d.el.setAttribute('opacity',(px.de||pi===0)?'1':'0.4');
+        });
+      });
+    });
+    if(pix!==hero.lastPix){
+      hero.lastPix=pix;
+      const hex='#'+[px.r,px.g,px.b].map(x=>x.toString(16).toUpperCase().padStart(2,'0')).join('');
+      document.getElementById('heroSw').style.background=hex;
+      document.getElementById('heroPix').textContent='像素 #'+pix+' · '+hex;
+      document.getElementById('heroBits').textContent='CH0[6..0] = '+SL.vesa24[mod(pix,CYC)][0].slice().reverse().join('');
+      document.getElementById('heroCtl').textContent='DE '+px.de+' · HS '+px.hs+' · VS '+px.vs;
+    }
+  };
+  hero.draw();
+})();
+
+/* ================= §02 差分物理层 ================= */
+const ph={phase:0,playing:!reduced,speed:9,mode:'prbs',visible:false,bit:1};
+const PRBS=[1,0,1,1,0,0,1,0,1,1,1,0,0,1,0,1,0,1,0,0,1,1,0,1,1,0,0,1,1,0,1,0];
+function phBit(i){ if(ph.mode==='clk')return i%2; if(ph.mode==='zero')return 0; return PRBS[mod(i,PRBS.length)]; }
+const phCv=document.getElementById('phScope');
+function drawPh(){
+  const{ctx:c,w:W}=fit(phCv,216);
+  const pb=34,t0=ph.phase;
+  const xOf=t=>12+(t-t0)*pb;
+  const t1=t0+(W-24)/pb;
+  c.clearRect(0,0,W,216);
+  const rows=[{y:36},{y:106},{y:180}];
+  c.font='600 10px '+MONO;c.textAlign='left';c.fillStyle='rgba(140,162,148,.75)';
+  c.fillText('P  (+端)',6,26); c.fillText('N  (−端)',6,96); c.fillText('VOD',6,170);
+  const amp=13;
+  /* P / N：围绕 1.25V 反相摆动 ±175mV；第三条为差值 VOD */
+  const lvP=t=>phBit(Math.floor(t))?1:0;
+  stepWave(c,xOf,t0,t1,rows[0].y,amp,lvP,COL.green,2);
+  stepWave(c,xOf,t0,t1,rows[1].y,amp,t=>1-lvP(t),'rgba(255,176,46,.8)',2);
+  stepWave(c,xOf,t0,t1,rows[2].y,amp,lvP,COL.cyan,2);
+  /* 位网格 + 采样点（位中点双沿） */
+  for(let i=Math.ceil(t0);i<=t1;i++){
+    const x=Math.floor(xOf(i))+.5;
+    c.strokeStyle=COL.grid;c.lineWidth=1;
+    c.beginPath();c.moveTo(x,14);c.lineTo(x,204);c.stroke();
+    [0,0.5].forEach(hf=>{
+      const dot=phBit(Math.floor(i+hf+0.25));
+      c.beginPath();c.arc(xOf(i+hf+0.25),rows[2].y+(dot?-amp:amp),3,0,7);
+      c.fillStyle=COL.red;c.fill();
+    });
+  }
+  /* 电平刻度（右侧） */
+  c.font='9px '+MONO;c.textAlign='right';c.fillStyle='rgba(140,162,148,.6)';
+  c.fillText('1.43 V',W-6,rows[0].y-amp+4); c.fillText('1.25 V',W-6,rows[0].y+4); c.fillText('1.07 V',W-6,rows[0].y+amp+4);
+  c.fillText('+350mV',W-6,rows[2].y-amp+4); c.fillText('0',W-6,rows[2].y+4); c.fillText('−350mV',W-6,rows[2].y+amp+4);
+  /* 同步左图：电流方向 / 电压标签 */
+  ph.sync(phBit(Math.floor(ph.phase+(W*0.5-12)/pb)));
+}
+ph.sync=function(b){
+  if(ph._initDone&&b===ph.bit)return;
+  ph._initDone=true;
+  ph.bit=b;
+  const S=id=>document.getElementById(id);
+  S('phBit').textContent=b; S('phBitR').textContent=b;
+  S('phAP').style.display=b?'':'none';  S('phAPr').style.display=b?'none':'';
+  S('phAN').style.display=b?'':'none';  S('phANr').style.display=b?'none':'';
+  S('phLp').textContent=b?'≈1.60 V':'≈0.90 V';
+  S('phLn').textContent=b?'≈0.90 V':'≈1.60 V';
+  S('phVod').textContent=b?'+350 mV':'−350 mV';
+  S('phVodR').textContent=b?'+350 mV':'−350 mV';
+  S('phDirR').textContent=b?'P → N':'N → P';
+};
+ph.tick=function(dt){ if(ph.visible&&ph.playing)ph.phase+=dt*ph.speed; };
+function setPhPlay(p){
+  ph.playing=p;
+  const b=document.getElementById('phPlay');
+  b.textContent=p?'❚❚':'▶';b.classList.toggle('on',p);
+}
+document.getElementById('phPlay').addEventListener('click',()=>setPhPlay(!ph.playing));
+document.getElementById('phSpeed').addEventListener('input',e=>ph.speed=+e.target.value);
+bindSeg('phSeg','ph',v=>{ph.mode=v;});
+
+/* ================= §03 串行化实验室 ================= */
+const sl={phase:2,playing:!reduced,speed:13,pb:17,mode:'vesa24',visible:false,lastPix:-1,lastSlot:-1,h:354};
+const slCv=document.getElementById('slCanvas');
+const slChN=()=>MAPS[sl.mode].ch.length;
+function slResize(){ sl.h=46+(slChN()+1)*58+16; }
+function dataBit(ci,t){
+  const b=Math.floor(t),pix=Math.floor(b/7),slot=mod(b,7);
+  return SL[sl.mode][mod(pix,CYC)][ci][slot];
+}
+function clkHi(t){return Math.floor(t+0.5)%2===1;}
+
+function buildBus(){
+  const m=MAPS[sl.mode],bits=m.depth===24?8:6;
+  const groups={R:[],G:[],B:[],X:[]};
+  ['R','G','B'].forEach(k=>{for(let i=bits-1;i>=0;i--)groups[k].push(k+i);});
+  groups.X.push('DE','HS','VS');
+  let html='';
+  const GT={R:'R'+(bits-1)+'…R0',G:'G'+(bits-1)+'…G0',B:'B'+(bits-1)+'…B0',X:'CTRL'};
+  for(const gk of ['R','G','B','X']){
+    html+='<div class="pb-g"><span class="pb-t">'+GT[gk]+'</span>';
+    groups[gk].forEach(nm=>{html+='<span class="pb-c k'+gk+'" data-s="'+nm+'"><i>'+nm+'</i><b>·</b></span>';});
+    html+='</div>';
+  }
+  document.getElementById('slBus').innerHTML=html;
+  document.getElementById('slLeg').innerHTML=m.ch.map((row,i)=>'CH'+i+' ← <b>'+row.join(',')+'</b>').join('　·　');
+  document.getElementById('roMode').textContent=(m.depth===24?'24bit · 4 数据对':'18bit · 3 数据对')+' + 1 CLK';
+  document.getElementById('slPxCnt').textContent=(m.depth===24?'27':'21')+' 根并行信号 · 每 PCLK 一个像素';
+}
+function buildPixStrip(){
+  document.getElementById('slPix').innerHTML=Array.from({length:12},()=>'<div class="px-chip"></div>').join('');
+}
+buildBus();buildPixStrip();slResize();
+
+function drawSl(){
+  const{ctx:c,w:W}=fit(slCv,sl.h);
+  const chN=slChN(),pb=sl.pb,t0=sl.phase,labX=64;
+  const xOf=t=>labX+(t-t0)*pb;
+  const tEnd=t0+(W-10-labX)/pb;
+  c.clearRect(0,0,W,sl.h);
+  /* 顶部像素带（背景竖条 = 1 像素 = 7 bit） */
+  for(let pi=Math.floor(t0/7)-1;pi<=Math.floor(tEnd/7)+1;pi++){
+    const x=xOf(pi*7),wd=7*pb;
+    if(x+wd<labX||x>W-10)continue;
+    const px=pixelAt(mod(pi,CYC));
+    const xa=Math.max(x,labX),xb=Math.min(x+wd,W-10);
+    c.fillStyle=px.de?'rgb('+px.r+','+px.g+','+px.b+')':'#0b120e';
+    c.fillRect(xa,10,xb-xa,16);
+    if(!px.de){
+      c.strokeStyle='rgba(140,162,148,.3)';c.setLineDash([3,3]);c.lineWidth=1;
+      c.strokeRect(xa+.5,10.5,xb-xa-1,15);c.setLineDash([]);
+    }
+  }
+  c.font='600 9px '+MONO;c.textAlign='left';c.fillStyle='rgba(140,162,148,.85)';
+  c.fillText('1 PCLK = 7 bit',8,20);
+  /* 位网格：每 7 bit 一条亮线（像素边界） */
+  for(let b=Math.ceil(t0);b<=tEnd;b++){
+    const x=Math.floor(xOf(b))+.5;
+    if(x<labX-1)continue;
+    c.strokeStyle=mod(b,7)===0?COL.grid2:COL.grid;c.lineWidth=1;
+    c.beginPath();c.moveTo(x,30);c.lineTo(x,sl.h-18);c.stroke();
+  }
+  /* 泳道：CLK + N 数据对，各画 P（绿）与 N（琥珀·反相） */
+  const laneTop=34,laneH=(sl.h-laneTop-18)/(chN+1);
+  const laneY=li=>{const yc=laneTop+laneH*li+laneH*0.30;
+    return{yc,amp:Math.max(5,Math.min(9,laneH*0.15))};};
+  for(let li=0;li<=chN;li++){
+    const isClk=li===0,ci=li-1,{yc,amp}=laneY(li),ycN=yc+amp*2+8;
+    c.font='600 11px '+MONO;c.textAlign='left';
+    c.fillStyle=isClk?COL.green:COL.cyan;
+    c.fillText(isClk?'CLK':'D'+ci,10,yc+4);
+    c.fillStyle='rgba(140,162,148,.75)';c.font='8.5px '+MONO;
+    c.fillText(isClk?'×3.5':'×7',42,yc+4);
+    c.fillStyle='rgba(255,176,46,.7)';c.fillText('−',13,ycN+4);
+    const pFn=isClk?clkHi:t=>dataBit(ci,t)===1;
+    const nFn=isClk?t=>1-clkHi(t):t=>dataBit(ci,t)===0;
+    stepWave(c,xOf,t0,tEnd,yc,amp,pFn,COL.green,1.8);
+    stepWave(c,xOf,t0,tEnd,ycN,amp,nFn,'rgba(255,176,46,.8)',1.8);
+    if(pb>=19){
+      c.font='600 9px '+MONO;c.textAlign='center';
+      for(let b=Math.ceil(t0);b<=tEnd;b++){
+        const v=isClk?clkHi(b+0.5):dataBit(ci,b+0.5);
+        c.fillStyle=v?'rgba(52,224,138,.9)':'rgba(140,162,148,.5)';
+        c.fillText(v?'1':'0',xOf(b+0.5),ycN+amp+10);
+      }
+    }
+  }
+  /* 探针 + 采样点 */
+  const pbIdx=Math.round(t0+(W*0.62-labX)/pb),xe=xOf(pbIdx);
+  c.strokeStyle=COL.red;c.lineWidth=1;c.setLineDash([5,4]);
+  c.beginPath();c.moveTo(xe,8);c.lineTo(xe,sl.h-12);c.stroke();c.setLineDash([]);
+  c.fillStyle=COL.red;c.font='600 9px '+MONO;c.textAlign='left';
+  c.fillText('PROBE',xe+5,17);
+  for(let li=0;li<=chN;li++){
+    const isClk=li===0,ci=li-1,{yc,amp}=laneY(li);
+    const v=isClk?clkHi(pbIdx+0.5):dataBit(ci,pbIdx+0.5);
+    const xc=xOf(pbIdx+0.5);
+    c.beginPath();c.arc(xc,yc+(v?-amp:amp),3,0,7);c.fill();
+    c.beginPath();c.arc(xc,yc+amp*2+8+(v?amp:-amp),3,0,7);
+    c.fillStyle='rgba(255,176,46,.9)';c.fill();c.fillStyle=COL.red;
+  }
+  updateSlDom(pbIdx);
+}
+function updateSlDom(pbIdx){
+  const pix=Math.floor(pbIdx/7),slot=mod(pbIdx,7);
+  const m=MAPS[sl.mode];
+  const px=pixelAt(mod(pix,CYC));
+  if(pix!==sl.lastPix){
+    sl.lastPix=pix;
+    const hex='#'+[px.r,px.g,px.b].map(x=>x.toString(16).toUpperCase().padStart(2,'0')).join('');
+    document.getElementById('roPix').textContent=hex+(px.de?'':' · 消隐');
+    $$('#slBus .pb-c').forEach(el=>{
+      const v=sigVal(el.dataset.s,px);
+      const b=el.querySelector('b');
+      b.textContent=v;b.className=v?'v1':'';
+    });
+    const chips=$$('#slPix .px-chip');
+    chips.forEach((chip,k)=>{
+      const p2=pixelAt(mod(pix-6+k,CYC));
+      chip.className='px-chip'+(p2.de?'':' blk');
+      chip.style.background=p2.de?'rgb('+p2.r+','+p2.g+','+p2.b+')':'transparent';
+    });
+    if(chips[6])chips[6].classList.add('cur');
+  }
+  if(slot!==sl.lastSlot||pix!==sl.lastPix){
+    sl.lastSlot=slot;
+    const names={};
+    m.ch.forEach(row=>{names[row[slot]]=1;});
+    $$('#slBus .pb-c').forEach(el=>el.classList.toggle('on',el.dataset.s in names));
+    document.getElementById('roSlot').textContent=(slot+1)+' / 7';
+    document.getElementById('roAir').textContent=
+      m.ch.map((row,ci)=>'CH'+ci+'←'+row[slot]+'='+SL[sl.mode][mod(pix,CYC)][ci][slot]).join(' ');
+  }
+}
+function slPclkCalc(){
+  const f=+document.getElementById('slPclk').value;
+  document.getElementById('roPclk').textContent=f+' MHz';
+  document.getElementById('roSer').textContent=(f*7).toFixed(1)+' Mbps';
+  document.getElementById('roClk').textContent=(f*3.5).toFixed(2)+' MHz';
+  const lane=document.getElementById('roLane');
+  if(f>112){lane.textContent='必须双通道';lane.style.color='var(--red)';}
+  else if(f>85){lane.textContent='建议双通道';lane.style.color='var(--amber)';}
+  else{lane.textContent='单通道 OK';lane.style.color='';}
+}
+document.getElementById('slPclk').addEventListener('change',slPclkCalc);
+slPclkCalc();
+function setSlPlay(p){
+  sl.playing=p;
+  const b=document.getElementById('slPlay');
+  b.textContent=p?'❚❚':'▶';b.classList.toggle('on',p);
+}
+document.getElementById('slPlay').addEventListener('click',()=>setSlPlay(!sl.playing));
+document.getElementById('slSpd').addEventListener('input',e=>sl.speed=+e.target.value);
+document.getElementById('slZoomIn').addEventListener('click',()=>sl.pb=Math.min(30,sl.pb+3));
+document.getElementById('slZoomOut').addEventListener('click',()=>sl.pb=Math.max(6,sl.pb-3));
+document.getElementById('slStepBit').addEventListener('click',()=>{setSlPlay(false);sl.phase=Math.floor(sl.phase)+1;});
+document.getElementById('slStepPx').addEventListener('click',()=>{setSlPlay(false);sl.phase=(Math.floor(sl.phase/7)+1)*7;});
+bindSeg('slMode','md',v=>{ sl.mode=v;slResize();buildBus();sl.lastPix=-1;sl.lastSlot=-1; });
+document.addEventListener('keydown',e=>{
+  if(e.code==='Space'&&!/INPUT|SELECT|BUTTON/.test(document.activeElement.tagName)){
+    e.preventDefault();setSlPlay(!sl.playing);
+  }
+});
+
+/* ================= §04 位映射切换器 ================= */
+const ml={depth:'24',tx:'vesa',rx:'vesa',hl:true};
+function mlKey(which){ return ml[which]+(ml.depth==='24'?'24':'18'); }
+function mlMax(){return ml.depth==='24'?255:63;}
+function mlPx(){  /* 一个正常显示的像素：DE=1，行/场同步无效 */
+  return{r:+document.getElementById('mR').value,g:+document.getElementById('mG').value,b:+document.getElementById('mB').value,de:1,hs:0,vs:0};
+}
+function kcls(n){
+  if(n==='RSV')return'kN';
+  if(n==='DE'||n==='HS'||n==='VS')return'kX';
+  if(n[0]==='R')return'kR';
+  if(n[0]==='G')return'kG';
+  return'kB';
+}
+function kcls(n){
+  if(n==='RSV')return'kN';
+  if(n==='DE'||n==='HS'||n==='VS')return'kX';
+  if(n[0]==='R')return'kR';
+  if(n[0]==='G')return'kG';
+  return'kB';
+}
+function mlRender(){
+  const tk=mlKey('tx'),rk=mlKey('rx');
+  const tm=MAPS[tk],rm=MAPS[rk];
+  const px=mlPx();
+  const slots=tm.ch.map(row=>row.map(n=>sigVal(n,px)));
+  /* 槽位网格：格内大字 = 线上电平，小字 = 信号来源；红框 = 面板在此槽位期待另一个信号 */
+  let html='';
+  tm.ch.forEach((row,ci)=>{
+    html+='<div class="ml-ch"><div class="ml-lab">CH'+ci+'<small>槽1→7</small></div>';
+    row.forEach((nm,si)=>{
+      const v=slots[ci][si];
+      const rxn=rm.ch[ci]?rm.ch[ci][si]:'—';
+      const bad=ml.hl&&rxn!==nm;
+      html+='<div class="ml-cell '+kcls(nm)+(bad?' bad':'')+'">'
+        +'<b class="'+(v?'v1':'')+'">'+v+'</b><i>'+nm+'</i>'+(bad?'<em>面板读作'+rxn+'</em>':'')+'</div>';
+    });
+    html+='</div>';
+  });
+  document.getElementById('mGrid').innerHTML=html;
+  /* 面板端按自己的表解包 → 得到「面板看到的颜色」
+     18bit 有两种位约定：VESA-18 占 bit0-5，JEIDA-18 占 bit2-7 —— 显示时按面板约定取位再放大到 8bit */
+  let r=0,g=0,b=0;
+  rm.ch.forEach((row,ci)=>row.forEach((nm,si)=>{
+    const v=(slots[ci]&&slots[ci][si]!==undefined)?slots[ci][si]:0;
+    if(nm[0]==='R')r|=v<<+nm.slice(1);
+    else if(nm[0]==='G')g|=v<<+nm.slice(1);
+    else if(nm[0]==='B')b|=v<<+nm.slice(1);
+  }));
+  const shift=(ml.depth==='18'&&rm.ch[0][0]==='R2')?2:0;
+  const mask=(ml.depth==='24')?255:63;
+  const hx=v=>'#'+[v.r,v.g,v.b].map(x=>Math.round(((x>>shift)&mask)*255/mask).toString(16).toUpperCase().padStart(2,'0')).join('');
+  const stx=hx(px),srx=hx({r,g,b});
+  document.getElementById('mSwTx').style.background=stx;
+  document.getElementById('mSwRx').style.background=srx;
+  document.getElementById('mHexTx').textContent=stx;
+  document.getElementById('mHexRx').textContent=srx;
+  /* 位旅行表：代表性 bit 从「发送端抽屉」被「面板端抽屉」读成了谁 */
+  const bits=ml.depth==='24'?['R0','R7','G0','G7','B0','B7','DE']:['R0','R5','G0','G5','B0','B5','DE'];
+  const pos=(map,nm)=>{
+    for(let ci=0;ci<map.ch.length;ci++){const si=map.ch[ci].indexOf(nm);if(si>=0)return'CH'+ci+'·槽'+(si+1);}
+    return'—';
+  };
+  let trav='<tr><th>信号</th><th>发送端位置</th><th>面板端解读</th><th></th></tr>';
+  bits.forEach(nm=>{
+    const a=pos(tm,nm),bb=pos(rm,nm);
+    trav+='<tr><td>'+nm+'</td><td>'+a+'</td><td>'+bb+'</td>'
+      +'<td class="'+(a===bb?'ok':'ng')+'">'+(a===bb?'✓':'✗ 挪位')+'</td></tr>';
+  });
+  document.getElementById('mTravel').innerHTML=trav;
+  const v=document.getElementById('mVerdict');
+  if(tk===rk){
+    v.className='mlab-verdict';
+    v.innerHTML='<b>映射一致 ✓</b>　面板按同样的表拆包，每个 bit 回到原位，颜色分毫不差。这就是正常点亮的屏。';
+  }else{
+    v.className='mlab-verdict bad';
+    v.innerHTML='<b>映射不匹配！</b>　'+bits.filter(nm=>pos(tm,nm)!==pos(rm,nm)).length+' 个代表性信号被面板读错位置'
+      +'——发送 '+stx+'，面板显示 <b>'+srx+'</b>。'
+      +'整机上的症状就是<b>偏色 / 花屏 / 红蓝互换</b>（画面结构仍正常，因为 DE/HS/VS 未必受影响）。'
+      +'修复：把 SoC 端 LVDS mapping 寄存器 / 设备树改成与面板同名。';
+  }
+}
+['mR','mG','mB'].forEach(id=>{
+  document.getElementById(id).addEventListener('input',e=>{
+    document.getElementById(id+'v').textContent=e.target.value;
+    mlRender();
+  });
+});
+document.getElementById('mPre').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  const m=mlMax();
+  const set=(r,g,bl)=>{
+    ['mR','mG','mB'].forEach((id,k)=>{
+      const el=document.getElementById(id);
+      el.value=Math.round([r,g,bl][k]*m);
+      document.getElementById(id+'v').textContent=el.value;
+    });
+    mlRender();
+  };
+  const P={r:[1,0,0],g:[0,1,0],b:[0,0,1],w:[1,1,1],y:[1,1,0],c:[0,1,1]};
+  if(b.dataset.p==='rand')set(Math.random(),Math.random(),Math.random());
+  else{const q=P[b.dataset.p];set(q[0],q[1],q[2]);}
+});
+bindSeg('mDepth','d',v=>{
+  const oldMax=ml.depth==='24'?255:63;
+  ml.depth=v;
+  const m=mlMax();
+  ['mR','mG','mB'].forEach(id=>{
+    const el=document.getElementById(id);
+    el.max=m;
+    el.value=Math.min(m,Math.round(+el.value*m/oldMax));
+    document.getElementById(id+'v').textContent=el.value;
+  });
+  mlRender();
+});
+bindSeg('mTx','m',v=>{ml.tx=v;mlRender();});
+bindSeg('mRx','m',v=>{ml.rx=v;mlRender();});
+document.getElementById('mHl').addEventListener('change',e=>{ml.hl=e.target.checked;mlRender();});
+mlRender();
+
+/* ================= §05 单/双通道 ================= */
+bindSeg('ldiSeg','ld',v=>{
+  document.getElementById('ldiSvgA').style.display=v==='a'?'':'none';
+  document.getElementById('ldiSvgB').style.display=v==='b'?'':'none';
+  const set=(pairs,wires,rate,max,res)=>{
+    document.getElementById('ldPairs').textContent=pairs;
+    document.getElementById('ldWires').textContent=wires;
+    document.getElementById('ldRate').textContent=rate;
+    document.getElementById('ldMax').textContent=max;
+    document.getElementById('ldRes').textContent=res;
+  };
+  if(v==='a')set('5 对','10 根','PCLK（全部）','≤ 85~112 MHz','1366×768@60');
+  else set('10 对','20 根','PCLK ÷ 2','≤ 112~150 MHz','1920×1080@60');
+});
+
+/* ================= §06 V-by-One ================= */
+const VB={sym:0,playing:!reduced,speed:2.5,lanes:1,rate:1000,visible:false,rd:0,SYMS:[],dataIdx:0,lastFront:-1};
+VB.BYTES=(()=>{const a=[];BARS.forEach(b=>a.push(b[0],b[1],b[2]));return a;})();
+const popcount=n=>{let c=0;while(n){c+=n&1;n>>=1;}return c;};
+const inv=s=>s.replace(/./g,x=>x==='1'?'0':'1');
+/* 演示版 8b/10b：半字节先异或 0b1000 再补奇校验位→5bit（保证每组既有 0 又有 1，
+   即任何码字必含跳变），整码字或其按位取反按 RD 二选一（K28.5 用标准码字） */
+function g5(n){
+  const m=n^8;
+  let s=((m>>>3)&1)+''+((m>>>2)&1)+((m>>>1)&1)+(m&1);
+  if(m===15)return s+'0';          /* 1111 → 11110：保住组内必有一个 0 */
+  return s+((popcount(m)%2===0)?'1':'0');
+}
+function encSym(ctrl,byte,rd){
+  if(ctrl)return rd>0?{bits:'1100000101',ones:4}:{bits:'0011111010',ones:6};
+  const c0=g5(byte>>4)+g5(byte&15);
+  const ones=c0.split('').filter(x=>x==='1').length;
+  let bits=c0;
+  if((rd>0&&ones>5)||(rd<=0&&ones<5))bits=inv(c0);
+  return{bits,ones:bits.split('').filter(x=>x==='1').length};
+}
+function vbReset(){ VB.SYMS=[];VB.rd=0;VB.dataIdx=0;VB.sym=0;VB.lastFront=-1; }
+function vbEnsure(n){
+  while(VB.SYMS.length<=n){
+    const i=VB.SYMS.length,ctrl=(i%9===8);
+    const byte=ctrl?0xBC:VB.BYTES[VB.dataIdx++%VB.BYTES.length];
+    const e=encSym(ctrl,ctrl?0:byte,VB.rd);
+    VB.rd+=2*e.ones-10;
+    VB.SYMS.push({i,ctrl,byte:ctrl?null:byte,bits:e.bits,ones:e.ones,rd:VB.rd,lane:i%VB.lanes});
+    if(VB.SYMS.length>4096){vbReset();return;}
+  }
+}
+vbEnsure(24);
+const vbCv=document.getElementById('vbCanvas');
+function drawBitsStr(c,x0,pb,bits,yc,amp,col,invIt){
+  c.strokeStyle=col;c.lineWidth=1.8;c.lineJoin='round';
+  c.beginPath();
+  let prevY=null,prevRaw=false;
+  for(let k=0;k<=bits.length;k++){
+    const raw=k<bits.length?(bits[k]==='1'):prevRaw;
+    const y=(invIt?!raw:raw)?yc-amp:yc+amp;
+    const x=x0+k*pb;
+    if(prevY===null)c.moveTo(x,y);
+    else{ if(y!==prevY)c.lineTo(x,prevY); c.lineTo(x,y); }
+    prevY=y;prevRaw=raw;
+  }
+  c.stroke();
+}
+function drawVb(){
+  const{ctx:c,w:W}=fit(vbCv,352);
+  const front=Math.floor(VB.sym);
+  vbEnsure(front+2);
+  if(!VB.SYMS[front])return;
+  c.clearRect(0,0,W,352);
+  const FR=W*0.66,PB=12;
+  const xOf=i=>FR-(front-i)*10*PB;
+  /* 符号流：每符号 10bit，控制码打琥珀底 */
+  for(let i=front;i>=0&&i>front-40;i--){
+    const s=VB.SYMS[i];if(!s)break;
+    const x=xOf(i);if(x<-30)break;
+    const wd=10*PB;
+    if(s.lane!==0){
+      c.fillStyle='rgba(140,162,148,.06)';c.fillRect(x,70,wd,58);
+      c.strokeStyle='rgba(140,162,148,.25)';c.setLineDash([2,3]);
+      c.strokeRect(x+.5,70.5,wd-1,57);c.setLineDash([]);
+      if(wd>34){c.fillStyle='rgba(140,162,148,.5)';c.font='8px '+MONO;c.textAlign='left';c.fillText('→L'+s.lane,x+3,102);}
+      continue;
+    }
+    c.fillStyle=s.ctrl?'rgba(255,176,46,.10)':'rgba(52,224,138,.06)';
+    c.fillRect(x,70,wd,58);
+    drawBitsStr(c,x,PB,s.bits,90,9,COL.green,false);
+    drawBitsStr(c,x,PB,s.bits,124,9,'rgba(255,176,46,.8)',true);
+    c.strokeStyle=s.ctrl?'rgba(255,176,46,.55)':'rgba(52,224,138,.4)';
+    c.lineWidth=1;c.strokeRect(x+.5,64.5,wd,69);
+    if(wd>44){
+      c.fillStyle=s.ctrl?COL.amber:COL.cyan;c.font='600 8.5px '+MONO;c.textAlign='left';
+      c.fillText(s.ctrl?'K28.5':'0x'+s.byte.toString(16).toUpperCase().padStart(2,'0'),x+3,61);
+    }
+  }
+  /* 编码前沿：8 输入位 → 10 输出位 */
+  const s=VB.SYMS[front];
+  const drawSq=(arr,y,onCol,offCol)=>{
+    arr.forEach((v,k)=>{
+      const on=typeof v==='boolean'?v:(v==='1');
+      c.fillStyle=on?onCol:offCol;
+      c.fillRect(86+k*17,y,15,14);
+      c.strokeStyle=s.ctrl?'rgba(255,176,46,.4)':'rgba(52,224,138,.4)';
+      c.strokeRect(86.5+k*17,y+.5,15,14);
+      if(on){
+        c.fillStyle='#052013';c.font='600 9px '+MONO;c.textAlign='center';
+        c.fillText('1',86+k*17+7.5,y+11);
+        c.textAlign='left';
+      }
+    });
+  };
+  c.font='600 10px '+MONO;c.textAlign='left';c.fillStyle='rgba(140,162,148,.8)';
+  c.fillText('① 输入字节',16,20);
+  drawSq(s.ctrl?[1,0,1,1,1,1,0,0]:[...Array(8)].map((_,k)=>(s.byte>>(7-k))&1),10,COL.green,'rgba(52,224,138,.12)');
+  c.fillStyle='rgba(140,162,148,.8)';
+  c.fillText('② 输出码字 (8b/10b)',16,42);
+  drawSq(s.bits.split(''),34,(s.ctrl?COL.amber:COL.green),'rgba(140,162,148,.12)');
+  c.fillStyle=s.ctrl?COL.amber:COL.cyan;c.font='600 9.5px '+MONO;
+  c.fillText((s.ctrl?'K28.5 控制':'数据')+' · '+s.bits,Math.min(86+8*17+8,W-150),45);
+  /* RD 平衡表 */
+  const ry=290,rh=44;
+  c.strokeStyle='rgba(140,162,148,.3)';c.lineWidth=1;
+  c.beginPath();c.moveTo(10,ry);c.lineTo(W-10,ry);c.stroke();
+  c.font='9px '+MONO;c.textAlign='left';c.fillStyle='rgba(140,162,148,.6)';
+  c.fillText('RD（+ = 1 偏多）',10,ry-34);
+  const hist=VB.SYMS.slice(Math.max(0,front-46),front+1).filter(x=>x.lane===0);
+  const bw=Math.min(12,(W-20)/46);
+  hist.forEach((sy,k)=>{
+    const h=Math.max(-6,Math.min(6,sy.rd)),x=10+k*bw,hh=Math.abs(h)*(rh-10)/6;
+    c.fillStyle=h>=0?'rgba(255,176,46,.7)':'rgba(87,216,242,.7)';
+    if(h>=0)c.fillRect(x,ry-hh-1,bw-1.5,hh);
+    else c.fillRect(x,ry+1,bw-1.5,hh);
+  });
+  c.fillStyle='rgba(140,162,148,.45)';c.textAlign='right';
+  c.fillText('±6 限幅显示',W-10,ry+26);
+  if(front!==VB.lastFront){
+    VB.lastFront=front;
+    document.getElementById('vbByte').textContent=s.ctrl?'K28.5(0xBC)':'0x'+s.byte.toString(16).toUpperCase().padStart(2,'0');
+    document.getElementById('vbCode').textContent=s.bits;
+    document.getElementById('vbOnes').textContent=s.ones+' / 10';
+    const rd=document.getElementById('vbRD');
+    rd.textContent=(VB.rd>0?'+':'')+VB.rd;
+    rd.style.color=VB.rd>0?'var(--amber)':'var(--cyan)';
+    document.getElementById('vbCount').textContent=front+1;
+    document.getElementById('vbLane').textContent='symbol #'+front+' → lane '+s.lane;
+  }
+}
+function vbCalc(){
+  const r=+document.getElementById('vbRate').value;
+  document.getElementById('vbBitW').textContent=(1e3/r).toFixed(2)+' ns';
+  const bw=r*VB.lanes*0.8/8;
+  document.getElementById('vbBw').textContent=bw>=1000?(bw/1000).toFixed(2)+' GB/s':bw.toFixed(1)+' MB/s';
+}
+document.getElementById('vbRate').addEventListener('change',vbCalc);
+vbCalc();
+function setVbPlay(p){
+  VB.playing=p;
+  const b=document.getElementById('vbPlay');
+  b.textContent=p?'❚❚':'▶';b.classList.toggle('on',p);
+}
+document.getElementById('vbPlay').addEventListener('click',()=>setVbPlay(!VB.playing));
+document.getElementById('vbStep').addEventListener('click',()=>{setVbPlay(false);VB.sym=Math.floor(VB.sym)+1;});
+document.getElementById('vbSpd').addEventListener('input',e=>VB.speed=+e.target.value);
+bindSeg('vbLanes','ln',v=>{
+  VB.lanes=+v;
+  VB.SYMS.forEach(s=>s.lane=s.i%VB.lanes);
+  vbCalc();
+});
+VB.tick=function(dt){ if(VB.visible&&VB.playing)VB.sym+=dt*VB.speed; };
+
+/* ================= §08 上电时序 ================= */
+const PWR=[
+ {t:'VDD 上电',d:'面板电源（典型 3.3 V，部分屏 12 V/1.8 V 组合）先上电，<b>背光必须仍处关闭</b>。此刻面板内部 T-CON 复位、基准建立。'},
+ {t:'t1 等待',d:'等面板完成内部初始化：手册给 <code>t1 ≥ 10~50 ms</code>（工程上取宽裕值）。<b>跳过它直接送数据 → 随机白屏/花屏</b>，因为解串器还没锁住。'},
+ {t:'LVDS 输出',d:'开始输出稳定 PCLK 与数据，<b>先送黑场</b>（DE 有效区 RGB=0）。面板先「看见」时序，再谈显示内容。'},
+ {t:'t2 等待',d:'持续输出至少一帧（<code>t2 ≥ 1 帧</code>，常见 0~50 ms），让 T-CON 完成一次完整扫描与极性反转。'},
+ {t:'背光使能',d:'<b>最后</b>才点亮：BL_EN 拉高 + PWM 给占空比。此时数据已稳定，不会看到启动残影或闪白。'},
+ {t:'稳定运行',d:'背光与数据并行工作。注意 LCD 驱动电压每帧极性反转，长时间静止高亮画面本身就会留下暂时残影——与接口无关。'},
+ {t:'背光先关',d:'关机第一步：<b>BL_EN 拉低、PWM 归零</b>。必须在停数据、断电源之前——顺序反了就是残影与闪烁的温床。'},
+ {t:'t4 放电',d:'等背光升压电路彻底放电（<code>t4 ≥ 200 ms</code> 典型）。立刻断 VDD 会让残余能量在面板上「闪」一下。'},
+ {t:'停 LVDS',d:'停止 PCLK 与数据输出。更讲究的驱动会先发一帧黑场再停，给面板一个干净的收尾。'},
+ {t:'断 VDD',d:'最后切断面板电源。至此「电 → 信号 → 背光」的正向顺序完整倒放，寿命与稳定性都保住了 ✓'},
+];
+(function pwInit(){
+  const steps=document.getElementById('pwSteps');
+  const verdict=document.getElementById('pwVerdict');
+  const svg=document.getElementById('pwSvg');
+  const ROWS=[
+    {n:'VDD 电源',lv:[1,1,1,1,1,1,1,1,1,0]},
+    {n:'LVDS 数据+CLK',lv:[0,0,1,1,1,1,1,1,0,0]},
+    {n:'BL_EN 背光',lv:[0,0,0,0,1,1,0,0,0,0]},
+    {n:'PWM 调光',lv:[0,0,0,0,1,1,0,0,0,0]},
+  ];
+  const SW=56,X0=64;
+  let s='';
+  ROWS.forEach((r,i)=>{
+    const y=34+i*46,col=i===0?'#34e08a':(i===1?'#57d8f2':'#ffb02e');
+    s+='<text x="56" y="'+(y+16)+'" fill="#8aa294" font-size="9.5" text-anchor="end">'+r.n+'</text>';
+    s+='<line x1="'+X0+'" y1="'+(y+34)+'" x2="'+(X0+10*SW)+'" y2="'+(y+34)+'" stroke="rgba(140,162,148,.2)"/>';
+    let d='M '+X0+' '+(r.lv[0]?y:y+28);
+    for(let k=0;k<10;k++){const yy=r.lv[k]?y:y+28;d+=' L '+(X0+k*SW)+' '+yy+' L '+(X0+(k+1)*SW)+' '+yy;}
+    s+='<path d="'+d+'" fill="none" stroke="'+col+'" stroke-width="2.2" stroke-linejoin="round"/>';
+  });
+  [['t1',1],['t2',3],['稳定运行',5],['t4',7]].forEach(a=>{
+    s+='<text x="'+(X0+a[1]*SW+SW/2)+'" y="22" fill="#5c7264" font-size="9" text-anchor="middle">'+a[0]+'</text>';
+  });
+  s+='<rect id="pwHi" x="'+X0+'" y="28" width="'+SW+'" height="'+(4*46-6)+'" fill="rgba(255,100,120,.10)" stroke="rgba(255,100,120,.55)"/>';
+  for(let k=0;k<10;k++)
+    s+='<text x="'+(X0+k*SW+SW/2)+'" y="'+(28+4*46+12)+'" fill="#5c7264" font-size="8.5" text-anchor="middle">'+(k+1)+'</text>';
+  s+='<text x="'+(X0+10*SW/2)+'" y="'+(28+4*46+28)+'" fill="#5c7264" font-size="9" text-anchor="middle">高 = 有效 · 点击左上步骤切换</text>';
+  svg.innerHTML=s;
+  function select(i){
+    steps.querySelectorAll('.dbg-step').forEach((b,k)=>b.classList.toggle('on',k===i));
+    verdict.innerHTML='<b>第 '+(i+1)+' 步 · '+PWR[i].t+'</b><br>'+PWR[i].d;
+    const hi=document.getElementById('pwHi');
+    if(hi)hi.setAttribute('x',X0+i*SW);
+  }
+  PWR.forEach((p,i)=>{
+    const b=document.createElement('button');
+    b.className='dbg-step';b.type='button';
+    b.innerHTML='<span class="n">'+String(i+1).padStart(2,'0')+'</span><span>'+p.t+'</span>';
+    b.addEventListener('click',()=>select(i));
+    steps.appendChild(b);
+  });
+  select(0);
+})();
+
+/* ================= §09 PCLK 表 ================= */
+(function pclkTable(){
+  const tb=document.getElementById('pclkTable');
+  [['VGA 640×480',25.175],['SVGA 800×600',40],['XGA 1024×768',65],
+   ['HD 1280×720',74.25],['WXGA 1366×768',85.5],['FHD 1920×1080',148.5]].forEach(r=>{
+    const dual=r[1]>85;
+    const tr=document.createElement('tr');
+    tr.innerHTML='<td>'+r[0]+'@60</td><td>'+r[1]+' MHz</td>'
+      +'<td style="color:'+(dual?'var(--red)':'var(--amber)')+'">'+(r[1]*7).toFixed(1)+' Mbps</td>'
+      +'<td>'+(r[1]*3.5).toFixed(1)+' MHz</td><td>'+(dual?'双通道（÷2/通道）':'单通道')+'</td>';
+    tb.appendChild(tr);
+  });
+})();
+
+/* ================= 通用 seg 绑定 ================= */
+function bindSeg(id,attr,fn){
+  const seg=document.getElementById(id);
+  if(!seg)return;
+  seg.addEventListener('click',e=>{
+    const b=e.target.closest('button');if(!b)return;
+    seg.querySelectorAll('button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');fn(b.dataset[attr]);
+  });
+}
+
+/* ================= 复制命令 ================= */
+document.addEventListener('click',async e=>{
+  const el=e.target.closest('.t-cmd');
+  if(!el)return;
+  const txt=el.dataset.copy||el.textContent;
+  let ok=false;
+  try{await navigator.clipboard.writeText(txt);ok=true;}
+  catch{
+    const ta=document.createElement('textarea');
+    ta.value=txt;ta.style.position='fixed';ta.style.opacity='0';
+    document.body.appendChild(ta);ta.select();
+    try{ok=document.execCommand('copy');}catch(_){}
+    ta.remove();
+  }
+  const old=el.textContent;
+  el.classList.add('copied');
+  el.textContent=ok?'已复制 ✓':'复制失败';
+  setTimeout(()=>{el.classList.remove('copied');el.textContent=old;},900);
+});
+
+/* ================= 可见性 + 主循环 ================= */
+function watch(el,obj){
+  new IntersectionObserver(es=>es.forEach(en=>{obj.visible=en.isIntersecting;}),{rootMargin:'80px'}).observe(el);
+}
+watch(document.getElementById('phScope'),ph);
+watch(slCv,sl);
+watch(vbCv,VB);
+watch(document.getElementById('heroSvg'),hero);
+
+if(reduced){setPhPlay(false);setSlPlay(false);setVbPlay(false);}
+
+let lastT=performance.now();
+function loop(now){
+  const dt=Math.min((now-lastT)/1000,.1);lastT=now;
+  try{
+    hero.tick(dt);ph.tick(dt);VB.tick(dt);
+    if(sl.visible&&sl.playing)sl.phase+=dt*sl.speed;
+    if(hero.visible)hero.draw();
+    if(ph.visible)drawPh();
+    if(sl.visible)drawSl();
+    if(VB.visible)drawVb();
+  }catch(err){
+    if(!window.__lvdsErr){window.__lvdsErr=String(err&&err.stack||err);console.error(err);}
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+let rzT;
+window.addEventListener('resize',()=>{clearTimeout(rzT);rzT=setTimeout(()=>{hero.draw();},150);});
+
+/* ================= 滚动显现 ================= */
+const io=new IntersectionObserver(es=>es.forEach(e=>{
+  if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}
+}),{threshold:.12});
+$$('.reveal').forEach(el=>io.observe(el));
+})();
+</script>
+</body>
+</html>

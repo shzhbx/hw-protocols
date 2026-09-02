@@ -63,7 +63,7 @@ nav{
   padding:0 26px;height:52px;
   background:rgba(7,11,9,.82);backdrop-filter:blur(12px);
   border-bottom:1px solid var(--line);
-}
+;flex-wrap:wrap}
 nav .logo{font-family:var(--disp);font-weight:700;font-size:17px;color:var(--green);letter-spacing:.04em}
 nav a{
   color:var(--dim);text-decoration:none;font-size:12.5px;
@@ -76,7 +76,7 @@ nav .live{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-s
 nav .live i{width:7px;height:7px;border-radius:50%;background:var(--green);animation:blink 1.6s infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
 /* ---- 跨页导航 ---- */
-nav .xnav{display:flex;gap:6px;margin-left:4px;padding-left:16px;border-left:1px solid var(--line);white-space:nowrap}
+nav .xnav{display:flex;gap:6px;margin-left:4px;padding-left:16px;border-left:1px solid var(--line);flex-wrap:wrap}
 nav .xnav a{
   display:inline-block;font-size:11px;letter-spacing:.08em;
   color:var(--dim);padding:5px 10px;border:1px solid var(--line);border-radius:3px;
@@ -499,7 +499,7 @@ footer .f-r{font-family:var(--disp);font-weight:700;font-size:22px;color:var(--g
 <nav>
   <div class="logo">PDM</div>
   <a href="#s1">概述</a><a href="#s2">信号线</a><a href="#s3">时序动画</a><a href="#s4">编码原理</a><a href="#s5">立体声</a><a href="#s6">时钟计算</a><a href="#s7">Linux 实战</a><a href="#s8">调试指南</a><a href="#s9">踩坑指南</a>
-  <div class="xnav"><a href="index.html">« HOME</a><a href="i2c.html">I²C</a><a href="i2s.html">I²S</a><a href="uart.html">UART</a><a href="ir.html">IR</a></div>
+  <div class="xnav"><a href="index.html">« HOME</a><a href="i2c.html">I²C</a><a href="spi.html">SPI</a><a href="uart.html">UART</a><a href="ir.html">IR</a><a href="rs485.html">RS-485</a><a href="onewire.html">1-WIRE</a><a href="can.html">CAN</a><a href="i2s.html">I²S</a><a href="tdm.html">TDM</a><a href="sdio.html">SDIO</a><a href="emmc.html">eMMC</a><a href="ddr.html">DDR</a><a href="rgb.html">RGB</a><a href="lvds.html">LVDS</a><a href="mipi-dsi.html">DSI</a><a href="csi2.html">CSI-2</a><a href="hdmi.html">HDMI</a><a href="usb.html">USB</a><a href="pcie.html">PCIE</a><a href="jtag.html">JTAG</a></div>
   <div class="spacer"></div>
   <div class="live"><i></i>LOGIC&nbsp;ANALYZER</div>
 </nav>

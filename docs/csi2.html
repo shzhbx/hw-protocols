@@ -1,0 +1,1768 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CSI-2 摄像头接口协议 · 交互式图解</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%23070b09'/><circle cx='16' cy='16' r='9.5' fill='none' stroke='%2334e08a' stroke-width='2.5'/><circle cx='16' cy='16' r='3.2' fill='%23ffb02e'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#070b09;
+  --bg2:#0a100c;
+  --panel:#0d1510;
+  --panel2:#101a13;
+  --line:#1d2c22;
+  --line2:#27392d;
+  --ink:#dcebe1;
+  --dim:#8aa294;
+  --faint:#5c7264;
+  --green:#34e08a;
+  --green-dim:#1d8a55;
+  --amber:#ffb02e;
+  --cyan:#57d8f2;
+  --red:#ff6478;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --disp:'Chakra Petch','Noto Sans SC',sans-serif;
+  --sans:'Noto Sans SC',-apple-system,sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--sans);
+  font-weight:300;
+  line-height:1.8;
+  letter-spacing:.01em;
+  overflow-x:hidden;
+}
+/* 全局网格纸背景 */
+body::before{
+  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:
+    linear-gradient(rgba(52,224,138,.028) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(52,224,138,.028) 1px,transparent 1px),
+    linear-gradient(rgba(52,224,138,.014) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(52,224,138,.014) 1px,transparent 1px);
+  background-size:120px 120px,120px 120px,24px 24px,24px 24px;
+}
+body::after{ /* 轻微暗角 */
+  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(ellipse 120% 90% at 50% 0%,transparent 60%,rgba(0,0,0,.5));
+}
+main{position:relative;z-index:1}
+::selection{background:rgba(52,224,138,.3)}
+
+/* ============ 导航 ============ */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  background:rgba(7,11,9,.82);backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--line);
+;flex-wrap:wrap}
+nav .nav-in{
+  max-width:1320px;margin:0 auto;padding:0 22px;height:52px;
+  display:flex;align-items:center;gap:18px;
+}
+nav .brand{
+  font-family:var(--mono);font-weight:600;font-size:14.5px;color:var(--green);
+  letter-spacing:.08em;white-space:nowrap;
+}
+nav .brand b{color:var(--amber);font-weight:600}
+nav .nav-links{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;min-width:0}
+nav .nav-links::-webkit-scrollbar{display:none}
+nav .nav-links a,nav .spacer,nav .live{white-space:nowrap}
+nav .nav-links a{
+  color:var(--dim);text-decoration:none;font-size:12px;
+  font-family:var(--mono);letter-spacing:.04em;padding:5px 9px;border-radius:4px;
+  transition:color .2s,background .2s;
+}
+nav .nav-links a:hover{color:var(--green);background:rgba(52,224,138,.07)}
+nav .spacer{flex:1}
+nav .live{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.1em}
+nav .live i{width:7px;height:7px;border-radius:50%;background:var(--green);animation:blink 1.6s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+/* ---- 跨页导航 ---- */
+nav .nav-x{display:flex;gap:5px;margin-left:2px;padding-left:12px;border-left:1px solid var(--line);flex-wrap:wrap}
+nav .nav-x a{
+  display:inline-block;font-size:10.5px;letter-spacing:.06em;
+  color:var(--dim);padding:4px 8px;border:1px solid var(--line);border-radius:3px;
+  text-decoration:none;transition:color .2s,border-color .2s;
+}
+nav .nav-x a:hover{color:var(--green);border-color:rgba(52,224,138,.45)}
+
+/* ============ Hero ============ */
+.hero{
+  min-height:92vh;display:flex;flex-direction:column;justify-content:center;
+  padding:104px 6vw 42px;position:relative;max-width:1320px;margin:0 auto;
+}
+.hero .eyebrow{
+  font-family:var(--mono);font-size:12px;color:var(--amber);
+  letter-spacing:.32em;margin-bottom:20px;
+  display:flex;align-items:center;gap:14px;
+}
+.hero .eyebrow::before{content:"";width:44px;height:1px;background:var(--amber)}
+.hero h1{
+  font-family:var(--disp);font-weight:700;
+  font-size:clamp(40px,7.4vw,92px);
+  line-height:1.04;letter-spacing:.01em;
+  color:var(--ink);
+}
+.hero h1 .en{
+  display:block;font-family:var(--mono);font-weight:500;
+  font-size:clamp(11px,1.4vw,14px);color:var(--green);
+  letter-spacing:.3em;margin-top:16px;
+}
+.hero p.lede{
+  max-width:700px;margin-top:30px;font-size:16px;color:var(--dim);
+}
+.hero p.lede b{color:var(--ink);font-weight:500}
+.hero .chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:26px}
+.hero .chips span{
+  font-family:var(--mono);font-size:11.5px;padding:5px 12px;
+  border:1px solid var(--line2);border-radius:100px;color:var(--dim);
+  background:rgba(13,21,16,.6);
+}
+.hero .chips span b{color:var(--green);font-weight:500}
+.hero-cta{display:flex;gap:14px;flex-wrap:wrap;margin-top:30px}
+.btn{
+  font-family:var(--disp);font-weight:600;font-size:14px;letter-spacing:.05em;
+  padding:11px 24px;border-radius:8px;text-decoration:none;cursor:pointer;
+  transition:.22s;border:1px solid transparent;
+}
+.btn.primary{color:#052013;background:var(--green);box-shadow:0 0 22px rgba(52,224,138,.3)}
+.btn.primary:hover{transform:translateY(-2px);box-shadow:0 6px 30px rgba(52,224,138,.45)}
+.btn.ghost{color:var(--ink);border-color:var(--line2);background:rgba(255,255,255,.02)}
+.btn.ghost:hover{border-color:rgba(52,224,138,.4);color:var(--green)}
+.hero-schema{
+  margin-top:44px;border:1px solid var(--line);border-radius:8px;
+  overflow:hidden;background:rgba(9,14,11,.75);position:relative;padding:6px;
+}
+.hero-schema::after{ /* 扫描线 */
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.16) 3px 4px);
+}
+.hero-schema svg{width:100%;height:auto;display:block;position:relative}
+.svg-lab{font-family:var(--mono);fill:var(--dim);font-size:11.5px;letter-spacing:1px}
+.svg-lab.big{fill:var(--ink);font-size:15px}
+.svg-lab.ph{fill:var(--green)} .svg-lab.am{fill:var(--amber)} .svg-lab.cy{fill:var(--cyan)}
+.chip-ic{fill:#0d181d;stroke:var(--line2);stroke-width:1.5}
+.wire{stroke:var(--faint);stroke-width:1.4;fill:none}
+.wire.p{stroke:rgba(52,224,138,.6)}
+.wire.n{stroke:rgba(87,216,242,.45)}
+.wire.ctl{stroke:rgba(255,176,46,.55);stroke-dasharray:7 6;animation:gndflow 1.2s linear infinite}
+@keyframes gndflow{to{stroke-dashoffset:-13}}
+.led{animation:blink 1.6s infinite}
+.led.b{animation-delay:.8s}
+.lens-ring{animation:lenspulse 3.2s ease-in-out infinite}
+@keyframes lenspulse{0%,100%{opacity:.25;r:24}50%{opacity:.7;r:28}}
+.pkt{opacity:0}
+.note{font-family:var(--mono);font-size:11px;color:var(--faint);margin-top:12px;letter-spacing:.04em;line-height:1.7}
+@media (prefers-reduced-motion: reduce){
+  .pkt,.wire.ctl,.led,.led.b,.lens-ring{animation:none!important}
+  .pkt{display:none}
+  html{scroll-behavior:auto}
+}
+.hero .scroll-hint{
+  margin-top:34px;font-family:var(--mono);font-size:11px;color:var(--faint);
+  letter-spacing:.2em;display:flex;align-items:center;gap:10px;
+}
+.hero .scroll-hint svg{animation:bounce 1.8s infinite}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(6px)}}
+
+/* ============ 通用 section ============ */
+section{padding:92px 6vw;max-width:1280px;margin:0 auto;position:relative}
+.sec-head{display:flex;align-items:baseline;gap:20px;margin-bottom:16px}
+.sec-head .no{
+  font-family:var(--mono);font-size:13px;color:var(--green);
+  letter-spacing:.1em;border:1px solid var(--green-dim);
+  padding:3px 10px;border-radius:3px;white-space:nowrap;
+}
+.sec-head h2{
+  font-family:var(--disp);font-weight:600;font-size:clamp(24px,3.4vw,38px);
+  letter-spacing:.01em;
+}
+.sec-head .en{
+  font-family:var(--mono);font-size:12px;color:var(--faint);letter-spacing:.24em;
+  text-transform:uppercase;margin-left:auto;white-space:nowrap;
+}
+.sec-sub{color:var(--dim);max-width:780px;margin-bottom:42px;font-size:15px}
+.sec-sub b{color:var(--ink);font-weight:500}
+.reveal{opacity:0;transform:translateY(26px);transition:opacity .7s ease,transform .7s ease}
+.reveal.in{opacity:1;transform:none}
+
+/* ============ §01 是什么 ============ */
+.two-col{display:grid;grid-template-columns:1.25fr .95fr;gap:44px;align-items:start}
+.prose p{margin-bottom:18px;color:var(--dim);font-size:15px}
+.prose p b{color:var(--ink);font-weight:500}
+.prose .kw{color:var(--green);font-family:var(--mono);font-size:.92em}
+.prose .kw2{color:var(--amber);font-family:var(--mono);font-size:.92em}
+.prose a{color:var(--cyan);text-decoration:none;border-bottom:1px dotted rgba(87,216,242,.5)}
+.prose a:hover{color:var(--green);border-color:var(--green)}
+.cmp-table{width:100%;border-collapse:collapse;font-size:13px}
+.cmp-table th{
+  font-family:var(--mono);font-weight:500;color:var(--faint);text-align:left;
+  padding:9px 12px;border-bottom:1px solid var(--line2);font-size:11.5px;letter-spacing:.06em;
+}
+.cmp-table td{
+  padding:10px 12px;border-bottom:1px solid var(--line);color:var(--dim);vertical-align:top;
+}
+.cmp-table td:first-child{color:var(--ink);font-weight:400;white-space:nowrap}
+.cmp-table .yes{color:var(--green)}
+.cmp-table .no{color:var(--red)}
+.fact-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:36px}
+.fact{
+  border:1px solid var(--line);border-radius:6px;padding:20px 20px 18px;
+  background:linear-gradient(160deg,var(--panel) 0%,rgba(13,21,16,.4) 100%);
+  transition:border-color .25s,transform .25s;
+}
+.fact:hover{border-color:var(--green-dim);transform:translateY(-3px)}
+.fact .f-no{font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.14em}
+.fact h4{font-family:var(--disp);font-size:16.5px;font-weight:600;margin:8px 0 8px}
+.fact h4 code{font-family:var(--mono);font-size:.85em;color:var(--green)}
+.fact p{font-size:12.8px;color:var(--dim);line-height:1.7}
+.fact p a{color:var(--cyan);text-decoration:none;border-bottom:1px dotted rgba(87,216,242,.5)}
+.fact p a:hover{color:var(--green)}
+
+/* ============ §02 信号 / 拓扑 ============ */
+.topo-bar{display:flex;flex-wrap:wrap;align-items:center;gap:18px;margin-bottom:16px}
+.panel{
+  border:1px solid var(--line);border-radius:8px;background:var(--panel);
+  padding:22px;position:relative;overflow:hidden;
+}
+.topo-wrap svg{width:100%;height:auto;display:block}
+.sig-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin-top:26px}
+.sig-card{
+  border:1px solid var(--line);border-radius:8px;overflow:hidden;
+  background:var(--panel);display:flex;flex-direction:column;
+  transition:border-color .25s;
+}
+.sig-card:hover{border-color:var(--line2)}
+.sig-card .scope{background:#080d0a;border-bottom:1px solid var(--line);position:relative}
+.sig-card .scope::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.18) 3px 4px);
+}
+.sig-card canvas{display:block;width:100%;height:84px}
+.sig-card .psvg{display:block;width:100%;height:auto;background:#080d0a}
+.sig-card .body{padding:20px 22px 22px}
+.sig-card .names{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.sig-card .names .main{font-family:var(--disp);font-size:21px;font-weight:600}
+.sig-card .names .alias{font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.06em}
+.sig-card .names .pin{
+  margin-left:auto;font-family:var(--mono);font-size:10px;letter-spacing:.1em;
+  padding:2px 8px;border-radius:3px;
+}
+.sig-card p{font-size:13px;color:var(--dim);margin-top:10px;line-height:1.75}
+.sig-card p b{color:var(--ink);font-weight:500}
+.sig-card .formula{
+  font-family:var(--mono);font-size:12px;color:var(--green);
+  margin-top:12px;padding:8px 12px;background:rgba(52,224,138,.06);
+  border-left:2px solid var(--green-dim);border-radius:0 3px 3px 0;
+}
+.c-clk .main,.c-clk .pin{color:var(--green)} .c-clk .pin{background:rgba(52,224,138,.1);border:1px solid var(--green-dim)}
+.c-dat .main,.c-dat .pin{color:var(--cyan)} .c-dat .pin{background:rgba(87,216,242,.08);border:1px solid rgba(87,216,242,.3)}
+.c-cci .main,.c-cci .pin{color:var(--amber)} .c-cci .pin{background:rgba(255,176,46,.08);border:1px solid rgba(255,176,46,.35)}
+.c-aux .main,.c-aux .pin{color:var(--dim)} .c-aux .pin{background:rgba(140,162,148,.08);border:1px dashed var(--faint)}
+.c-aux{border-style:dashed}
+
+/* ============ §03 分层模型 ============ */
+.lay-grid{display:grid;grid-template-columns:1.02fr 1fr;gap:26px;align-items:start}
+.layer-stack{display:flex;flex-direction:column;gap:10px}
+.layer{
+  display:grid;grid-template-columns:46px 1fr;gap:14px;align-items:center;
+  text-align:left;padding:14px 18px;border:1px solid var(--line);border-radius:8px;
+  background:var(--panel);cursor:pointer;transition:all .2s;color:var(--ink);
+  font-family:inherit;font-size:inherit;
+}
+.layer .l-no{font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.1em}
+.layer .l-name{font-family:var(--disp);font-size:17px;font-weight:600;display:inline}
+.layer .l-en{font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.18em;margin-left:10px}
+.layer .l-kw{font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:5px}
+.layer:hover{border-color:var(--line2)}
+.layer.on{border-color:var(--green);background:rgba(52,224,138,.06)}
+.layer.on .l-no{color:var(--green)}
+.lay-panel{border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:24px 26px;min-height:300px}
+.lay-panel h5{font-family:var(--disp);font-size:18px;font-weight:600;display:flex;gap:12px;align-items:baseline;flex-wrap:wrap}
+.lay-panel h5 .en{font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.18em}
+.lay-panel ul{list-style:none;margin-top:14px;display:flex;flex-direction:column;gap:9px}
+.lay-panel li{font-size:13px;color:var(--dim);padding-left:16px;position:relative;line-height:1.7}
+.lay-panel li::before{content:"▸";position:absolute;left:0;color:var(--green)}
+.lay-panel li b{color:var(--ink);font-weight:500}
+.lay-panel li code{font-family:var(--mono);font-size:.9em;color:var(--amber)}
+.lay-panel .lp-link{
+  margin-top:18px;padding-top:14px;border-top:1px dashed var(--line);
+  font-family:var(--mono);font-size:11.5px;color:var(--faint);line-height:2;
+}
+.lay-panel .lp-link a{color:var(--amber);text-decoration:none;border-bottom:1px dotted var(--amber)}
+.lay-panel .lp-link a:hover{color:var(--green);border-color:var(--green)}
+
+/* ============ 交互实验室（§04-§07 共用） ============ */
+.lab{
+  border:1px solid var(--line);border-radius:10px;background:var(--panel);
+  overflow:hidden;
+}
+.lab-bar{
+  display:flex;flex-wrap:wrap;align-items:center;gap:16px;
+  padding:14px 18px;border-bottom:1px solid var(--line);background:rgba(10,16,12,.7);
+}
+.ctrl{display:flex;align-items:center;gap:9px}
+.ctrl label{font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.1em}
+.seg{display:flex;border:1px solid var(--line2);border-radius:5px;overflow:hidden}
+.seg button{
+  font-family:var(--mono);font-size:12px;padding:7px 13px;border:none;cursor:pointer;
+  background:transparent;color:var(--dim);border-right:1px solid var(--line2);
+  transition:all .18s;letter-spacing:.02em;
+}
+.seg button:last-child{border-right:none}
+.seg button:hover{color:var(--ink);background:rgba(52,224,138,.06)}
+.seg button.on{background:var(--green);color:#052013;font-weight:600}
+.icon-btn{
+  width:34px;height:32px;border:1px solid var(--line2);border-radius:5px;background:transparent;
+  color:var(--dim);cursor:pointer;font-family:var(--mono);font-size:13px;
+  transition:all .18s;display:flex;align-items:center;justify-content:center;
+}
+.icon-btn:hover{color:var(--green);border-color:var(--green-dim)}
+.icon-btn.play.on{color:var(--green);border-color:var(--green-dim);background:rgba(52,224,138,.08)}
+input[type=range]{
+  -webkit-appearance:none;width:120px;height:2px;background:var(--line2);border-radius:2px;outline:none;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--green);
+  cursor:pointer;box-shadow:0 0 8px rgba(52,224,138,.5);
+}
+.lab-body{display:grid;grid-template-columns:1fr 264px;gap:0}
+.scope-main{position:relative;background:#080d0a;min-width:0}
+.scope-main::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.14) 3px 4px);
+}
+.scope-main canvas{display:block;width:100%}
+.pk-cap{
+  position:relative;margin:12px 14px 14px;padding:11px 15px;
+  border:1px dashed var(--line2);border-radius:6px;
+  font-family:var(--mono);font-size:11.8px;color:var(--dim);line-height:1.8;
+  background:rgba(10,16,12,.6);
+}
+.pk-cap b{color:var(--green);font-weight:500}
+.readout{
+  border-left:1px solid var(--line);background:#0a110d;
+  padding:18px 18px 14px;display:flex;flex-direction:column;gap:0;min-width:0;
+}
+.readout .r-title{
+  font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.22em;
+  margin-bottom:14px;display:flex;align-items:center;gap:8px;
+}
+.readout .r-title::before{content:"";width:6px;height:6px;background:var(--red);border-radius:50%;animation:blink 1.4s infinite}
+.r-row{
+  display:flex;justify-content:space-between;align-items:baseline;gap:8px;
+  font-family:var(--mono);padding:7px 0;border-bottom:1px dashed var(--line);
+}
+.r-row .k{font-size:10.5px;color:var(--faint);letter-spacing:.06em;white-space:nowrap}
+.r-row .v{font-size:12px;color:var(--ink);text-align:right}
+.r-row .v.g{color:var(--green)} .r-row .v.a{color:var(--amber)} .r-row .v.c{color:var(--cyan)}
+.r-note{font-size:11px;color:var(--faint);line-height:1.65;margin-top:12px;font-family:var(--mono)}
+.r-note b{color:var(--dim);font-weight:500}
+.lab-foot{
+  padding:13px 18px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:10px 26px;
+  background:rgba(10,16,12,.6);
+}
+.legend{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;color:var(--dim)}
+.legend i{width:18px;height:2px;border-radius:2px}
+.info-bar{
+  padding:13px 18px;border-top:1px solid var(--line);
+  font-family:var(--mono);font-size:12px;color:var(--dim);background:rgba(10,16,12,.6);
+  line-height:1.8;
+}
+.info-bar b{color:var(--green);font-weight:500}
+.info-bar .fm{color:var(--amber)}
+.chk{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;color:var(--dim);cursor:pointer;user-select:none}
+.chk input{accent-color:var(--green)}
+
+/* ============ §05 Bayer 小图 ============ */
+.bayer-note{
+  margin-top:26px;display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:center;
+  border:1px solid rgba(255,176,46,.3);border-radius:8px;padding:18px 24px;
+  background:linear-gradient(120deg,rgba(255,176,46,.06),transparent 60%);
+}
+.bayer-note p{font-size:13.5px;color:var(--dim)}
+.bayer-note p b{color:var(--ink);font-weight:500}
+.bayer-note p code{font-family:var(--mono);font-size:.9em;color:var(--amber)}
+
+/* ============ §08 计算器 / 配置 ============ */
+.calc{
+  border:1px solid var(--line);border-radius:10px;background:var(--panel);
+  display:grid;grid-template-columns:1fr 1fr;overflow:hidden;
+}
+.calc .inputs{padding:28px 30px;border-right:1px solid var(--line)}
+.calc .outputs{padding:28px 30px;background:#0a110d}
+.calc h5{font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.22em;margin-bottom:18px}
+.field{margin-bottom:18px}
+.field label{display:block;font-family:var(--mono);font-size:11.5px;color:var(--dim);margin-bottom:8px;letter-spacing:.06em}
+.field select{
+  width:100%;font-family:var(--mono);font-size:13.5px;color:var(--ink);
+  background:#080d0a;border:1px solid var(--line2);border-radius:5px;padding:10px 12px;outline:none;
+  cursor:pointer;transition:border-color .2s;
+}
+.field select:focus{border-color:var(--green-dim)}
+.out-row{
+  display:flex;justify-content:space-between;align-items:baseline;gap:10px;
+  padding:12px 0;border-bottom:1px dashed var(--line);
+}
+.out-row .ok{font-size:12.5px;color:var(--dim)}
+.out-row .ok small{display:block;font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.08em}
+.out-row .ov{font-family:var(--mono);font-size:18px;font-weight:600;color:var(--green);text-align:right}
+.out-row .ov small{font-size:11px;color:var(--faint);font-weight:400;margin-left:4px}
+.out-row.big .ov{font-size:25px;color:var(--amber)}
+.out-row .ov.warn{color:var(--red)}
+.meter{height:9px;border:1px solid var(--line2);border-radius:5px;background:#080d0a;overflow:hidden;margin:10px 0 4px}
+.meter i{display:block;height:100%;width:0%;background:linear-gradient(90deg,var(--green-dim),var(--green));transition:width .3s,background .3s}
+.meter i.hot{background:linear-gradient(90deg,#8a4520,var(--amber))}
+.meter i.over{background:linear-gradient(90deg,#8a2030,var(--red))}
+.meter-cap{font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.04em}
+.calc-formula{
+  grid-column:1/-1;padding:14px 30px;border-top:1px solid var(--line);
+  font-family:var(--mono);font-size:12.5px;color:var(--dim);background:rgba(10,17,13,.8);
+}
+.calc-formula b{color:var(--green);font-weight:500}
+.arch-cards{display:flex;flex-direction:column;gap:14px}
+.arch{
+  border:1px solid var(--line);border-radius:6px;padding:18px 22px;background:var(--panel);
+}
+.arch h5{font-family:var(--disp);font-size:15px;font-weight:600;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.arch h5 .b{font-family:var(--mono);font-size:10px;color:var(--green);border:1px solid var(--green-dim);padding:1px 7px;border-radius:3px}
+.arch p{font-size:12.8px;color:var(--dim);margin-top:8px;line-height:1.7}
+.arch p b{color:var(--ink);font-weight:500}
+.arch p code{font-family:var(--mono);font-size:.9em;color:var(--amber)}
+.arch p a{color:var(--cyan);text-decoration:none;border-bottom:1px dotted rgba(87,216,242,.5)}
+.arch p a:hover{color:var(--green)}
+.arch svg{display:block;width:100%;height:auto;margin-top:12px;background:#080d0a;border-radius:5px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+
+/* ============ §09 终端 / 症状模拟 ============ */
+.term{
+  border:1px solid var(--line);border-radius:8px;background:#070c09;
+  overflow:hidden;display:flex;flex-direction:column;min-width:0;
+  transition:border-color .25s;
+}
+.term:hover{border-color:var(--line2)}
+.term-bar{
+  display:flex;align-items:center;gap:7px;padding:10px 14px;
+  border-bottom:1px solid var(--line);background:rgba(10,16,12,.85);
+}
+.term-bar i{width:10px;height:10px;border-radius:50%}
+.term-bar .d1{background:rgba(255,100,120,.55)}
+.term-bar .d2{background:rgba(255,176,46,.5)}
+.term-bar .d3{background:rgba(52,224,138,.5)}
+.term-bar span{margin-left:8px;font-family:var(--mono);font-size:10.5px;color:var(--faint);letter-spacing:.12em}
+.term-bar .cbtn{margin-left:auto}
+.cbtn{
+  font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--dim);
+  background:transparent;border:1px solid var(--line2);border-radius:5px;padding:6px 12px;
+  cursor:pointer;transition:.18s;
+}
+.cbtn:hover{color:var(--green);border-color:var(--green-dim)}
+.term-body{
+  padding:15px 18px 17px;font-family:var(--mono);font-size:12.2px;
+  line-height:1.95;overflow-x:auto;overflow-y:auto;height:330px;
+  color:var(--ink);
+}
+.t-line{white-space:pre-wrap;word-break:break-all;min-height:1.3em}
+.t-prompt{color:var(--faint);margin-right:9px;user-select:none}
+.t-cmd{color:var(--green)}
+.t-note{color:#516657;margin-left:12px;font-size:11px}
+.t-out{color:var(--dim)}
+.t-hl{color:var(--amber)}
+.t-cursor{display:inline-block;width:8px;height:14px;background:var(--green);vertical-align:-2px;margin-left:2px;animation:blink 1s steps(1) infinite}
+.sim-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:18px;align-items:start;margin-top:26px}
+.sim-stage{position:relative;padding:10px}
+.sim-stage canvas{display:block;width:100%;height:280px;image-rendering:pixelated;position:relative}
+.sim-cap{
+  padding:13px 16px;border-left:2px solid var(--amber);
+  background:rgba(255,176,46,.06);border-radius:0 5px 5px 0;
+  font-size:13px;color:var(--dim);line-height:1.75;margin-top:12px;
+}
+.sim-cap b{color:var(--amber);font-weight:500}
+.sim-cap code{font-family:var(--mono);font-size:.9em;color:var(--cyan)}
+.rules{list-style:none;display:flex;flex-direction:column;gap:10px}
+.rules li{
+  display:flex;gap:12px;align-items:flex-start;padding:11px 14px;
+  border:1px solid var(--line);border-radius:8px;background:var(--panel);
+  font-size:13px;color:var(--dim);line-height:1.7;
+}
+.rules .no{
+  font-family:var(--mono);color:#052013;background:var(--green);border-radius:5px;
+  min-width:22px;height:22px;display:flex;align-items:center;justify-content:center;
+  font-size:12px;flex:none;margin-top:2px;
+}
+.rules b{color:var(--ink);font-weight:500}
+.rules code{font-family:var(--mono);font-size:.9em;color:var(--amber)}
+
+/* ============ §09 踩坑 ============ */
+.pit-list{display:flex;flex-direction:column;gap:12px;margin-top:26px}
+.pit{
+  display:grid;grid-template-columns:74px 1fr;gap:18px;align-items:start;
+  border:1px solid var(--line);border-radius:6px;padding:17px 20px;background:var(--panel);
+  transition:border-color .2s;
+}
+.pit:hover{border-color:rgba(255,100,120,.4)}
+.pit .symptom{
+  font-family:var(--mono);font-size:10px;letter-spacing:.06em;color:var(--red);
+  border:1px solid rgba(255,100,120,.35);border-radius:4px;padding:6px 7px;text-align:center;
+  line-height:1.5;background:rgba(255,100,120,.05);height:fit-content;
+}
+.pit .fix b{display:block;font-size:14px;font-weight:500;color:var(--ink);margin-bottom:4px}
+.pit .fix b code{font-family:var(--mono);font-size:.88em;color:var(--green)}
+.pit .fix p{font-size:12.8px;color:var(--dim);line-height:1.7}
+.pit .fix p code{font-family:var(--mono);font-size:.9em;color:var(--amber)}
+
+/* ============ §10 速查 ============ */
+.notation{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:26px}
+.n-item{border:1px solid var(--line);border-radius:8px;padding:16px 18px;background:var(--panel)}
+.n-item .nv{font-family:var(--mono);font-size:13.5px;color:var(--green);letter-spacing:.01em;line-height:1.6}
+.n-item .nv.a{color:var(--amber)} .n-item .nv.c{color:var(--cyan)}
+.n-item small{display:block;font-size:11.5px;color:var(--faint);margin-top:8px;font-family:var(--mono);line-height:1.7}
+dl.gloss{display:grid;grid-template-columns:repeat(2,1fr);gap:0 30px}
+dl.gloss dt{font-family:var(--mono);color:var(--green);font-size:13px;margin-top:12px}
+dl.gloss dd{color:var(--dim);font-size:12.8px;line-height:1.7;margin-top:2px}
+
+/* ============ footer ============ */
+footer{
+  border-top:1px solid var(--line);padding:44px 6vw 60px;margin-top:40px;
+  display:flex;flex-wrap:wrap;gap:24px;align-items:baseline;justify-content:space-between;
+}
+footer .f-l{font-family:var(--mono);font-size:11.5px;color:var(--faint);line-height:2.1}
+footer .f-l b{color:var(--dim);font-weight:500}
+footer a{color:var(--faint);text-decoration:none;border-bottom:1px dotted var(--faint)}
+footer a:hover{color:var(--green);border-color:var(--green)}
+footer .f-r{font-family:var(--disp);font-weight:700;font-size:22px;color:var(--green)}
+
+/* ============ 响应式 ============ */
+@media (max-width:1000px){
+  .two-col,.lay-grid,.sim-grid,.g2{grid-template-columns:1fr}
+  .lab-body{grid-template-columns:1fr}
+  .readout{border-left:none;border-top:1px solid var(--line)}
+  .calc{grid-template-columns:1fr}
+  .calc .inputs{border-right:none;border-bottom:1px solid var(--line)}
+  .notation{grid-template-columns:1fr}
+}
+@media (max-width:720px){
+  .sig-grid,.fmt-grid,.fact-grid{grid-template-columns:1fr}
+  nav .nav-links{display:none}
+  section{padding:66px 5vw}
+  .sec-head .en{display:none}
+  .bayer-note{grid-template-columns:1fr}
+  dl.gloss{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<nav>
+  <div class="nav-in">
+    <div class="brand">CSI-2<b>·</b>LAB</div>
+    <div class="nav-links">
+      <a href="#s1">概述</a><a href="#s2">信号</a><a href="#s4">帧与包</a><a href="#s5">RAW打包</a><a href="#s6">Lane分发</a><a href="#s7">虚拟通道</a><a href="#s8">配置实战</a><a href="#s9">调试实战</a><a href="#s10">速查</a>
+    </div>
+    <div class="nav-x"><a href="index.html">« HOME</a><a href="i2c.html">I²C</a><a href="spi.html">SPI</a><a href="uart.html">UART</a><a href="ir.html">IR</a><a href="rs485.html">RS-485</a><a href="onewire.html">1-WIRE</a><a href="can.html">CAN</a><a href="i2s.html">I²S</a><a href="dmic.html">DMIC</a><a href="tdm.html">TDM</a><a href="sdio.html">SDIO</a><a href="emmc.html">eMMC</a><a href="ddr.html">DDR</a><a href="rgb.html">RGB</a><a href="lvds.html">LVDS</a><a href="mipi-dsi.html">DSI</a><a href="hdmi.html">HDMI</a><a href="usb.html">USB</a><a href="pcie.html">PCIE</a><a href="jtag.html">JTAG</a></div>
+    <div class="spacer"></div>
+    <div class="live"><i></i>SENSOR&nbsp;STREAM</div>
+  </div>
+</nav>
+
+<main>
+<!-- ================= HERO ================= -->
+<header class="hero">
+  <div class="eyebrow">MIPI CAMERA SERIAL INTERFACE · 图解硬件协议</div>
+  <h1>CSI-2 摄像头串行接口<span class="en">MIPI CSI-2 · CAMERA SERIAL INTERFACE</span></h1>
+  <p class="lede">
+    你的手机摄像头每秒产生上亿字节，却只用几对差分线就送进了 SoC——秘诀是把整帧图像
+    <b>拆成带校验的包</b>：Frame Start 开场，一行一个长包（ECC 护头、CRC 护尾），Frame End 收场。
+    控制面则反向借了一条 <b>I²C</b>。<b>往下滚动：看一帧怎么拆包、10-bit 像素怎么塞进字节流、4 条 lane 怎么分怎么合。</b>
+  </p>
+  <div class="chips">
+    <span><b>1/2/4</b> data lane · 差分</span>
+    <span><b>单向</b> sensor → SoC</span>
+    <span><b>2.5 Gbps</b>/lane（D-PHY v1.2）</span>
+    <span><b>ECC+CRC</b> 双校验</span>
+    <span><b>VC×4</b> 虚拟通道</span>
+  </div>
+  <div class="hero-cta">
+    <a class="btn primary" href="#s4">▶ 进入帧与包动画</a>
+    <a class="btn ghost" href="#s1">从头了解 CSI-2</a>
+  </div>
+  <div class="hero-schema">
+    <svg viewBox="0 0 760 348" xmlns="http://www.w3.org/2000/svg" aria-label="CSI-2 链路示意：sensor 到 SoC">
+      <!-- 芯片 A：sensor -->
+      <g>
+        <rect class="chip-ic" x="52" y="88" width="158" height="168" rx="13"/>
+        <rect x="62" y="98" width="138" height="148" rx="8" fill="none" stroke="rgba(140,162,148,.22)"/>
+        <circle class="lens-ring" cx="131" cy="138" r="24" fill="none" stroke="#34e08a" stroke-width="1.6"/>
+        <circle cx="131" cy="138" r="15" fill="none" stroke="rgba(52,224,138,.5)" stroke-width="1.4"/>
+        <circle cx="131" cy="138" r="6" fill="rgba(255,176,46,.85)"/>
+        <circle class="led" cx="196" cy="102" r="3.5" fill="#34e08a"/>
+        <text class="svg-lab big" x="131" y="190" text-anchor="middle">CMOS SENSOR</text>
+        <text class="svg-lab" x="131" y="210" text-anchor="middle" font-size="10.5">像素阵列 · ADC · 打包</text>
+        <text class="svg-lab ph" x="131" y="228" text-anchor="middle" font-size="10.5">D-PHY TX</text>
+      </g>
+      <!-- 芯片 B：SoC -->
+      <g>
+        <rect class="chip-ic" x="560" y="64" width="150" height="216" rx="13"/>
+        <rect x="570" y="74" width="130" height="196" rx="8" fill="none" stroke="rgba(140,162,148,.22)"/>
+        <circle class="led b" cx="696" cy="78" r="3.5" fill="#ffb02e"/>
+        <text class="svg-lab big" x="635" y="102" text-anchor="middle">SoC</text>
+        <text class="svg-lab ph" x="635" y="126" text-anchor="middle" font-size="10.5">CSI-2 RX · D-PHY</text>
+        <text class="svg-lab" x="635" y="145" text-anchor="middle" font-size="10">解包 · ECC/CRC · Lane 合并</text>
+        <text class="svg-lab" x="635" y="164" text-anchor="middle" font-size="10">ISP 去马赛克 / AWB</text>
+        <text class="svg-lab" x="635" y="183" text-anchor="middle" font-size="10">DMA → 内存</text>
+        <text class="svg-lab cy" x="635" y="207" text-anchor="middle" font-size="10.5">/dev/video0</text>
+        <text class="svg-lab" x="635" y="224" text-anchor="middle" font-size="10" opacity=".65">/dev/v4l-subdev0</text>
+      </g>
+      <!-- CLK± -->
+      <text class="svg-lab ph" x="385" y="104" text-anchor="middle" font-size="11">CLK± · DDR 随路时钟</text>
+      <line class="wire p" x1="212" y1="116" x2="558" y2="116"/>
+      <line class="wire n" x1="212" y1="123" x2="558" y2="123"/>
+      <!-- DATA0± -->
+      <text class="svg-lab cy" x="385" y="152" text-anchor="middle" font-size="11">DATA0± · 最小配置 1 lane</text>
+      <path id="hwp0" d="M212,169 L558,169" fill="none" stroke="rgba(87,216,242,.1)"/>
+      <line class="wire p" x1="212" y1="163" x2="558" y2="163"/>
+      <line class="wire n" x1="212" y1="175" x2="558" y2="175"/>
+      <g id="hp0"></g>
+      <!-- DATA1± -->
+      <text class="svg-lab cy" x="385" y="192" text-anchor="middle" font-size="11">DATA1± · 可扩到 4 lane</text>
+      <path id="hwp1" d="M212,209 L558,209" fill="none" stroke="rgba(87,216,242,.1)"/>
+      <line class="wire p" x1="212" y1="203" x2="558" y2="203"/>
+      <line class="wire n" x1="212" y1="215" x2="558" y2="215"/>
+      <g id="hp1"></g>
+      <!-- CCI -->
+      <path id="hwcc" d="M558,292 L212,292" fill="none" stroke="rgba(255,176,46,.1)"/>
+      <line class="wire ctl" x1="558" y1="292" x2="212" y2="292"/>
+      <text class="svg-lab am" x="385" y="316" text-anchor="middle" font-size="11">CCI = I²C（SCL·SDA）· 反向控制：曝光 / 增益 / 帧率 / MIPI 时序</text>
+      <g id="hpc"></g>
+    </svg>
+  </div>
+  <p class="note">▲ 数据面单向（绿/青线上的包），控制面反向（琥珀虚线上的 I²C 写读）——CSI-2 的全部世界观。D-PHY 电气细节见 <a href="mipi-dsi.html" style="color:var(--amber)">DSI 页</a>。</p>
+  <div class="scroll-hint">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+    SCROLL · 帧与包动画在 04 节
+  </div>
+</header>
+<!-- ================= §01 ================= -->
+<section id="s1">
+  <div class="sec-head reveal"><span class="no">01</span><h2>它是什么，为什么是它</h2><span class="en">What &amp; Why</span></div>
+  <p class="sec-sub reveal">一句话：<b>CSI-2 是 MIPI 联盟定义的摄像头串行接口</b>——把一帧图像拆成带校验的包，经 1–4 对差分线从 sensor 单向灌进 SoC；配置面反向交给一条 I²C。</p>
+  <div class="two-col">
+    <div class="prose reveal">
+      <p>
+        手机后摄、笔记本摄像头、行车记录仪、树莓派 Camera Module——几乎所有 <b>CMOS 摄像头 → SoC</b> 的链路都是
+        MIPI CSI-2（<b>Camera Serial Interface</b>，2005 年首版）。sensor 侧把像素按行打成包、经
+        <span class="kw">D-PHY</span> 串行化送出；SoC 侧接收器解包、校验、按行重组成帧，交给 ISP。
+      </p>
+      <p>
+        为什么不用老的 <b>DVP 并口</b>？1080p@30 RAW10 是约 <b>78 MB/s</b> 的像素流：DVP 需要 11 根以上单端线
+        在 60+ MHz 上同时翻转，EMI、串扰、等长布线全是灾难；CSI-2 用 <span class="kw">2 对差分线</span>（CLK+DATA）
+        就能跑 1 Gbps，4 对可到 10 Gbps——引脚省一半以上，还能折叠着过 FPC 转轴。
+      </p>
+      <p>
+        它与屏幕接口 <a href="mipi-dsi.html">MIPI DSI</a> 是一对<b>反向兄弟</b>：DSI 把像素从 SoC 推给屏，
+        CSI-2 把像素从 sensor 收进 SoC。两者共用同一套 <span class="kw2">D-PHY 物理层</span>——LP/HS 双模式、
+        SoT 同步码、ULPS 低功耗态一模一样，很多 SoC 的 PHY IP 甚至同源。
+        <b>D-PHY 的电气细节本页不重复，<a href="mipi-dsi.html">在 DSI 页有完整拆解</a></b>（若想看并行 RGB 老
+        接口长什么样，见 <a href="rgb.html">RGB 页</a>）。
+      </p>
+    </div>
+    <table class="cmp-table reveal">
+      <tr><th></th><th>CSI-2（MIPI）</th><th>DVP 并口</th></tr>
+      <tr><td>引脚数</td><td class="yes">4–10（CLK+1/2/4 对）+2（I²C）</td><td class="no">12–15+（PCLK/VSYNC/HREF/D[9:0]）</td></tr>
+      <tr><td>带宽上限</td><td class="yes">~10 Gbps（4 lane × 2.5 Gbps）</td><td>≈ 0.7–1.2 Gbps（96 MHz PCLK 到顶）</td></tr>
+      <tr><td>抗干扰</td><td class="yes">差分低压摆幅 · 包内同步码</td><td class="no">单端并口 · 高频串扰/EMI 大</td></tr>
+      <tr><td>功耗</td><td class="yes">HS 摆幅 ~200 mV · 帧间 LP 逃逸</td><td>十几根线满摆幅翻转</td></tr>
+      <tr><td>走线</td><td class="yes">差分对等长压力小 · 可过 FPC 转轴</td><td class="no">10+ 根严格等长 · 难挠曲</td></tr>
+      <tr><td>协议/调试</td><td>组包+ECC+CRC，链路长（§09/§10）</td><td class="yes">无协议层，逻辑分析仪直读</td></tr>
+      <tr><td>典型场景</td><td>手机/嵌入式摄像头、机器人视觉</td><td>低成本 MCU 摄像头、旧平台</td></tr>
+    </table>
+  </div>
+  <div class="fact-grid reveal">
+    <div class="fact"><div class="f-no">FACT / A</div><h4>单向高速 + 双向低速 <code>CSI-2 + CCI</code></h4><p>数据面永远 sensor → SoC 单向；配置面是 MIPI CCI——本质就是 <a href="i2c.html">I²C</a>（100/400 kHz），曝光、增益、PLL、MIPI 时序参数全靠它写 sensor 寄存器。</p></div>
+    <div class="fact"><div class="f-no">FACT / B</div><h4>一切皆包 <code>PACKET</code></h4><p>一帧 = Frame Start 短包 + 若干行长包（PH：DI+WC+ECC；PF：CRC16）+ Frame End 短包。数据与控制统一为包格式——<a href="#s4">§04</a> 逐字段拆给你看。</p></div>
+    <div class="fact"><div class="f-no">FACT / C</div><h4>DSI 的反向兄弟 <code>D-PHY</code></h4><p>与 DSI 共用物理层：LP（1.2 V 慢速）↔ HS（~200 mV 高速突发），SoT 同步码 <code>0x1D</code>。电气与 LP/HS 细节<a href="mipi-dsi.html">见 DSI 页</a>，本页专注相机协议侧。</p></div>
+    <div class="fact"><div class="f-no">FACT / D</div><h4>两个维度都能扩 <code>1/2/4 lane · VC×4</code></h4><p>数据 lane 1/2/4 条，字节轮转分发（<a href="#s6">§06</a>）；包头里还有 2-bit 虚拟通道，一条物理总线能承载最多 4 路独立图像流（<a href="#s7">§07</a>）。</p></div>
+  </div>
+</section>
+
+<!-- ================= §02 ================= -->
+<section id="s2">
+  <div class="sec-head reveal"><span class="no">02</span><h2>信号与拓扑 · 差分对、lane 与那条 I²C</h2><span class="en">Signals &amp; Topology</span></div>
+  <p class="sec-sub reveal">
+    CSI-2 的物理世界：<b>1 对时钟 + 1/2/4 对数据</b>，全部低压差分、全部单向；外加一条 I²C 当"遥控器"。
+    切换下方 lane 数，看总线形态怎么变。<b>每张卡片里的波形都在实时运行。</b>
+  </p>
+  <div class="topo-bar reveal">
+    <div class="ctrl"><label>数据 lane</label>
+      <div class="seg" id="topoSeg">
+        <button data-l="1">1 lane</button>
+        <button data-l="2">2 lane</button>
+        <button data-l="4" class="on">4 lane（主流）</button>
+      </div>
+    </div>
+    <div class="ctrl"><span class="r-note" style="margin:0">lane 越多，每条分到的速率越低 —— 总带宽 ÷ lane 数</span></div>
+  </div>
+  <div class="panel topo-wrap reveal" id="topoBox"></div>
+  <div class="sig-grid">
+    <div class="sig-card c-clk reveal">
+      <div class="scope"><canvas data-diff="clk"></canvas></div>
+      <div class="body">
+        <div class="names"><span class="main">CLK±</span><span class="alias">时钟差分对 · 恒 1 对</span><span class="pin">CLOCK</span></div>
+        <p>发送端随路时钟。空闲时停留在 <b>LP-11</b>（两线皆高）；高速突发的数据字节在接收端按恢复时钟的<b>双沿（DDR）采样</b>——每个沿 1 bit。绿色=P、青色=N：</p>
+        <div class="formula">LP 1.2 V → HS 摆幅 ~200 mV · DDR 双沿采样</div>
+      </div>
+    </div>
+    <div class="sig-card c-dat reveal">
+      <div class="scope"><canvas data-diff="data"></canvas></div>
+      <div class="body">
+        <div class="names"><span class="main">DATA0-3±</span><span class="alias">数据差分对 · 1/2/4 条</span><span class="pin">DATA</span></div>
+        <p>数据 lane。<b>DATA0± 最小配置必有</b>；每条 lane 突发以 <b>SoT 同步码 00011101</b> 开头让接收端对齐字节边界，随后是包的字节流（§06 看分发与合并）：</p>
+        <div class="formula">lane 速率 80 Mbps – 2.5 Gbps（D-PHY v1.2）</div>
+      </div>
+    </div>
+    <div class="sig-card c-cci reveal">
+      <div class="scope"><canvas data-diff="cci"></canvas></div>
+      <div class="body">
+        <div class="names"><span class="main">CCI</span><span class="alias">I²C 兼容控制总线 · 双向</span><span class="pin">CONTROL</span></div>
+        <p>MIPI CCI = <b>缩水版 I²C</b>（7-bit 地址，通常 100/400 kHz）：读 CHIP ID、配曝光/增益/帧率、开关流。开漏 + 上拉，SoC 是唯一主机。时序细节见 <a href="i2c.html" style="color:var(--cyan)">I²C 页</a>：</p>
+        <div class="formula">SCL / SDA · 100–400 kHz · 常见地址 0x10 / 0x36 / 0x6C</div>
+      </div>
+    </div>
+    <div class="sig-card c-aux reveal">
+      <div class="scope">
+        <svg class="psvg" viewBox="0 0 480 84" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono,monospace">
+          <text x="10" y="14" fill="rgba(140,162,148,.7)" font-size="9">上电顺序（典型 sensor，顺序错了 I²C 都读不到）</text>
+          <line x1="30" y1="30" x2="130" y2="30" stroke="#34e08a" stroke-width="2"/>
+          <text x="34" y="26" fill="#34e08a" font-size="8.5">DOVDD(1.8V)</text>
+          <line x1="60" y1="46" x2="180" y2="46" stroke="#57d8f2" stroke-width="2"/>
+          <text x="64" y="42" fill="#57d8f2" font-size="8.5">DVDD(1.1V)</text>
+          <line x1="90" y1="62" x2="250" y2="62" stroke="#ffb02e" stroke-width="2"/>
+          <text x="94" y="58" fill="#ffb02e" font-size="8.5">AVDD(2.8V)</text>
+          <line x1="150" y1="76" x2="330" y2="76" stroke="#ff6478" stroke-width="2"/>
+          <text x="154" y="72" fill="#ff6478" font-size="8.5">XCLR 拉高（复位释放）</text>
+          <line x1="260" y1="30" x2="450" y2="30" stroke="#c792ea" stroke-width="2"/>
+          <text x="264" y="26" fill="#c792ea" font-size="8.5">XCLK 起振 6–27 MHz</text>
+          <line x1="300" y1="46" x2="450" y2="46" stroke="rgba(140,162,148,.7)" stroke-width="2" stroke-dasharray="4 3"/>
+          <text x="304" y="42" fill="rgba(140,162,148,.8)" font-size="8.5">等 5–10 ms → 可 I²C 访问</text>
+        </svg>
+      </div>
+      <div class="body">
+        <div class="names"><span class="main">辅助信号</span><span class="alias">XCLK · XCLR · 三路电源</span><span class="pin">AUX</span></div>
+        <p>除差分对外，sensor 还要 <b>XCLK</b>（SoC 提供的工作时钟）、<b>XCLR</b> 复位脚、<b>DOVDD/DVDD/AVDD</b> 三路电源。上图顺序是 bring-up 的第一课——不满足时连 CCI 都不通：</p>
+        <div class="formula">DOVDD → DVDD → AVDD → XCLR↑ → XCLK → I²C 就绪</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= §03 ================= -->
+<section id="s3">
+  <div class="sec-head reveal"><span class="no">03</span><h2>四层模型 · 一帧图像的协议之旅</h2><span class="en">Layered Model</span></div>
+  <p class="sec-sub reveal">
+    一帧图像从像素阵列到串行比特，要经过四层加工；接收端再原路逆行。
+    <b>点击每一层</b>，看它负责什么、关键机制是什么、在本页哪里能看到它工作。
+  </p>
+  <div class="lay-grid reveal">
+    <div class="layer-stack" id="layerStack"></div>
+    <div class="lay-panel" id="layerPanel"></div>
+  </div>
+</section>
+<!-- ================= §04 核心交互一 ================= -->
+<section id="s4">
+  <div class="sec-head reveal"><span class="no">04</span><h2>帧与包结构动画 · 一帧如何拆成一串包</h2><span class="en">Packet Anatomy</span></div>
+  <p class="sec-sub reveal">
+    这是本页的主秀：一帧 1080p 图像在总线上<b>不是"一张图"，而是一串包</b>——
+    <b style="color:var(--green)">Frame Start 短包</b> 开场 →
+    <b style="color:var(--cyan)">行长包</b>（PH 报头 + payload + PF 校验）一行接一行 →
+    <b style="color:var(--green)">Frame End 短包</b> 收场。
+    动画逐字段推进：上半部分展开当前包的每个字段，下半部分是整帧的"胶片条"；<b>▶/❚❚ 播放，⏭ 单步逐字段</b>。
+  </p>
+  <div class="lab reveal">
+    <div class="lab-bar">
+      <div class="ctrl">
+        <button class="icon-btn play on" id="pkPlay" title="暂停/播放">❚❚</button>
+        <button class="icon-btn" id="pkStep" title="单步：下一字段">⏭</button>
+      </div>
+      <div class="ctrl"><label>速度</label><input type="range" id="pkSpeed" min="0.4" max="3" step="0.1" value="1"></div>
+      <div class="ctrl"><label>包类型</label>
+        <div class="seg" id="pkSeg">
+          <button data-t="all" class="on">整帧回放</button>
+          <button data-t="short">只看短包</button>
+          <button data-t="long">只看行长包</button>
+        </div>
+      </div>
+    </div>
+    <div class="lab-body">
+      <div class="scope-main">
+        <canvas id="pkCanvas"></canvas>
+        <div class="pk-cap" id="pkCap">—</div>
+      </div>
+      <div class="readout">
+        <div class="r-title">RECEIVER · 实时解码</div>
+        <div class="r-row"><span class="k">当前包</span><span class="v g" id="rPkName">Frame Start</span></div>
+        <div class="r-row"><span class="k">DATA TYPE</span><span class="v c" id="rPkDT">0x00</span></div>
+        <div class="r-row"><span class="k">WC / 帧号</span><span class="v" id="rPkWC">—</span></div>
+        <div class="r-row"><span class="k">PH 校验 ECC</span><span class="v a" id="rPkECC">—</span></div>
+        <div class="r-row"><span class="k">PF 校验 CRC</span><span class="v" id="rPkCRC">—</span></div>
+        <div class="r-row"><span class="k">帧 / 行</span><span class="v" id="rPkFL">—</span></div>
+        <div class="r-note">
+          <b>结构</b>：短包 = 只有 24-bit PH；长包 = PH + payload(WC 字节) + PF。
+          演示行长 <b>12 B</b>（看清每字节），真实 1080p RAW10 = 2400 B/行 × 1080 行。
+        </div>
+      </div>
+    </div>
+    <div class="lab-foot">
+      <div class="legend"><i style="background:var(--green)"></i>FS / FE 短包</div>
+      <div class="legend"><i style="background:var(--cyan)"></i>行长包 payload</div>
+      <div class="legend"><i style="background:var(--amber)"></i>PH 字段（DI·WC·ECC）</div>
+      <div class="legend"><i style="background:var(--red);height:8px;width:8px;border-radius:50%"></i>当前包</div>
+      <div class="legend">底部胶片条 = 整帧包序列</div>
+    </div>
+  </div>
+  <div class="rule-callout reveal" style="margin-top:26px;display:grid;grid-template-columns:auto 1fr;gap:22px;align-items:center;border:1px solid rgba(255,176,46,.3);border-radius:8px;padding:20px 26px;background:linear-gradient(120deg,rgba(255,176,46,.06),transparent 60%)">
+    <div class="mnemonic" style="font-family:var(--disp);font-weight:700;font-size:clamp(19px,2.6vw,26px);color:var(--amber);letter-spacing:.08em;white-space:nowrap">ECC 护头 · CRC 护尾<small style="display:block;font-size:11px;font-weight:500;color:var(--faint);letter-spacing:.24em;margin-top:6px;font-family:var(--mono)">MNEMONIC</small></div>
+    <p style="font-size:13.5px;color:var(--dim)">
+      报头（PH）是整包的命脉——错 1 bit 整包报废，所以用 <b>8-bit ECC 汉明码，可纠 1 位错</b>；
+      payload 只需检错，用 <b>16-bit CRC-CCITT</b>，校验失败丢弃整行（表现为图像上撕掉一行，见 §09 模拟器）。
+      记住这两条，任何 CSI-2 抓包都能分段读懂。
+    </p>
+  </div>
+</section>
+
+<!-- ================= §05 核心交互二 ================= -->
+<section id="s5">
+  <div class="sec-head reveal"><span class="no">05</span><h2>RAW 打包器 · 10-bit 像素怎么塞进字节流</h2><span class="en">Pixel Packing</span></div>
+  <p class="sec-sub reveal">
+    像素不是 8 的整数倍位宽怎么办？<b>RAW10 用 5 个字节装 4 个像素</b>：高 8 位各占一字节，4 个像素的低 2 位拼成第 5 字节。
+    切换格式看字节流怎么变——<b>颜色标记了每个字节的比特来自哪个像素</b>。
+  </p>
+  <div class="lab reveal">
+    <div class="lab-bar">
+      <div class="ctrl"><label>格式</label>
+        <div class="seg" id="rawSeg">
+          <button data-f="8">RAW8 · 1 B/px</button>
+          <button data-f="10" class="on">RAW10 · 1.25 B/px</button>
+          <button data-f="12">RAW12 · 1.5 B/px</button>
+        </div>
+      </div>
+      <div class="ctrl">
+        <button class="icon-btn play on" id="rawPlay" title="暂停/播放">❚❚</button>
+        <button class="icon-btn" id="rawStep" title="单步：下一字节">⏭</button>
+      </div>
+      <div class="ctrl"><label>速度</label><input type="range" id="rawSpeed" min="0.4" max="3" step="0.1" value="1"></div>
+    </div>
+    <div class="lab-body" style="grid-template-columns:1fr">
+      <div class="scope-main">
+        <canvas id="rawCanvas"></canvas>
+        <div class="info-bar" id="rawInfo">—</div>
+      </div>
+    </div>
+    <div class="lab-foot">
+      <div class="legend"><i style="background:#34e08a"></i>P0</div>
+      <div class="legend"><i style="background:#57d8f2"></i>P1</div>
+      <div class="legend"><i style="background:#ffb02e"></i>P2</div>
+      <div class="legend"><i style="background:#ff6478"></i>P3</div>
+      <div class="legend">↑ 下方字节的颜色 = 它的比特来自哪个像素</div>
+    </div>
+  </div>
+  <div class="bayer-note reveal">
+    <svg width="96" height="64" viewBox="0 0 96 64" xmlns="http://www.w3.org/2000/svg" style="display:block">
+      <rect x="4" y="4" width="42" height="26" fill="rgba(255,100,120,.3)" stroke="rgba(255,100,120,.7)"/>
+      <rect x="50" y="4" width="42" height="26" fill="rgba(52,224,138,.25)" stroke="rgba(52,224,138,.6)"/>
+      <rect x="4" y="34" width="42" height="26" fill="rgba(52,224,138,.25)" stroke="rgba(52,224,138,.6)"/>
+      <rect x="50" y="34" width="42" height="26" fill="rgba(87,216,242,.22)" stroke="rgba(87,216,242,.55)"/>
+      <text x="25" y="21" text-anchor="middle" fill="#ff6478" font-size="12" font-family="IBM Plex Mono">R</text>
+      <text x="71" y="21" text-anchor="middle" fill="#34e08a" font-size="12" font-family="IBM Plex Mono">Gr</text>
+      <text x="25" y="51" text-anchor="middle" fill="#34e08a" font-size="12" font-family="IBM Plex Mono">Gb</text>
+      <text x="71" y="51" text-anchor="middle" fill="#57d8f2" font-size="12" font-family="IBM Plex Mono">B</text>
+    </svg>
+    <p>
+      别忘了 RAW 图像的另一个前提：<b>每个像素只是 Bayer 阵列里的单色分量</b>（R / Gr / Gb / B 按上图 2×2 排列），
+      每像素一个 10/12-bit 值。把 RAW10 当 RAW8 解、或者 Bayer 起点配错（RGGB ↔ BGGR），就是 §09 里"偏色/马赛克"的病因。
+      颜色重建（去马赛克）在 SoC 的 ISP 里做，不在链路上做。
+    </p>
+  </div>
+</section>
+
+<!-- ================= §06 核心交互三 ================= -->
+<section id="s6">
+  <div class="sec-head reveal"><span class="no">06</span><h2>Lane 分发动画 · 字节流的分与合</h2><span class="en">Lane Distribution</span></div>
+  <p class="sec-sub reveal">
+    多 lane 不是"每条 lane 传半张图"，而是<b>字节级轮转（round-robin）</b>：B0→lane0、B1→lane1、B2→lane2、B3→lane3、B4→lane0 …
+    接收端按同样顺序取回，字节流完全复原。切 4/2/1 lane，看同一串字节怎么走不同的路——<b>字节颜色 = 它在原始流里的位置（mod 4）</b>。
+  </p>
+  <div class="lab reveal">
+    <div class="lab-bar">
+      <div class="ctrl"><label>lane 数</label>
+        <div class="seg" id="laneSeg">
+          <button data-l="1">1 lane</button>
+          <button data-l="2">2 lane</button>
+          <button data-l="4" class="on">4 lane</button>
+        </div>
+      </div>
+      <div class="ctrl">
+        <button class="icon-btn play on" id="lanePlay" title="暂停/播放">❚❚</button>
+      </div>
+      <div class="ctrl"><label>速度</label><input type="range" id="laneSpeed" min="0.4" max="2.4" step="0.1" value="1"></div>
+    </div>
+    <div class="lab-body" style="grid-template-columns:1fr">
+      <div class="scope-main">
+        <canvas id="laneCanvas"></canvas>
+        <div class="info-bar" id="laneInfo">—</div>
+      </div>
+    </div>
+    <div class="lab-foot">
+      <div class="legend"><i style="background:#34e08a"></i>i mod 4 = 0</div>
+      <div class="legend"><i style="background:#57d8f2"></i>i mod 4 = 1</div>
+      <div class="legend"><i style="background:#ffb02e"></i>i mod 4 = 2</div>
+      <div class="legend"><i style="background:#c792ea"></i>i mod 4 = 3</div>
+      <div class="legend">SoT = 每条 lane 各自的同步头 00011101</div>
+    </div>
+  </div>
+  <div class="fmt-note reveal" style="margin-top:26px;padding:18px 22px;border-left:2px solid var(--red);background:rgba(255,100,120,.05);border-radius:0 6px 6px 0;font-size:13.5px;color:var(--dim)">
+    <b style="color:var(--red)">为什么断一条 lane = 条纹花屏：</b>lane 断开后，属于它的每 4 个字节就坏 1 个（<code style="font-family:var(--mono);font-size:.9em;color:var(--amber)">i mod 4</code> 全中），
+    字节流周期性缺损——ISP 端表现为规律条纹。这也是调试时"<b>条纹 = 查 lane</b>"的由来（§09 有模拟）。另有 <b>lane 映射</b>与<b>极性</b>两个孪生坑：D0-D3 接错顺序或 P/N 反，症状与断 lane 几乎一样。
+  </div>
+</section>
+<!-- ================= §07 ================= -->
+<section id="s7">
+  <div class="sec-head reveal"><span class="no">07</span><h2>虚拟通道 VC · 一条总线，多只眼睛</h2><span class="en">Virtual Channels</span></div>
+  <p class="sec-sub reveal">
+    包头 DI 的最高 2 位是 <b>VC 编号</b>：同一条物理总线上最多 4 路独立图像流（4 个 sensor 经聚合、或一个 sensor 的图像+HDR 多曝光+元数据行）。
+    接收端按 VC 把包<b>分拣</b>到不同缓冲/不同 video 节点。勾选下方传感器，看总线时隙怎么分配。
+  </p>
+  <div class="lab reveal">
+    <div class="lab-bar">
+      <label class="chk"><input type="checkbox" id="vcT0" checked> VC0 · 主摄 1080p</label>
+      <label class="chk"><input type="checkbox" id="vcT1" checked> VC1 · 副摄 VGA</label>
+      <label class="chk"><input type="checkbox" id="vcT2"> VC2 · 元数据 EBD</label>
+      <div class="ctrl">
+        <button class="icon-btn play on" id="vcPlay" title="暂停/播放">❚❚</button>
+      </div>
+      <div class="ctrl"><label>速度</label><input type="range" id="vcSpeed" min="0.3" max="2.5" step="0.1" value="1"></div>
+    </div>
+    <div class="lab-body">
+      <div class="scope-main"><canvas id="vcCanvas"></canvas></div>
+      <div class="readout">
+        <div class="r-title">DEMUX · 实时分拣</div>
+        <div class="r-row"><span class="k">当前 VC</span><span class="v g" id="rVcVc">—</span></div>
+        <div class="r-row"><span class="k">DATA TYPE</span><span class="v c" id="rVcDt">—</span></div>
+        <div class="r-row"><span class="k">分拣去向</span><span class="v a" id="rVcBuf">—</span></div>
+        <div class="r-row"><span class="k">已收帧数</span><span class="v" id="rVcCnt">—</span></div>
+        <div class="r-note">
+          <b>规则</b>：同一时刻只有一路在发送；接收端只认 <b>DI[7:6]</b>，与 lane、与顺序无关。四个 VC 全开时要算总带宽（§08 计算器相加）。
+        </div>
+      </div>
+    </div>
+    <div class="lab-foot">
+      <div class="legend"><i style="background:#34e08a"></i>VC0 主摄流</div>
+      <div class="legend"><i style="background:#ffb02e"></i>VC1 副摄流</div>
+      <div class="legend"><i style="background:#c792ea"></i>VC2 元数据（DT 0x12）</div>
+      <div class="legend"><i style="background:var(--red);height:8px;width:8px;border-radius:50%"></i>解码探针</div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= §08 ================= -->
+<section id="s8">
+  <div class="sec-head reveal"><span class="no">08</span><h2>Sensor Bring-Up · 从上电到出图</h2><span class="en">Bring-Up &amp; Bandwidth</span></div>
+  <p class="sec-sub reveal">
+    出图之前先回答两个问题：<b>带宽够不够</b>（lane 速率是否在两端 PHY 能力内）、<b>参数对不对</b>（曝光/帧率、mipi_clk、settle、LP 逃逸）。
+    先用计算器把数算死，再按右侧三张卡走配置链。
+  </p>
+  <div class="calc reveal">
+    <div class="inputs">
+      <h5>INPUT · 输入</h5>
+      <div class="field"><label>分辨率</label>
+        <select id="cRes">
+          <option value="640x480">640 × 480 · VGA</option>
+          <option value="1280x720">1280 × 720 · HD</option>
+          <option value="1920x1080" selected>1920 × 1080 · FHD</option>
+          <option value="2592x1944">2592 × 1944 · 5MP</option>
+          <option value="3840x2160">3840 × 2160 · 4K UHD</option>
+        </select>
+      </div>
+      <div class="field"><label>帧率</label>
+        <select id="cFps">
+          <option>15</option><option>24</option><option selected>30</option><option>60</option>
+        </select>
+      </div>
+      <div class="field"><label>像素格式</label>
+        <select id="cFmt">
+          <option value="1" data-bpp="1">RAW8 · 1.00 B/px</option>
+          <option value="1.25" data-bpp="1.25" selected>RAW10 · 1.25 B/px（主流）</option>
+          <option value="1.5" data-bpp="1.5">RAW12 · 1.50 B/px</option>
+          <option value="2" data-bpp="2">YUV422 8-bit · 2 B/px</option>
+          <option value="3" data-bpp="3">RGB888 · 3 B/px</option>
+        </select>
+      </div>
+      <div class="field"><label>数据 lane</label>
+        <select id="cLane">
+          <option value="1">1 lane</option>
+          <option value="2">2 lane</option>
+          <option value="4" selected>4 lane</option>
+        </select>
+      </div>
+    </div>
+    <div class="outputs">
+      <h5>OUTPUT · 输出</h5>
+      <div class="out-row big"><span class="ok">每 lane 速率（含 20% 消隐/协议开销）<small>PER-LANE RATE</small></span><span class="ov" id="oLane">—<small>Mbps</small></span></div>
+      <div class="meter"><i id="oMeter"></i></div>
+      <div class="meter-cap" id="oMeterCap">标尺 0 – 2500 Mbps（D-PHY v1.2 每 lane 上限）</div>
+      <div class="out-row"><span class="ok">净像素带宽<small>NET PAYLOAD</small></span><span class="ov" id="oNet">—<small>MB/s</small></span></div>
+      <div class="out-row"><span class="ok">像素率<small>PIXEL RATE</small></span><span class="ov" id="oPx">—<small>Mpx/s</small></span></div>
+      <div class="out-row"><span class="ok">DVP 等效像素时钟<small>IF IT WERE DVP</small></span><span class="ov" id="oDvp">—<small>MHz</small></span></div>
+    </div>
+    <div class="calc-formula">每 lane ≈ 宽×高×fps×Bpp×8×<b>1.2</b> ÷ lane 数 · <span id="fExpr">—</span></div>
+  </div>
+  <div class="g2" style="margin-top:26px">
+    <div class="arch-cards reveal">
+      <div class="arch">
+        <h5><span class="b">STEP 1</span>上电时序</h5>
+        <p><b>DOVDD → DVDD → AVDD</b> 依次上电（XCLR 保持低），随后 <code>XCLR</code> 拉高、<code>XCLK</code> 起振，等 5–10 ms 让 sensor 内部 boot 完成——<b>然后 CCI 才可访问</b>。第一件事：I²C 读 CHIP ID 寄存器，确认地址与供电都对（ID 都读不到，别谈 MIPI）。上电曲线见 §02 第四张卡。</p>
+      </div>
+      <div class="arch">
+        <h5><span class="b">STEP 2</span>CCI 配置链（I²C）</h5>
+        <p>按 datasheet 的<b>推荐寄存器序列</b>走：<code>PLL/时钟树 → mipi_clk 分频 → 曝光/增益 → 帧率(HTS/VTS) → MIPI 时序 → stream on</code>。曝光与帧率强耦合：<b>帧率 = PIXCLK ÷ (HTS × VTS)</b>，曝光行数 &gt; VTS 会被强制拉低帧率。I²C 时序/调试工具见 <a href="i2c.html">I²C 页</a>。</p>
+      </div>
+      <div class="arch">
+        <h5><span class="b">STEP 3</span>MIPI 时序三件事</h5>
+        <p>① <b>mipi_clk</b>：两端 PHY 的 lane 速率档位要都能覆盖（用左侧计算器核对）；② <b>settle time</b>：接收端的 <code>HS-SETTLE</code> 采样窗口必须罩住 sensor 的 <code>T_HS_PREPARE + T_HS_ZERO</code>——窗口错位是"无图"第一病因；③ <b>LP 逃逸</b>：帧与帧之间 lane 停在 <code>LP-11</code> 省电，长空闲可进 ULPS，回来要重新 SoT。</p>
+        <svg viewBox="0 0 460 128" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono,monospace">
+          <text x="8" y="14" fill="rgba(140,162,148,.7)" font-size="9">DATA± · HS settle 窗口（黄色区）必须罩住 SoT 起始</text>
+          <line x1="8" y1="30" x2="120" y2="30" stroke="#ffb02e" stroke-width="2"/>
+          <text x="10" y="26" fill="rgba(255,176,46,.8)" font-size="8.5">LP-11 逃逸</text>
+          <path d="M120,30 L150,58 L162,44 L174,66 L186,44 L198,66 L210,44 L222,66 L234,44 L252,58 L266,44 L278,66 L290,44 L302,66 L314,44 L326,66 L338,44 L356,58 L370,44 L382,66 L394,44 L406,66 L418,44 L430,58" fill="none" stroke="#57d8f2" stroke-width="1.8"/>
+          <rect x="120" y="34" width="120" height="44" fill="rgba(255,176,46,.14)" stroke="rgba(255,176,46,.45)" stroke-dasharray="4 3"/>
+          <text x="128" y="50" fill="#ffb02e" font-size="8.5">RX HS-SETTLE 窗口</text>
+          <text x="120" y="96" fill="rgba(140,162,148,.8)" font-size="8.5">SoT = 0b00011101，之后按字节流</text>
+          <text x="120" y="110" fill="rgba(140,162,148,.55)" font-size="8.5">窗口太早→采到 LP 毛刺 · 太晚→错过 SoT，两种都"无图"</text>
+        </svg>
+      </div>
+    </div>
+    <div class="arch-cards reveal">
+      <div class="arch">
+        <h5><span class="b">形态 A</span>单 sensor 直连</h5>
+        <p>1–4 lane 差分 + CCI，最常见。树莓派 CM4 / IMX219、STM32MP1 + OV5640 都是这套。<b>lane 数由 sensor 引脚决定</b>，很多 sensor 2-lane 可配成 4-lane 输出减半速率。</p>
+      </div>
+      <div class="arch">
+        <h5><span class="b">形态 B</span>多摄聚合 · VC 复用</h5>
+        <p>手机多摄经 <b>聚合器/桥接芯片</b>（如 Sony CSA、虚谷桥）把 2–4 个 sensor 打上不同 VC 挤进同一条 CSI 总线——对应 §07 的时隙图。带宽是所有 VC 之和，务必用左侧计算器相加后再核 PHY 能力。</p>
+      </div>
+      <div class="arch">
+        <h5><span class="b">形态 C</span>SoC 侧 · CSI RX 控制器</h5>
+        <p>设备树三件套：<b>lane 数</b>（<code>data-lanes = &lt;1 2 3 4&gt;</code>）、<b>lane 映射/极性</b>（物理顺序 ≠ 逻辑顺序的重灾区）、<b>settle</b>（<code>mipi-in,hs-settle</code> 等属性，单位按平台 ns/clk）。RK/Allwinner/NXP 各家名字不同，调"无图"时永远第一个回来看它。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= §09 ================= -->
+<section id="s9">
+  <div class="sec-head reveal"><span class="no">09</span><h2>Linux 调试实战 · v4l2 / media-ctl</h2><span class="en">Linux Debug</span></div>
+  <p class="sec-sub reveal">
+    CSI-2 在 Linux 里是 <b>media controller 拓扑</b>：sensor 子设备 → CSI-2 RX → ISP → video 节点，
+    <b>每一环的格式都要手动对齐</b>。下面虚拟终端回放一次完整 bring-up——出错时按右边的"四步定位法"走。
+  </p>
+  <div class="panel reveal" style="margin-bottom:18px">
+    <svg viewBox="0 0 900 96" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono,monospace" style="display:block">
+      <rect x="10" y="24" width="130" height="46" rx="7" fill="rgba(52,224,138,.06)" stroke="rgba(52,224,138,.5)"/>
+      <text x="75" y="43" text-anchor="middle" fill="#dcebe1" font-size="11">imx219 sensor</text>
+      <text x="75" y="59" text-anchor="middle" fill="rgba(140,162,148,.8)" font-size="8.5">/dev/v4l-subdev0</text>
+      <line x1="142" y1="47" x2="200" y2="47" stroke="rgba(87,216,242,.7)" stroke-width="1.6"/>
+      <text x="171" y="38" text-anchor="middle" fill="#57d8f2" font-size="8">CSI-2</text>
+      <rect x="202" y="24" width="130" height="46" rx="7" fill="rgba(87,216,242,.05)" stroke="rgba(87,216,242,.45)"/>
+      <text x="267" y="43" text-anchor="middle" fill="#dcebe1" font-size="11">CSI-2 RX / D-PHY</text>
+      <text x="267" y="59" text-anchor="middle" fill="rgba(140,162,148,.8)" font-size="8.5">解包·ECC/CRC·Lane 合并</text>
+      <line x1="334" y1="47" x2="392" y2="47" stroke="rgba(140,162,148,.6)" stroke-width="1.6"/>
+      <rect x="394" y="24" width="130" height="46" rx="7" fill="rgba(52,224,138,.05)" stroke="rgba(52,224,138,.4)"/>
+      <text x="459" y="43" text-anchor="middle" fill="#dcebe1" font-size="11">ISP / resizer</text>
+      <text x="459" y="59" text-anchor="middle" fill="rgba(140,162,148,.8)" font-size="8.5">去马赛克 / AWB</text>
+      <line x1="526" y1="47" x2="584" y2="47" stroke="rgba(140,162,148,.6)" stroke-width="1.6"/>
+      <rect x="586" y="24" width="150" height="46" rx="7" fill="rgba(255,176,46,.05)" stroke="rgba(255,176,46,.45)"/>
+      <text x="661" y="43" text-anchor="middle" fill="#dcebe1" font-size="11">video capture 节点</text>
+      <text x="661" y="59" text-anchor="middle" fill="rgba(255,176,46,.9)" font-size="9">/dev/video0</text>
+      <line x1="738" y1="47" x2="790" y2="47" stroke="rgba(140,162,148,.6)" stroke-width="1.6" marker-end="url(#arS9)"/>
+      <defs><marker id="arS9" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="rgba(140,162,148,.6)"/></marker></defs>
+      <text x="812" y="51" fill="rgba(140,162,148,.8)" font-size="10">frame.raw</text>
+      <text x="10" y="86" fill="rgba(92,114,100,.9)" font-size="8.5">媒体拓扑环环相扣：任何一环的格式/尺寸不一致，都表现为无图或花屏 —— media-ctl -p 是第一现场</text>
+    </svg>
+  </div>
+  <div class="term reveal">
+    <div class="term-bar"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span>bring-up@target:~ — 自动回放</span><button class="cbtn" id="btnTermReplay">↺ 重放</button></div>
+    <div class="term-body" id="termBody"></div>
+  </div>
+  <div class="sim-grid">
+    <div class="lab">
+      <div class="lab-bar">
+        <div class="ctrl"><label>故障注入</label>
+          <div class="seg" id="simSeg">
+            <button data-sim="ok" class="on">正常</button>
+            <button data-sim="tear">撕裂</button>
+            <button data-sim="stripe">条纹</button>
+            <button data-sim="tint">偏色</button>
+            <button data-sim="none">无图</button>
+          </div>
+        </div>
+      </div>
+      <div class="scope-main sim-stage">
+        <canvas id="simCanvas"></canvas>
+        <div class="sim-cap" id="simCap">—</div>
+      </div>
+    </div>
+    <div>
+      <h5 style="font-family:var(--disp);font-size:15.5px;font-weight:600;margin-bottom:12px">四步定位法 · 按命中率排序</h5>
+      <ul class="rules">
+        <li><span class="no">1</span><span><b>CCI 通不通</b>：i2cdetect 扫地址、读 CHIP ID（见 <a href="i2c.html" style="color:var(--cyan)">I²C 页</a>）。ID 都读不到 = 上电/XCLR/XCLK/地址错，与 MIPI 无关。</span></li>
+        <li><span class="no">2</span><span><b>dmesg 错误计数</b>：<code>ECC err / CRC err / fifo overflow</code> 三类计数各有指向——ECC/RC 涨 = 链路层错，往下查 settle/信号；只有 overflow = 带宽不够（回 §08 计算器）。</span></li>
+        <li><span class="no">3</span><span><b>media-ctl 全链核对</b>：sensor pad、CSI RX、ISP、video 节点四处格式必须一致（都是 SRGGB10_1X10/1920x1080）。一处 RAW10 一处 RAW8 = 偏色，一处 800×600 一处 1080p = 撕裂。</span></li>
+        <li><span class="no">4</span><span><b>v4l2 开流验证</b>：<code>--stream-mmap --stream-to</code> 抓帧，用 <code>--stream-to</code> 的文件核对字节数 = 宽×高×Bpp；fps 达不到 = 曝光/带宽顶到头。</span></li>
+      </ul>
+    </div>
+  </div>
+  <div class="pit-list">
+    <div class="pit"><div class="symptom">完全<br>无图</div><div class="fix"><b>黑屏 / 无帧 · settle、供电、初始化序列</b><p>三连查：① RX 的 <code>HS-SETTLE</code> 窗口与 sensor 的 <code>T_HS_PREPARE/ZERO</code> 不匹配（最常见）；② 上电时序/XCLR 没做对，连 I²C 都不通；③ 寄存器初始化序列没发全（PLL 没 lock 就 stream on）。先用 §09 四步定位法第 1 步分层。</p></div></div>
+    <div class="pit"><div class="symptom">图像<br>撕裂</div><div class="fix"><b>每帧错位 / 斜着撕开 · CRC 错或行长配错</b><p>行长包 <code>WC ≠ 宽×Bpp</code> 时，行边界逐行漂移，图像整体"斜切"；CRC 校验失败则整行被丢。查 media-ctl 四处格式是否一致、dmesg 的 CRC 计数、以及 ISP FIFO 是否溢出。</p></div></div>
+    <div class="pit"><div class="symptom">花屏<br>条纹</div><div class="fix"><b>规律竖条纹 · lane 断 / 映射错 / 极性反</b><p>4 lane 断 1 根 = 每 4 字节坏 1 个（见 §06 演示）；<code>data-lanes</code> 物理顺序与逻辑顺序不一致、P/N 接反，症状相同。查 dts lane-map、FPC 焊接、示波器量各 lane 的 SoT。</p></div></div>
+    <div class="pit"><div class="symptom">偏色<br>马赛克</div><div class="fix"><b>颜色错乱 / 过曝条带 · RAW 格式或 Bayer 配错</b><p>sensor 出 RAW10，SoC 按 RAW8 解（或位序反了）→ 像素边界错位、偏色；Bayer 起点 RGGB↔BGGR 配反 → 红蓝对调、格子马赛克。核对 <code>pixelformat=RG10</code> 与 media pad 的 <code>SRGGB10_1X10</code>。</p></div></div>
+    <div class="pit"><div class="symptom">间歇<br>丢帧</div><div class="fix"><b>偶尔黑帧 / 跳变 · LP 逃逸与 EMI</b><p>帧间隙 LP↔HS 切换处最脆弱：settle 边缘抖动、临近高速走线串扰都会偶发丢 SoT。也查 <code>frame number</code>（§04 FS 包字段）是否连续——跳号=丢帧实锤，多为链路层间歇错。</p></div></div>
+    <div class="pit"><div class="symptom">帧率<br>上不去</div><div class="fix"><b>fps 锁死低值 · 带宽顶到头 / 曝光限制</b><p>① lane 速率已到 PHY 上限（回 §08 计算器，只能加 lane 或降格式）；② 低光下自动曝光把曝光行数拉满，帧率被 VTS 拖住——这是 sensor 行为不是 bug；③ 每帧用 I²C 改寄存器太频繁，占住 CCI。</p></div></div>
+  </div>
+</section>
+
+<!-- ================= §10 ================= -->
+<section id="s10">
+  <div class="sec-head reveal"><span class="no">10</span><h2>速查表 · DATA TYPE 与铁律</h2><span class="en">Cheat Sheet</span></div>
+  <div class="notation reveal">
+    <div class="n-item"><div class="nv">lane速率 = W×H×fps×Bpp×8×1.2 ÷ lanes</div><small>带宽心算式（1.2 = 消隐+包开销）· RAW10 Bpp=1.25、RAW12=1.5、YUV422=2</small></div>
+    <div class="n-item"><div class="nv a">RAW10：4 px × 10 bit → 5 字节</div><small>B0..B3 = P0..P3[9:2]，B4 = 四个像素的 [1:0] 拼装（见 §05）</small></div>
+    <div class="n-item"><div class="nv c">DI[7:6]=VC · DI[5:0]=DT</div><small>包头第一字节的两重身份：虚拟通道 + 数据类型（见 §04/§07）</small></div>
+  </div>
+  <div class="g2 reveal">
+    <div>
+      <h5 style="font-family:var(--disp);font-size:15.5px;font-weight:600;margin-bottom:12px">DATA TYPE 码表（CSI-2 v2.x 常用部分）</h5>
+      <table class="cmp-table">
+        <tr><th>DT</th><th>含义</th><th>包型</th></tr>
+        <tr><td>0x00 / 0x01</td><td>Frame Start / Frame End</td><td>短包</td></tr>
+        <tr><td>0x02 / 0x03</td><td>Line Start / Line End（很少用）</td><td>短包</td></tr>
+        <tr><td>0x08–0x0F</td><td>通用短包（时间戳等）</td><td>短包</td></tr>
+        <tr><td>0x10 / 0x11</td><td>通用长包数据流</td><td>长包</td></tr>
+        <tr><td>0x12</td><td>嵌入式 8-bit 非图像数据（元数据行）</td><td>长包</td></tr>
+        <tr><td>0x18 / 0x19</td><td>YUV420 8-bit / 10-bit</td><td>长包</td></tr>
+        <tr><td>0x1E / 0x1F</td><td>YUV422 8-bit / 10-bit</td><td>长包</td></tr>
+        <tr><td>0x22 / 0x24</td><td>RGB565 / RGB888</td><td>长包</td></tr>
+        <tr><td>0x2A</td><td>RAW8</td><td>长包</td></tr>
+        <tr><td>0x2B</td><td class="yes">RAW10（sensor 最主流）</td><td>长包</td></tr>
+        <tr><td>0x2C / 0x2D / 0x2E</td><td>RAW12 / RAW14 / RAW16</td><td>长包</td></tr>
+        <tr><td>0x30–0x37</td><td>用户自定义字节流（JPEG 等）</td><td>长包</td></tr>
+      </table>
+    </div>
+    <div>
+      <h5 style="font-family:var(--disp);font-size:15.5px;font-weight:600;margin-bottom:12px">八条铁律</h5>
+      <ul class="rules">
+        <li><span class="no">1</span><span><b>数据单向，控制反向</b>：CSI-2 管 sensor→SoC，CCI(I²C) 管 SoC→sensor</span></li>
+        <li><span class="no">2</span><span><b>一切皆包</b>：FS 短包开场 → 每行一个长包 → FE 短包收场</span></li>
+        <li><span class="no">3</span><span><b>PH = DI+WC+ECC</b>：ECC 汉明码可纠 1 位——报头必须保住</span></li>
+        <li><span class="no">4</span><span><b>PF = CRC16-CCITT</b>：只检错；CRC 失败丢整行 → 图像撕一行</span></li>
+        <li><span class="no">5</span><span><b>行长 = WC</b>：必须等于 宽×Bpp，否则逐行错位"斜切"</span></li>
+        <li><span class="no">6</span><span><b>lane 是字节轮转</b>：B_i 走 lane (i mod N)，断一根 = 每 N 字节坏一个</span></li>
+        <li><span class="no">7</span><span><b>VC 在 DI[7:6]</b>：一条总线 4 路流，接收端只认这 2 bit 分拣</span></li>
+        <li><span class="no">8</span><span><b>settle 罩住 SoT</b>：HS-SETTLE 窗口错位 = 无图，调不出先查它</span></li>
+      </ul>
+    </div>
+  </div>
+  <div class="panel reveal" style="margin-top:18px">
+    <h5 style="font-family:var(--disp);font-size:15.5px;font-weight:600;margin-bottom:4px">术语表 GLOSSARY</h5>
+    <dl class="gloss">
+      <dt>SoT / EoT</dt><dd>Start/End of Transmission：每个 lane 突发开头的同步码 0b00011101（SoT），接收端靠它对齐字节边界</dd>
+      <dt>LP / HS</dt><dd>D-PHY 双模式：Low-Power（1.2 V，慢）与 High-Speed（~200 mV 差分摆幅，快）；帧间隙 LP 逃逸省电</dd>
+      <dt>ULPS</dt><dd>Ultra Low Power State：lane 长时间空闲进入的微安级态，唤醒后需重新 SoT</dd>
+      <dt>DI · Data ID</dt><dd>包头第一字节：VC[7:6] + DT[5:0]，决定包类型与分拣去向</dd>
+      <dt>WC · Word Count</dt><dd>包头 16-bit 字段：长包 = payload 字节数；短包复用为 Frame Number</dd>
+      <dt>ECC</dt><dd>8-bit 汉明校验，覆盖 PH 的 24 bit，可检测 2 位、纠正 1 位错误</dd>
+      <dt>PF · CRC</dt><dd>Packet Footer：payload 的 16-bit CRC-CCITT（0x1021，初值 0xFFFF）</dd>
+      <dt>CCI</dt><dd>Camera Control Interface = 缩水 I²C：读 ID、配曝光/增益/帧率/MIPI 时序、开关流</dd>
+      <dt>settle time</dt><dd>接收端 HS-SETTLE 采样窗口，须罩住 sensor 的 T_HS_PREPARE + T_HS_ZERO；错位 = 无图</dd>
+      <dt>Bayer (RGGB)</dt><dd>单 sensor 覆盖滤色阵列：每像素 R/Gr/Gb/B 单分量，颜色由 ISP 去马赛克重建</dd>
+    </dl>
+  </div>
+</section>
+
+<footer>
+  <div class="f-l">
+    <b>HW-PROTOCOLS · MAINTAINED WITH ♥ FOR EMBEDDED ENGINEERS</b><br>
+    <b>参考</b> · MIPI Alliance《CSI-2 Specification v2.0》《D-PHY v2.1》 · Linux 内核 Documentation/admin-guide/media（V4L2 / media-ctl） ·
+    Sony IMX219 / OmniVision OV5647 数据手册 · Raspberry Pi Camera 文档 · D-PHY 电气细节见 <a href="mipi-dsi.html">DSI 页</a>，CCI 见 <a href="i2c.html">I²C 页</a> ·
+    本页为单文件交互式图解，可离线打开 · 波形由浏览器实时渲染
+  </div>
+  <div class="f-r">CSI·2</div>
+</footer>
+<script>
+(function(){
+"use strict";
+/* ================================================================
+CSI-2·LAB 交互引擎 —— 纯 vanilla JS，全部内联。 模块：hero 数据包 / §02 差分波形+拓扑 / §03 分层模型 / §04 帧与包动画 / §05 RAW 打包器 / §06 lane 分发 / §07 VC 时隙 / §08 计算器 / §09 终端 + 症状模拟器
+================================================================ */ const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
+const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches; const MONO='"IBM Plex Mono",monospace';
+const COL={green:'#34e08a',amber:'#ffb02e',cyan:'#57d8f2',red:'#ff6478',violet:'#c792ea',ink:'#dcebe1',dim:'#8aa294',faint:'#5c7264'};
+const mod=(a,m)=>((a%m)+m)%m, hex2=v=>'0x'+v.toString(16).toUpperCase().padStart(2,'0'); function fitCanvas(cv,h){
+const w=cv.parentElement.getBoundingClientRect().width||600, dpr=Math.min(2,window.devicePixelRatio||1);
+cv.width=w*dpr; cv.height=h*dpr; cv.style.width=w+'px'; cv.style.height=h+'px'; const ctx=cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0); return {ctx,w,h};
+}
+
+/* ---------- 可见性门控：不在视口内的动画不跑 ---------- */
+const ALL=[], elMap=new Map(); const visIO=new IntersectionObserver(es=>es.forEach(e=>{ const m=elMap.get(e.target); if(m) m.vis=e.isIntersecting; }),{rootMargin:'90px'});
+function watch(el,m){ elMap.set(el,m); visIO.observe(el); }
+
+/* ============ Hero：沿差分线流动的数据包 ============ */
+(function heroFlow(){
+const NS='http://www.w3.org/2000/svg', XL='http://www.w3.org/1999/xlink'; function flow(gid,pathId,items,dur,stag){
+const g=document.getElementById(gid); if(!g) return; items.forEach((it,i)=>{
+const grp=document.createElementNS(NS,'g'); grp.setAttribute('class','pkt'); const r=document.createElementNS(NS,'rect');
+r.setAttribute('x','-25'); r.setAttribute('y','-11'); r.setAttribute('width','50'); r.setAttribute('height','22'); r.setAttribute('rx','5');
+r.setAttribute('fill',it.fill); r.setAttribute('stroke',it.stroke); r.setAttribute('stroke-width','1.5'); const t=document.createElementNS(NS,'text');
+t.setAttribute('text-anchor','middle'); t.setAttribute('y','4'); t.setAttribute('font-family','IBM Plex Mono,monospace'); t.setAttribute('font-size','10.5');
+t.setAttribute('fill',it.color); t.textContent=it.label; const mo=document.createElementNS(NS,'animateMotion');
+mo.setAttribute('dur',dur+'s'); mo.setAttribute('begin',(i*stag)+'s'); mo.setAttribute('repeatCount','indefinite'); const mp=document.createElementNS(NS,'mpath');
+mp.setAttribute('href','#'+pathId); mp.setAttributeNS(XL,'xlink:href','#'+pathId); mo.appendChild(mp); const op=document.createElementNS(NS,'animate');
+op.setAttribute('attributeName','opacity'); op.setAttribute('values','0;1;1;0'); op.setAttribute('keyTimes','0;.05;.94;1'); op.setAttribute('dur',dur+'s');
+op.setAttribute('begin',(i*stag)+'s'); op.setAttribute('repeatCount','indefinite');
+grp.appendChild(r); grp.appendChild(t); grp.appendChild(mo); grp.appendChild(op); g.appendChild(grp);
+    });
+  }
+flow('hp0','hwp0',[ {label:'FS 0x00',fill:'rgba(52,224,138,.16)',stroke:'#34e08a',color:'#34e08a'},
+{label:'RAW10',fill:'rgba(87,216,242,.14)',stroke:'#57d8f2',color:'#57d8f2'}, {label:'CRC ✓',fill:'rgba(255,176,46,.14)',stroke:'#ffb02e',color:'#ffb02e'},
+{label:'FE 0x01',fill:'rgba(52,224,138,.16)',stroke:'#34e08a',color:'#34e08a'}, ],4.6,1.15); flow('hp1','hwp1',[
+{label:'PH',fill:'rgba(255,176,46,.14)',stroke:'#ffb02e',color:'#ffb02e'}, {label:'payload',fill:'rgba(87,216,242,.14)',stroke:'#57d8f2',color:'#57d8f2'},
+{label:'PF',fill:'rgba(255,176,46,.14)',stroke:'#ffb02e',color:'#ffb02e'}, {label:'LP-11',fill:'rgba(140,162,148,.12)',stroke:'#8aa294',color:'#8aa294'}, ],4.6,1.15);
+flow('hpc','hwcc',[ {label:'I²C:曝光',fill:'rgba(255,176,46,.14)',stroke:'#ffb02e',color:'#ffb02e'},
+{label:'I²C:增益',fill:'rgba(87,216,242,.14)',stroke:'#57d8f2',color:'#57d8f2'}, {label:'I²C:ID',fill:'rgba(255,176,46,.14)',stroke:'#ffb02e',color:'#ffb02e'}, ],5.2,1.7);
+})();
+
+/* ============ §02：差分小示波器（LP→HS 实时波形） ============ */
+(function miniScopes(){
+const PX=5; function pattern(kind){
+const N=160, P=new Array(N).fill('L'); if(kind==='clk'){ for(let i=36;i<144;i++) P[i]=String(i&1); } else if(kind==='data'){
+const sync='00011101'; for(let k=0;k<8;k++) P[44+k]=sync[k]; for(let k=0;k<64;k++) P[52+k]=String((Math.imul(k+7,2654435761)>>>4)&1);
+    }
+return P;
+  }
+$$('[data-diff]').forEach(cv=>{
+const kind=cv.dataset.kind||cv.dataset.diff; const st={cv,ctx:null,phase:0,kind,pat:pattern(kind),vis:false,w:0,h:84, tick(dt){ if(this.vis) this.phase+=dt*30; }, draw(){
+if(!this.ctx) return; const c=this.ctx, w=this.w, N=160; c.clearRect(0,0,w,this.h); const yLP=16, yC=58, yAmp=13;
+const yOf=(v,inv)=> v==='L'?yLP : ((v==='1')!==(!!inv) ? yC-yAmp : yC+yAmp); c.font='600 9px '+MONO; for(let pass=0;pass<2;pass++){
+const inv=pass===1&&kind!=='cci'; c.strokeStyle=pass===0?COL.green:COL.amber; c.lineWidth=pass===0?2:1.5; c.globalAlpha=pass===0?1:.85; c.beginPath(); let started=false;
+const i0=Math.floor(this.phase)-2, i1=i0+Math.ceil(w/PX)+4; for(let i=i0;i<=i1;i++){
+const m=mod(i,N); const v=kind==='cci' ? (pass===0 ? (mod(m,14)<7?'1':'0') : (m<20?'1': m<34?'0': m<52?'1': m<90?'0': m<108?'1': m<128?'0':'1'))
+: (this.pat[m]==='L'?'L':this.pat[m]); const x=(i-this.phase)*PX, y=yOf(v,inv); if(!started){ c.moveTo(x,y); started=true; } else c.lineTo(x,y);
+          }
+c.stroke(); c.globalAlpha=1;
+        }
+c.textAlign='left'; c.fillStyle=COL.green; c.fillText('P',6,14); if(kind!=='cci'){ c.fillStyle=COL.amber; c.fillText('N',24,14); } c.fillStyle='rgba(92,114,100,.9)';
+if(kind==='cci') c.fillText('SCL/SDA · CCI(I²C)',56,14); else { c.fillText('LP 1.2V',56,14); c.fillText('HS ~200mV',w-72,yC+3); }
+      },
+resize(){ const f=fitCanvas(cv,84); this.ctx=f.ctx; this.w=f.w; this.h=f.h; }
+    };
+st.resize(); watch(cv,st); ALL.push(st);
+  });
+})();
+
+/* ============ §02：拓扑图（lane 数切换） ============ */
+(function topo(){
+const box=$('#topoBox'); if(!box) return; function render(l){
+let wires=''; for(let i=0;i<4;i++){
+const y=150+i*28; if(i<l){
+wires+=`<line x1="172" y1="${y-3}" x2="352" y2="${y-3}" stroke="rgba(52,224,138,.65)" stroke-width="2"/>
+<line x1="172" y1="${y+3}" x2="352" y2="${y+3}" stroke="rgba(87,216,242,.4)" stroke-width="2"/>
+<text x="262" y="${y-9}" text-anchor="middle" fill="#57d8f2" font-size="9.5" font-family="IBM Plex Mono,monospace">DATA${i}±</text>`;
+      }else{
+wires+=`<line x1="172" y1="${y}" x2="352" y2="${y}" stroke="rgba(92,114,100,.35)" stroke-width="1.4" stroke-dasharray="4 5"/>
+<text x="262" y="${y+4}" text-anchor="middle" fill="rgba(92,114,100,.8)" font-size="10" font-family="IBM Plex Mono,monospace">×</text>
+<text x="262" y="${y-9}" text-anchor="middle" fill="rgba(92,114,100,.6)" font-size="9.5" font-family="IBM Plex Mono,monospace">DATA${i}± 未用</text>`;
+      }
+    }
+let pxGrid=''; for(let gy=0;gy<3;gy++) for(let gx=0;gx<6;gx++)
+pxGrid+=`<rect x="${44+gx*19}" y="${84+gy*15}" width="15" height="11" fill="rgba(52,224,138,${(0.06+((gx+gy*3)%5)*0.05).toFixed(2)})" stroke="rgba(52,224,138,.3)" stroke-width="0.8"/>`;
+const tail = l===4 ? '主流配置：1080p60 RAW10 也只需每 lane ~1.1 Gbps' : l===2 ? '中配：1080p30 RAW10 勉强够（~750 Mbps/lane）' : '最小配置：只够 VGA~720p 低帧率'; box.innerHTML=`
+<svg viewBox="0 0 520 348" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono,monospace">
+<rect x="22" y="64" width="150" height="214" rx="12" fill="#0d181d" stroke="#27392d" stroke-width="1.5"/>
+<text x="97" y="78" text-anchor="middle" fill="#dcebe1" font-size="12.5" font-weight="600">CMOS SENSOR</text> ${pxGrid}
+<text x="97" y="146" text-anchor="middle" fill="rgba(140,162,148,.85)" font-size="9">像素阵列 → 打包（§05）</text>
+<text x="97" y="160" text-anchor="middle" fill="rgba(140,162,148,.85)" font-size="9">组包/分发（§04/§06）</text>
+<rect x="52" y="172" width="90" height="20" rx="4" fill="rgba(52,224,138,.08)" stroke="rgba(52,224,138,.5)"/>
+<text x="97" y="186" text-anchor="middle" fill="#34e08a" font-size="9.5">D-PHY TX</text>
+<text x="97" y="214" text-anchor="middle" fill="rgba(92,114,100,.9)" font-size="8.5">XCLR · XCLK · 3 路电源</text>
+<text x="97" y="270" text-anchor="middle" fill="rgba(140,162,148,.9)" font-size="10">DATA 单向输出 ↓</text>
+<line x1="172" y1="104" x2="352" y2="104" stroke="rgba(52,224,138,.65)" stroke-width="2"/>
+<line x1="172" y1="111" x2="352" y2="111" stroke="rgba(87,216,242,.4)" stroke-width="2"/>
+<text x="262" y="97" text-anchor="middle" fill="#34e08a" font-size="9.5">CLK± · DDR</text> ${wires}
+<rect x="352" y="58" width="146" height="226" rx="12" fill="#0d181d" stroke="#27392d" stroke-width="1.5"/>
+<text x="425" y="76" text-anchor="middle" fill="#dcebe1" font-size="12.5" font-weight="600">SoC</text>
+<rect x="366" y="86" width="118" height="20" rx="4" fill="rgba(52,224,138,.08)" stroke="rgba(52,224,138,.5)"/>
+<text x="425" y="100" text-anchor="middle" fill="#34e08a" font-size="9.5">CSI-2 RX · D-PHY</text>
+<text x="425" y="122" text-anchor="middle" fill="rgba(140,162,148,.85)" font-size="9">Lane 合并（§06）</text>
+<text x="425" y="138" text-anchor="middle" fill="rgba(140,162,148,.85)" font-size="9">解包 · ECC/CRC（§04）</text>
+<text x="425" y="154" text-anchor="middle" fill="rgba(140,162,148,.85)" font-size="9">VC 分拣（§07）</text>
+<rect x="366" y="164" width="118" height="20" rx="4" fill="rgba(87,216,242,.06)" stroke="rgba(87,216,242,.45)"/>
+<text x="425" y="178" text-anchor="middle" fill="#57d8f2" font-size="9.5">ISP · 去马赛克</text>
+<rect x="366" y="192" width="118" height="20" rx="4" fill="rgba(255,176,46,.06)" stroke="rgba(255,176,46,.45)"/>
+<text x="425" y="206" text-anchor="middle" fill="#ffb02e" font-size="9.5">DMA → /dev/video0</text>
+<text x="425" y="232" text-anchor="middle" fill="rgba(140,162,148,.9)" font-size="9">CCI 主机（I²C）↑</text>
+<text x="425" y="250" text-anchor="middle" fill="rgba(92,114,100,.9)" font-size="8.5">XCLK / XCLR / 电源</text>
+<line x1="352" y1="296" x2="172" y2="296" stroke="rgba(255,176,46,.55)" stroke-width="1.6" stroke-dasharray="7 6"/>
+<text x="262" y="290" text-anchor="middle" fill="#ffb02e" font-size="9.5">CCI = I²C · 反向控制</text>
+<text x="14" y="326" fill="rgba(140,162,148,.9)" font-size="9.5">有效 data lane = ${l} · 每 lane 速率 = 总带宽 ÷ ${l} · CLK 恒为 1 对 · ${tail}</text>
+<text x="14" y="342" fill="rgba(92,114,100,.9)" font-size="9">线色：P（绿）/ N（青）· 全部单向：sensor → SoC · 数据 lane 断一根 = 花屏条纹（§06/§09）</text> </svg>`;
+  }
+render(4); const seg=$('#topoSeg'); seg.addEventListener('click',e=>{
+const b=e.target.closest('button'); if(!b) return; seg.querySelectorAll('button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); render(+b.dataset.l);
+  });
+})();
+
+/* ============ §03：分层模型 ============ */
+(function layers(){
+const stack=$('#layerStack'), panel=$('#layerPanel'); if(!stack) return; const LAYERS=[ {no:'L4',name:'应用层',en:'APPLICATION', kw:'帧率 · 曝光 · 增益 · 像素格式 · VC 规划',
+body:['决定"拍什么、怎么拍"：分辨率/帧率/像素格式的选择都在这层暴露给驱动。', '曝光与增益的决策经 <b>CCI(I²C)</b> 写进 sensor 寄存器；曝光行数受 VTS 约束，拉满会拖低帧率。', '规划虚拟通道：主摄 VC0、副摄 VC1、元数据行 VC2……带宽是所有 VC 之和。'],
+link:'本页体现：<a href="#s8">§08 Sensor Bring-Up</a> · <a href="#s7">§07 虚拟通道</a> · 控制面详见 <a href="i2c.html">I²C 页</a>'}, {no:'L3',name:'打包层',en:'PACKING',
+kw:'像素 → payload 字节 · RAW8/10/12 · WC 组行', body:['把<b>像素位宽</b>（8/10/12 bit）无缝压进 8-bit 字节流：RAW10 就是"5 字节装 4 像素"。',
+'一行的像素打包成一串 payload，长度即包头的 <code>WC</code>——<b>WC 必须等于 宽×Bpp</b>，错一字节整帧斜切。', '接收端逆操作：解包后交给 ISP 的是每像素 10/12-bit 值。'], link:'本页体现：<a href="#s5">§05 RAW 打包器</a>（逐字节动画）'},
+{no:'L2',name:'协议层',en:'PROTOCOL', kw:'短包/长包 · DI+WC+ECC · CRC16 · lane 分发', body:['一切皆包：FS/FE 短包划帧界，行长包承载 payload；<b>ECC 护头（可纠 1 位）、CRC 护尾（只检错）</b>。',
+'包头 DI 的高 2 位是 <b>VC</b>，接收端据此把包分拣到不同缓冲。', '多 lane 时把字节流 <b>round-robin 分发</b>到各 lane，接收端再按序合并。'],
+link:'本页体现：<a href="#s4">§04 帧与包动画</a> · <a href="#s6">§06 Lane 分发</a> · <a href="#s7">§07 VC</a>'}, {no:'L1',name:'PHY 层',en:'D-PHY', kw:'LP/HS · SoT/EoT · DDR 串化 · settle',
+body:['LP（1.2 V）与 HS（~200 mV 差分）双模式；帧间隙 <b>LP 逃逸</b>省电，长空闲进 ULPS。', '每条 lane 突发以 <b>SoT 同步码 00011101</b> 开头；CLK± 提供随路时钟，接收端双沿采样。',
+'本层与 <b>DSI 完全同源</b>——电气细节（眼图、摆幅、ULPS）不在本页重复。'], link:'电气细节：<a href="mipi-dsi.html">MIPI DSI 页 · D-PHY 拆解</a> · 本页体现：<a href="#s2">§02 信号</a>'}, ]; LAYERS.forEach((L,i)=>{
+const b=document.createElement('button'); b.type='button'; b.className='layer'; b.innerHTML=`<span class="l-no">${L.no}</span>
+<span><span class="l-name">${L.name}</span><span class="l-en">${L.en}</span> <div class="l-kw">${L.kw}</div></span>`; b.addEventListener('click',()=>select(i));
+stack.appendChild(b);
+  });
+function select(i){
+const L=LAYERS[i]; stack.querySelectorAll('.layer').forEach((b,k)=>b.classList.toggle('on',k===i)); panel.innerHTML=`<h5>${L.no} · ${L.name}<span class="en">${L.en}</span></h5>
+<ul>${L.body.map(x=>'<li>'+x+'</li>').join('')}</ul> <div class="lp-link">${L.link}</div>`;
+  }
+select(2); /* 默认选中协议层 —— 本页主角 */
+})();
+
+/* ============ §04：帧与包结构动画 ============ */
+const pk=(function(){
+const cv=$('#pkCanvas'); if(!cv) return null; let ctx,w,h=352; const DT={FS:0x00,FE:0x01,R10:0x2B}; function mkPkts(mode){
+const p=[]; if(mode==='short'){
+p.push({k:'s',di:DT.FS,name:'Frame Start · 短包',dts:'0x00 · FRAME START',fn:0x023A}); p.push({k:'e'});
+p.push({k:'s',di:DT.FE,name:'Frame End · 短包',dts:'0x01 · FRAME END',fn:0x023A});
+    }else if(mode==='long'){
+p.push({k:'l',di:DT.R10,name:'行长包 #1',dts:'0x2B · RAW10',wc:12,line:1}); p.push({k:'l',di:DT.R10,name:'行长包 #2',dts:'0x2B · RAW10',wc:12,line:2}); p.push({k:'e'});
+    }else{
+p.push({k:'s',di:DT.FS,name:'Frame Start · 短包',dts:'0x00 · FRAME START',fn:0x023A}); p.push({k:'l',di:DT.R10,name:'行长包 #1',dts:'0x2B · RAW10',wc:12,line:1});
+p.push({k:'l',di:DT.R10,name:'行长包 #2',dts:'0x2B · RAW10',wc:12,line:2}); p.push({k:'l',di:DT.R10,name:'行长包 #3',dts:'0x2B · RAW10',wc:12,line:3}); p.push({k:'e'});
+p.push({k:'s',di:DT.FE,name:'Frame End · 短包',dts:'0x01 · FRAME END',fn:0x023A});
+    }
+return p;
+  }
+let pkts=mkPkts('all'), segs=[]; function buildSegs(){
+segs=[]; const add=(p,f,d)=>segs.push({p,f,d}); for(const p of pkts){
+if(p.k==='e'){ add(p,'gap',.8); continue; } add(p,'di',1.0); add(p, p.k==='s'?'fn':'wc', p.k==='s'?1.25:1.1); add(p,'ecc',.9);
+if(p.k==='l'){ add(p,'pay',2.6); add(p,'crc',1.1); } add(p,'gap',.5);
+    }
+  }
+buildSegs(); const CAP={
+diS:'<b>Data ID = 0x00</b>：VC[7:6]=00 · DT[5:0]=000000 → Frame Start。<b>短包 = 只有 24-bit PH</b>，没有 payload 与 PF。',
+diE:'<b>Data ID = 0x01</b> → Frame End：一帧到此收口，接收端把缓存好的行交给 ISP/DMA。', diL:'<b>Data ID = 0x2B</b> → <b>RAW10</b>：声明本包 payload 是 RAW10 打包的像素字节流（怎么打包见 §05）。',
+fn:'短包的 16-bit 字段复用为 <b>Frame Number 帧号</b>（本帧 0x023A=570）。接收端靠连续性检测丢帧。',
+wc:'<b>Word Count</b> = payload 字节数。演示 12 B；真实 1080p RAW10 一行 = 1920 × 1.25 = <b>2400 B</b>。WC 配错 = 图像斜切（§09）。',
+ecc:'<b>8-bit ECC</b>（汉明码）：覆盖 DI+WC 共 24 bit，<b>可纠正 1 位错</b>——报头是整包命脉。', pay:'<b>行长包 payload</b>：一行像素的字节流在此搬运（一行图像 = 一个长包，个别 sensor 拆多包）。',
+crc:'<b>PF = 16-bit CRC-CCITT</b>（x¹⁶+x¹²+x⁵+1，初值 0xFFFF）：只检错不纠错，失败丢整行。', gap:'<b>包间隔</b>：lane 回到 LP-11（LP 逃逸，省电），下个包靠 SoT 同步码 00011101 重新对齐字节边界。',
+ell:'真实一帧 = FS + <b>几百~几千个行长包</b> + FE（1080p 是 1080 个）。结构全部相同——看懂一个就看懂全部。',
+  };
+const st={si:0,t:0,playing:!reduced,spd:1,frame:1,mode:'all',vis:false};
+const orderFor=p=> p.k==='s'?['di','fn','ecc','gap'] : p.k==='l'?['di','wc','ecc','pay','crc','gap'] : ['gap']; const cur=()=>segs[st.si]; function enter(){
+const s=cur(), p=s.p; let cap; if(p.k==='e') cap=CAP.ell; else if(s.f==='gap') cap=CAP.gap; else if(s.f==='di') cap = p.k==='s' ? (p.di===DT.FS?CAP.diS:CAP.diE) : CAP.diL;
+else if(s.f==='fn') cap=CAP.fn; else if(s.f==='wc') cap=CAP.wc; else if(s.f==='ecc') cap=CAP.ecc; else if(s.f==='pay') cap=CAP.pay; else cap=CAP.crc;
+$('#pkCap').innerHTML='<b>'+(p.k==='e'?'⋯ 省略的行长包':p.name)+'</b> · '+cap; if(p.k==='s'&&p.di===DT.FE&&s.f==='di') st.frame=(st.frame%999)+1;
+const set=(id,v)=>{ $(id).textContent=v; }; const ord=orderFor(p), fi=ord.indexOf(s.f); set('#rPkName', p.k==='e'?'⋯ 省略行':p.name); set('#rPkDT', p.k==='e'?'—':p.dts);
+set('#rPkWC', p.k==='s' ? '帧号 0x'+p.fn.toString(16).toUpperCase().padStart(4,'0') : p.k==='l' ? 'WC = '+p.wc+' B（演示）' : '—');
+set('#rPkECC', (p.k!=='e' && fi>=ord.indexOf('ecc')) ? 'ECC ✓ 纠 1 位' : '—'); set('#rPkCRC', p.k!=='l' ? '短包无 PF' : (fi>=ord.indexOf('crc') ? 'CRC16 ✓' : '—'));
+set('#rPkFL', p.k==='l' ? '第 '+p.line+' 行 / 1080' : p.k==='s' ? '帧 '+st.frame : '—');
+  }
+enter(); function draw(){
+if(!ctx) return; ctx.clearRect(0,0,w,h); const s=cur(), p=s.p, prog=Math.min(1,st.t/s.d); const ord=orderFor(p), fi=ord.indexOf(s.f); ctx.textBaseline='alphabetic';
+    /* ---- 上半：当前包展开图 ---- */
+const yB=58, hh=42; const fieldBox=(x,bw,state,label,sub,col)=>{
+const cx=x+bw/2; if(state==='done'){ ctx.fillStyle='rgba(52,224,138,.10)'; ctx.fillRect(x,yB,bw,hh); } else if(state==='act'){
+ctx.save(); ctx.shadowColor=col; ctx.shadowBlur=12; ctx.fillStyle='rgba(52,224,138,.20)'; ctx.fillRect(x,yB,bw,hh); ctx.restore();
+      }
+ctx.strokeStyle=state==='act'?col:'rgba(140,162,148,.4)'; ctx.lineWidth=state==='act'?2:1; ctx.strokeRect(x+.5,yB+.5,bw,hh);
+ctx.fillStyle=state==='act'?COL.ink:'rgba(220,235,225,.75)'; ctx.font=(state==='act'?'600 ':'500 ')+'11px '+MONO; ctx.textAlign='center'; ctx.fillText(label,cx,yB+19);
+if(sub){ ctx.font='9.5px '+MONO; ctx.fillStyle='rgba(140,162,148,.85)'; ctx.fillText(sub,cx,yB+34); }
+    };
+if(p.k==='e'){
+ctx.setLineDash([6,5]); ctx.strokeStyle='rgba(140,162,148,.5)'; ctx.lineWidth=1.4; ctx.strokeRect(40.5,yB-4,w-80,hh+8); ctx.setLineDash([]);
+ctx.fillStyle='rgba(140,162,148,.9)'; ctx.font='600 13px '+MONO; ctx.textAlign='center'; ctx.fillText('⋯ 数百~数千个行长包按同样结构重复 ⋯',w/2,yB+24);
+ctx.font='10px '+MONO; ctx.fillStyle='rgba(92,114,100,.9)'; ctx.fillText('1080p = 1080 个行长包',w/2,yB+40);
+    }else if(p.k==='s'){
+const tw=640, sc=Math.min(1,(w-40)/tw), ox=(w-tw*sc)/2, X=v=>ox+v*sc;
+fieldBox(X(0),150*sc, fi>0?'done':fi===0?'act':'todo','DI 0x'+p.di.toString(16).toUpperCase().padStart(2,'0'),'VC[7:6]·DT[5:0]',COL.amber);
+fieldBox(X(170),300*sc, fi>1?'done':fi===1?'act':'todo','FRAME NUMBER','0x'+p.fn.toString(16).toUpperCase().padStart(4,'0')+'（帧号）',COL.green);
+fieldBox(X(490),150*sc, fi>2?'done':fi===2?'act':'todo','ECC','8-bit 护头',COL.amber); ctx.font='600 9.5px '+MONO; ctx.fillStyle='rgba(255,176,46,.8)'; ctx.textAlign='center';
+ctx.fillText('SHORT PACKET · 仅 PH · 无 payload / 无 PF',w/2,36);
+    }else{
+const tw=760, sc=Math.min(1,(w-30)/tw), ox=(w-tw*sc)/2, X=v=>ox+v*sc; fieldBox(X(0),96*sc, fi>0?'done':fi===0?'act':'todo','DI 0x2B','RAW10',COL.amber);
+fieldBox(X(106),132*sc, fi>1?'done':fi===1?'act':'todo','WC = 12','字节数',COL.amber); fieldBox(X(248),76*sc, fi>2?'done':fi===2?'act':'todo','ECC','纠 1 位',COL.amber);
+const px0=X(336), cellW=24*sc, cells=12; const filled = fi<3 ? 0 : fi>3 ? cells : Math.floor(prog*cells); ctx.font='600 9px '+MONO; ctx.textAlign='center';
+for(let i=0;i<cells;i++){
+const x=px0+i*cellW; if(i<filled){ ctx.fillStyle=i===filled-1&&fi===3?'rgba(87,216,242,.5)':'rgba(87,216,242,.18)'; ctx.fillRect(x,yB,cellW-2,hh); }
+ctx.strokeStyle=fi===3?'rgba(87,216,242,.6)':'rgba(140,162,148,.4)'; ctx.lineWidth=1; ctx.strokeRect(x+.5,yB+.5,cellW-2,hh);
+if(sc>0.8&&i<filled){ ctx.fillStyle='rgba(87,216,242,.9)'; ctx.fillText('B'+i,x+(cellW-2)/2,yB+25); }
+      }
+ctx.textAlign='center'; ctx.fillStyle='rgba(87,216,242,.85)'; ctx.font='600 10px '+MONO; ctx.fillText('PAYLOAD ×12 B（像素字节流）',px0+cells*cellW/2,yB-8);
+fieldBox(X(660),100*sc, fi>4?'done':fi===4?'act':'todo','CRC16','PF 护尾',COL.green); ctx.font='600 9.5px '+MONO; ctx.fillStyle='rgba(255,176,46,.8)'; ctx.textAlign='left';
+ctx.fillText('PH = PACKET HEADER',X(0),36); ctx.fillStyle='rgba(87,216,242,.8)'; ctx.fillText('PAYLOAD',X(336),36);
+ctx.fillStyle='rgba(52,224,138,.8)'; ctx.textAlign='right'; ctx.fillText('PF',X(760),36);
+    }
+    /* ---- 下半：整帧胶片条 ---- */
+const widths={s:46,l:126,e:36}, gap=10; let total=0; for(const q of pkts) total+=widths[q.k]+gap; total-=gap;
+const sc2=Math.min(1,(w-36)/total), ox2=(w-total*sc2)/2, yS=262, hs=40; let x=ox2; ctx.font='600 10px '+MONO; pkts.forEach(q=>{
+const bw=widths[q.k]*sc2, isActive=q===p; if(q.k==='s'){ ctx.fillStyle='rgba(52,224,138,.12)'; ctx.fillRect(x,yS,bw,hs); } else if(q.k==='l'){
+ctx.fillStyle='rgba(87,216,242,.08)'; ctx.fillRect(x,yS,bw,hs); ctx.fillStyle='rgba(87,216,242,.3)'; ctx.fillRect(x,yS+hs-6,bw,6);
+if(q===p&&s.f==='pay'){ ctx.fillStyle='rgba(87,216,242,.45)'; ctx.fillRect(x,yS+hs-6,bw*prog,6); }
+      }else{
+ctx.setLineDash([4,3]); ctx.strokeStyle='rgba(140,162,148,.4)'; ctx.strokeRect(x+.5,yS+.5,bw,hs); ctx.setLineDash([]);
+      }
+if(isActive){
+ctx.save(); ctx.shadowColor=COL.red; ctx.shadowBlur=10; ctx.strokeStyle=COL.red; ctx.lineWidth=2; ctx.strokeRect(x+1,yS+1,bw-2,hs-2); ctx.restore();
+      }else{
+ctx.strokeStyle='rgba(140,162,148,.35)'; ctx.lineWidth=1; ctx.strokeRect(x+.5,yS+.5,bw,hs);
+      }
+ctx.fillStyle=q.k==='s'?COL.green:q.k==='l'?'rgba(87,216,242,.9)':'rgba(140,162,148,.8)'; ctx.textAlign='center';
+ctx.fillText(q.k==='s'?(q.di===DT.FS?'FS':'FE'):q.k==='l'?'L'+q.line:'⋯',x+bw/2,yS+hs/2+4); x+=bw+gap*sc2;
+    });
+ctx.textAlign='left'; ctx.font='10px '+MONO; ctx.fillStyle='rgba(92,114,100,.95)'; ctx.fillText('一帧的包序列（慢镜头 · 当前包红框） · 真实序列在行长包之间没有额外空闲包，靠 LP 逃逸分隔',16,326);
+ctx.fillStyle='rgba(92,114,100,.8)'; ctx.fillText('PH 琥珀 = 报头三字段 · payload 青 = 像素字节 · FS/FE 绿 = 帧界短包',16,342);
+  }
+const m={vis:false, tick(dt){
+if(!st.playing) return; st.t+=dt*st.spd; let guard=0; while(st.t>=segs[st.si].d && guard++<32){
+st.t-=segs[st.si].d; st.si=(st.si+1)%segs.length; enter();
+      }
+    },
+draw, resize(){ const f=fitCanvas(cv,h); ctx=f.ctx; w=f.w; }
+  };
+m.resize(); watch(cv,m); const playBtn=$('#pkPlay'); function setPlay(p){ st.playing=p; playBtn.textContent=p?'❚❚':'▶'; playBtn.classList.toggle('on',p); }
+if(reduced) setPlay(false); playBtn.addEventListener('click',()=>setPlay(!st.playing));
+$('#pkStep').addEventListener('click',()=>{ setPlay(false); st.si=(st.si+1)%segs.length; st.t=0; enter(); });
+$('#pkSpeed').addEventListener('input',e=>{ st.spd=+e.target.value; }); $('#pkSeg').addEventListener('click',e=>{
+const b=e.target.closest('button'); if(!b) return; $('#pkSeg').querySelectorAll('button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); st.mode=b.dataset.t;
+pkts=mkPkts(st.mode); buildSegs(); st.si=0; st.t=0; enter();
+  });
+return m;
+})();
+
+/* ============ §05：RAW 格式打包器 ============ */
+const raw=(function(){
+const cv=$('#rawCanvas'); if(!cv) return null; let ctx,w,h=310; const PXC=['#34e08a','#57d8f2','#ffb02e','#ff6478'];
+const PXV={8:[0xAB,0x5A,0xC3,0x3C],10:[0x3AB,0x2C5,0x155,0x3F2],12:[0xABC,0x123,0xF0A,0x555]}; const FORM={
+8:'B[n] = P[n][7:0]', 10:'B0..B3 = P0..P3[9:2] · B4 = P3[1:0]‖P2[1:0]‖P1[1:0]‖P0[1:0]', 12:'B0=P0[11:4] · B1=P1[11:4] · B2=P1[3:0]‖P0[3:0] · P2/P3 同理'
+  };
+function buildBytes(bits){
+const px=PXV[bits], B=[]; const seg=(val,parts)=>B.push({val:val&0xFF,parts}); if(bits===8) px.forEach((v,i)=>seg(v,[[i,0,7]])); else if(bits===10){
+for(let i=0;i<4;i++) seg(px[i]>>2,[[i,2,9]]); seg(((px[3]&3)<<6)|((px[2]&3)<<4)|((px[1]&3)<<2)|(px[0]&3),[[3,0,1],[2,0,1],[1,0,1],[0,0,1]]);
+    }else{
+seg(px[0]>>4,[[0,4,11]]); seg(px[1]>>4,[[1,4,11]]); seg(((px[1]&0xF)<<4)|(px[0]&0xF),[[1,0,3],[0,0,3]]); seg(px[2]>>4,[[2,4,11]]); seg(px[3]>>4,[[3,4,11]]);
+seg(((px[3]&0xF)<<4)|(px[2]&0xF),[[3,0,3],[2,0,3]]);
+    }
+return B;
+  }
+const st={bits:10,bi:0,t:0,playing:!reduced,spd:1,vis:false}; const B=()=>buildBytes(st.bits); const byteX=(i,n)=>20+i*(w-40)/n; function info(){
+const bpp=st.bits===8?1:st.bits===10?1.25:1.5;
+$('#rawInfo').innerHTML='<span class="fm">'+FORM[st.bits]+'</span> · <b>'+bpp+' B/px</b> · 4 像素 → '+B().length+' 字节 · 1080p@30 ≈ '+(1920*1080*30*bpp/1e6).toFixed(0)+' MB/s 净载荷';
+  }
+info(); function draw(){
+if(!ctx) return; ctx.clearRect(0,0,w,h); const bytes=B(), bits=st.bits, n=bytes.length, prog=Math.min(1,st.t); const curB=bytes[st.bi]; const hlBits=[[],[],[],[]];
+curB.parts.forEach(pt=>{ for(let b=pt[1];b<=pt[2];b++) hlBits[pt[0]].push(b); });
+    /* 顶部：4 个像素（各自 bits 个 bit 格） */
+const pxW=(w-40)/4; for(let i=0;i<4;i++){
+const x=20+i*pxW, bw=pxW-12, active=hlBits[i].length>0; if(active){ ctx.fillStyle='rgba(220,235,225,.035)'; ctx.fillRect(x,24,bw,76); }
+ctx.strokeStyle=active?PXC[i]:'rgba(140,162,148,.4)'; ctx.lineWidth=active?1.8:1; ctx.strokeRect(x+.5,24.5,bw,76); ctx.font='600 11px '+MONO; ctx.textAlign='left';
+ctx.fillStyle=PXC[i]; ctx.fillText('P'+i,x+8,42); ctx.textAlign='right'; ctx.fillStyle=COL.ink; ctx.font='600 13px '+MONO;
+ctx.fillText('0x'+PXV[bits][i].toString(16).toUpperCase().padStart(Math.ceil(bits/4),'0'),x+bw-8,42); const cw=(bw-16)/bits; for(let k=0;k<bits;k++){
+const bit=bits-1-k, v=(PXV[bits][i]>>bit)&1, cx=x+8+k*cw, hot=hlBits[i].includes(bit);
+if(v){ ctx.fillStyle=PXC[i]; ctx.globalAlpha=hot?1:.85; ctx.fillRect(cx,52,cw-2,20); ctx.globalAlpha=1; } ctx.strokeStyle=hot?'#ffffff':'rgba(140,162,148,.4)';
+ctx.lineWidth=hot?1.5:1; ctx.strokeRect(cx+.5,52.5,cw-2,20);
+      }
+ctx.font='9px '+MONO; ctx.fillStyle='rgba(92,114,100,.85)'; ctx.textAlign='center'; ctx.fillText('b'+(bits-1)+'…b0',x+bw/2,86);
+    }
+    /* 中部：来源 → 字节 的连线 */
+const bwEach=(w-40)/n, bxc=byteX(st.bi,n)+bwEach/2; ctx.strokeStyle='rgba(140,162,148,.4)'; ctx.lineWidth=1; for(let i=0;i<4;i++){
+if(!hlBits[i].length) continue; const x1=20+i*pxW+(pxW-12)/2; ctx.beginPath(); ctx.moveTo(x1,102); ctx.bezierCurveTo(x1,140,bxc,142,bxc,176); ctx.stroke();
+    }
+    /* 底部：字节盒 */
+for(let k=0;k<n;k++){
+const x=byteX(k,n), bw=bwEach-6, isCur=k===st.bi, done=k<st.bi; ctx.strokeStyle=isCur?COL.ink:'rgba(140,162,148,.45)';
+ctx.lineWidth=isCur?1.8:1; ctx.strokeRect(x+.5,180.5,bw,44); const parts=bytes[k].parts, spans=[]; let bit=7;
+for(const pt of parts){ const span=pt[2]-pt[1]+1; spans.push({pt,hi:bit,lo:bit-span+1}); bit-=span; }
+const cw2=(bw-12)/8, revealed=isCur?Math.floor(prog*parts.length):parts.length; spans.forEach((sp,pi)=>{
+const col=PXC[sp.pt[0]], show=done||(isCur&&pi<revealed); for(let b=sp.hi;b>=sp.lo;b--){
+const cx=x+6+(7-b)*cw2; if(show){ ctx.fillStyle=col; ctx.globalAlpha=isCur?1:.8; ctx.fillRect(cx,198,cw2-2,18); ctx.globalAlpha=1; }
+ctx.strokeStyle=isCur?'rgba(220,235,225,.55)':'rgba(140,162,148,.4)'; ctx.lineWidth=1; ctx.strokeRect(cx+.5,198.5,cw2-2,18);
+        }
+      });
+ctx.font='600 10px '+MONO; ctx.textAlign='center'; ctx.fillStyle=isCur?COL.ink:'rgba(140,162,148,.8)'; ctx.fillText('B'+k,x+bw/2,194); ctx.font='600 11px '+MONO;
+ctx.fillStyle=done?COL.green:isCur?COL.amber:'rgba(92,114,100,.85)'; ctx.fillText(done||isCur?hex2(bytes[k].val):'····',x+bw/2,240);
+    }
+    /* 注解 */
+ctx.font='600 10.5px '+MONO; ctx.textAlign='left'; ctx.fillStyle=COL.cyan; const mapTxt=curB.parts.map(pt=>'P'+pt[0]+'['+pt[1]+':'+pt[2]+']').join(' ‖ ');
+ctx.fillText('B'+st.bi+' ← '+mapTxt+(prog<1?'（装入中 '+Math.round(prog*100)+'%）':' ✓'),20,272); ctx.font='10px '+MONO; ctx.fillStyle='rgba(92,114,100,.95)';
+ctx.fillText('4 像素 × '+bits+' bit = '+(bits*4)+' bit → '+n+' 字节（整数装箱，无浪费位）· MSB 在左',20,292);
+  }
+const m={vis:false, tick(dt){
+if(!st.playing) return; st.t+=dt*st.spd*0.85; if(st.t>=1){ st.t=0; st.bi=(st.bi+1)%B().length; }
+    },
+draw, resize(){ const f=fitCanvas(cv,h); ctx=f.ctx; w=f.w; }
+  };
+m.resize(); watch(cv,m); const playBtn=$('#rawPlay'); function setPlay(p){ st.playing=p; playBtn.textContent=p?'❚❚':'▶'; playBtn.classList.toggle('on',p); }
+if(reduced) setPlay(false); playBtn.addEventListener('click',()=>setPlay(!st.playing));
+$('#rawStep').addEventListener('click',()=>{ setPlay(false); st.t=0; st.bi=(st.bi+1)%B().length; }); $('#rawSpeed').addEventListener('input',e=>{ st.spd=+e.target.value; });
+$('#rawSeg').addEventListener('click',e=>{
+const b=e.target.closest('button'); if(!b) return; $('#rawSeg').querySelectorAll('button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+st.bits=+b.dataset.f; st.bi=0; st.t=0; info();
+  });
+return m;
+})();
+
+/* ============ §06：Lane 分发 / 合并动画 ============ */
+const lane=(function(){
+const cv=$('#laneCanvas'); if(!cv) return null; let ctx,w,h=312; const COLB=['#34e08a','#57d8f2','#ffb02e','#c792ea']; const N=16, DUR=3.4, SP=0.28;
+const st={L:4,T:0,playing:!reduced,spd:1,vis:false}; const period=()=>(N-1)*SP+DUR+1.3; function laneYs(){
+if(st.L===1) return [162]; const ys=[]; for(let i=0;i<st.L;i++) ys.push(64+(216-64)*i/(st.L-1)); return ys;
+  }
+function info(){
+const seq= st.L===4 ? 'B0→D0 · B1→D1 · B2→D2 · B3→D3 · B4→D0 …' : st.L===2 ? 'B0→D0 · B1→D1 · B2→D0 · B3→D1 …' : 'B0→D0 · B1→D0 · B2→D0 …（全部串行）';
+$('#laneInfo').innerHTML='<b>'+st.L+' lane</b>：'+seq+' · RX 端按 D0→D'+(st.L-1)+' 同样轮转取回，字节顺序完全复原 · 每条 lane 独立 SoT(00011101)/EoT';
+  }
+info(); function chip(x,y,label,col,scale){
+const s=scale||1, cw=34*s, ch=19*s; ctx.fillStyle=col+'28'; ctx.fillRect(x,y,cw,ch); ctx.strokeStyle=col; ctx.lineWidth=1.2; ctx.strokeRect(x+.5,y+.5,cw,ch);
+ctx.fillStyle=col; ctx.font='600 '+(s<1?'8':'9.5')+'px '+MONO; ctx.textAlign='center'; ctx.fillText(label,x+cw/2,y+ch/2+3.5);
+  }
+function draw(){
+if(!ctx) return; ctx.clearRect(0,0,w,h); const L=st.L, ys=laneYs(), x0=118, x1=w-150;
+    /* TX / RX 竖条 */
+ctx.strokeStyle='rgba(140,162,148,.5)'; ctx.lineWidth=1.2; ctx.strokeRect(20.5,44.5,64,196); ctx.strokeRect(w-84.5,44.5,64,196);
+ctx.font='600 10px '+MONO; ctx.textAlign='center'; ctx.fillStyle='rgba(140,162,148,.9)'; ctx.fillText('TX 字节流',52,256); ctx.fillText('RX 按序合并',w-52,256);
+    /* lane 轨道 */
+ctx.font='600 10px '+MONO; for(let i=0;i<L;i++){
+const y=ys[i]; ctx.strokeStyle='rgba(52,224,138,.5)'; ctx.lineWidth=1.6; ctx.beginPath(); ctx.moveTo(x0,y-3); ctx.lineTo(x1,y-3); ctx.stroke();
+ctx.strokeStyle='rgba(87,216,242,.35)'; ctx.beginPath(); ctx.moveTo(x0,y+3); ctx.lineTo(x1,y+3); ctx.stroke();
+ctx.textAlign='right'; ctx.fillStyle=COL.green; ctx.fillText('DATA'+i+'±',x0-8,y+4); if(st.T>=i*SP && st.T<i*SP+1.0){
+ctx.textAlign='left'; ctx.fillStyle=COL.green; ctx.fillText('SoT',x0+4,y-10);
+      }
+    }
+    /* 字节 token：队列 → lane → 队列 */
+for(let i=0;i<N;i++){
+const col=COLB[i%4], tt=(st.T-i*SP)/DUR; if(tt<=0){ chip(26+(i%2)*30,52+Math.floor(i/2)*14,'B'+i,col,0.82); } else if(tt<1){
+let x; if(tt<0.12) x=84+(x0-84)*(tt/0.12); else if(tt<0.86) x=x0+(x1-x0)*((tt-0.12)/0.74); else x=x1+(w-100-x1)*((tt-0.86)/0.14); chip(x-17,ys[i%L]-10,'B'+i,col,1);
+      }else{ chip(w-78+(i%2)*30,52+Math.floor(i/2)*14,'B'+i,col,0.82); }
+    }
+ctx.font='10px '+MONO; ctx.textAlign='left'; ctx.fillStyle='rgba(92,114,100,.95)'; ctx.fillText('字节 i 走 lane (i mod '+L+') —— 分发与合并用同一张"轮转表"，顺序天然复原',16,286);
+ctx.fillStyle='rgba(92,114,100,.8)'; ctx.fillText('演示 16 个字节 · 颜色 = i mod 4（与 lane 数无关，切 lane 数看同一颜色怎么换轨道）',16,302);
+  }
+const m={vis:false, tick(dt){
+if(!st.playing) return; st.T+=dt*st.spd; if(st.T>period()) st.T=0;
+    },
+draw, resize(){ const f=fitCanvas(cv,h); ctx=f.ctx; w=f.w; }
+  };
+m.resize(); watch(cv,m); const playBtn=$('#lanePlay'); function setPlay(p){ st.playing=p; playBtn.textContent=p?'❚❚':'▶'; playBtn.classList.toggle('on',p); }
+if(reduced) setPlay(false); playBtn.addEventListener('click',()=>setPlay(!st.playing)); $('#laneSpeed').addEventListener('input',e=>{ st.spd=+e.target.value; });
+$('#laneSeg').addEventListener('click',e=>{
+const b=e.target.closest('button'); if(!b) return; $('#laneSeg').querySelectorAll('button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+st.L=+b.dataset.l; st.T=0; info();
+  });
+return m;
+})();
+
+/* ============ §07：虚拟通道时隙 ============ */
+const vc=(function(){
+const cv=$('#vcCanvas'); if(!cv) return null; let ctx,w,h=240; const COLV=['#34e08a','#ffb02e','#c792ea'];
+const FILL=['rgba(52,224,138,.13)','rgba(255,176,46,.13)','rgba(199,146,234,.15)']; const DTN={0x00:'FRAME START 短包',0x01:'FRAME END 短包',0x2B:'RAW10 行长包',0x12:'EBD 嵌入式元数据'};
+const st={T:0,playing:!reduced,spd:1,vis:false,key:null,counts:[0,0,0]}; function stream(){
+const on=[$('#vcT0').checked,$('#vcT1').checked,$('#vcT2').checked], s=[];
+if(on[0]) s.push({vc:0,di:0x00,w:62,t:'FS'},{vc:0,di:0x2B,w:118,t:'RAW10'},{vc:0,di:0x2B,w:118,t:'RAW10'},{vc:0,di:0x01,w:62,t:'FE'});
+if(on[1]) s.push({vc:1,di:0x00,w:54,t:'FS'},{vc:1,di:0x2B,w:90,t:'RAW10'},{vc:1,di:0x01,w:54,t:'FE'}); if(on[2]) s.push({vc:2,di:0x12,w:86,t:'EBD'}); return s;
+  }
+let S=stream(); const rebuild=()=>{ S=stream(); st.key=null; }; ['vcT0','vcT1','vcT2'].forEach(id=>$('#'+id).addEventListener('change',rebuild)); const GAP=22; function draw(){
+if(!ctx) return; ctx.clearRect(0,0,w,h); if(!S.length){
+ctx.fillStyle='rgba(92,114,100,.9)'; ctx.font='11px '+MONO; ctx.textAlign='center'; ctx.fillText('未勾选任何 VC —— 总线空转（lane 停在 LP-11）',w/2,120);
+$('#rVcVc').textContent='—'; $('#rVcDt').textContent='—'; $('#rVcBuf').textContent='—'; return;
+    }
+const tw=S.reduce((a,x)=>a+x.w+GAP,0)-GAP; const off=mod(st.T*46*st.spd,tw); const y=138, hh=34, probeX=Math.max(150,Math.min(w-160,w*0.42)); let probeItem=null;
+ctx.font='600 9.5px '+MONO; for(let rep=-1;rep<Math.ceil(w/tw)+1;rep++){
+let x=rep*tw-off; if(x>w) break; for(const it of S){
+if(x+it.w>0&&x<w){
+const col=COLV[it.vc]; ctx.fillStyle=FILL[it.vc]; ctx.fillRect(x,y,it.w,hh); ctx.strokeStyle=col; ctx.lineWidth=1.2; ctx.strokeRect(x+.5,y+.5,it.w,hh);
+ctx.fillStyle=col; ctx.textAlign='center'; ctx.fillText(it.t,x+it.w/2,y+15); ctx.fillStyle='rgba(220,235,225,.85)'; ctx.fillText('VC'+it.vc,x+it.w/2,y+27);
+if(!probeItem&&probeX>=x&&probeX<x+it.w) probeItem=it;
+        }
+x+=it.w+GAP;
+      }
+    }
+    /* 解码探针 */
+ctx.strokeStyle=COL.red; ctx.setLineDash([5,4]); ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(probeX+.5,24); ctx.lineTo(probeX+.5,y+hh+10); ctx.stroke(); ctx.setLineDash([]);
+ctx.fillStyle=COL.red; ctx.beginPath(); ctx.arc(probeX,y+hh/2,3.4,0,7); ctx.fill(); ctx.font='600 9px '+MONO; ctx.textAlign='left'; ctx.fillText('PROBE',probeX+6,32);
+if(probeItem){
+const di=(probeItem.vc<<6)|probeItem.di, bx=24, by=52, cw=20; for(let k=0;k<8;k++){
+const b=(di>>(7-k))&1, isVC=k<2; ctx.fillStyle=b?(isVC?COL.red:COL.green):'rgba(140,162,148,.12)'; ctx.fillRect(bx+k*cw,by,cw-3,26);
+ctx.strokeStyle='rgba(140,162,148,.5)'; ctx.lineWidth=1; ctx.strokeRect(bx+k*cw+.5,by+.5,cw-3,26); ctx.fillStyle=b?'#052013':'rgba(140,162,148,.7)';
+ctx.font='700 12px '+MONO; ctx.textAlign='center'; ctx.fillText(b,bx+k*cw+(cw-3)/2,by+18);
+      }
+ctx.font='600 9.5px '+MONO; ctx.textAlign='center'; ctx.fillStyle=COL.red; ctx.fillText('VC[7:6]',bx+cw-1.5,by+42);
+ctx.fillStyle=COL.green; ctx.fillText('DT[5:0]',bx+5*cw-1.5,by+42); ctx.fillStyle='rgba(140,162,148,.9)'; ctx.textAlign='left';
+ctx.fillText('DI = 0b'+di.toString(2).padStart(8,'0')+' = 0x'+di.toString(16).toUpperCase().padStart(2,'0'),bx+200,by+16); const key=probeItem.vc+'-'+probeItem.di;
+if(st.key!==key){
+st.key=key; if(probeItem.di===0x00) st.counts[probeItem.vc]++; $('#rVcVc').textContent='VC'+probeItem.vc; $('#rVcDt').textContent=hex2(probeItem.di)+' · '+DTN[probeItem.di];
+$('#rVcBuf').textContent='→ buffer['+probeItem.vc+']';
+      }
+$('#rVcCnt').textContent=st.counts.map((c,i)=>'VC'+i+'×'+c).join(' · ');
+    }
+ctx.font='10px '+MONO; ctx.textAlign='left'; ctx.fillStyle='rgba(92,114,100,.95)'; ctx.fillText('同一条物理总线 · 各 VC 的帧分时占用（也可包级交错）· 接收端只认 DI[7:6] 分拣',16,h-12);
+  }
+const m={vis:false, tick(dt){ if(st.playing) st.T+=dt; }, draw, resize(){ const f=fitCanvas(cv,h); ctx=f.ctx; w=f.w; }
+  };
+m.resize(); watch(cv,m); const playBtn=$('#vcPlay'); function setPlay(p){ st.playing=p; playBtn.textContent=p?'❚❚':'▶'; playBtn.classList.toggle('on',p); }
+if(reduced) setPlay(false); playBtn.addEventListener('click',()=>setPlay(!st.playing)); $('#vcSpeed').addEventListener('input',e=>{ st.spd=+e.target.value; }); return m;
+})();
+
+/* ============ §08：带宽计算器 ============ */
+(function calc(){
+const g=id=>document.getElementById(id); function run(){
+const rs=g('cRes').value.split('x'), W=+rs[0], H=+rs[1]; const fps=+g('cFps').value, bpp=+g('cFmt').value, lanes=+g('cLane').value;
+const pxRate=W*H*fps/1e6, netMB=W*H*fps*bpp/1e6, laneMbps=netMB*8*1.2/lanes; g('oPx').innerHTML=pxRate.toFixed(1)+'<small>Mpx/s</small>';
+g('oNet').innerHTML=netMB.toFixed(1)+'<small>MB/s</small>'; const oL=g('oLane'); oL.innerHTML=laneMbps.toFixed(0)+'<small>Mbps</small>';
+oL.classList.toggle('warn',laneMbps>2500); const oD=g('oDvp'); oD.innerHTML=pxRate.toFixed(0)+'<small>MHz</small>'; oD.classList.toggle('warn',pxRate>96);
+const meter=g('oMeter'); meter.style.width=Math.min(100,laneMbps/2500*100)+'%'; meter.className=laneMbps>2500?'over':laneMbps>800?'hot':'';
+g('fExpr').textContent=W+'×'+H+'×'+fps+'×'+bpp+'×8×1.2 ÷ '+lanes+' = '+laneMbps.toFixed(0)+' Mbps/lane' +(laneMbps>2500?' → 超 D-PHY v1.2 上限！加 lane 或降格式'
+:laneMbps>800?' → 需要高速档 PHY（>800 Mbps/lane）' :' → 余量充足');
+  }
+['cRes','cFps','cFmt','cLane'].forEach(id=>g(id).addEventListener('change',run)); run();
+})();
+
+/* ============ §09：虚拟终端（打字机回放） ============ */
+(function term(){
+const body=$('#termBody'); if(!body) return; const L=[ {c:'media-ctl -d /dev/media0 -p',n:'① 媒体拓扑：sensor → CSI RX → ISP → video 节点'},
+{o:'entity 9: imx219 4-0010 (1 pad, source)'}, {o:'  [IMX219] ==> "rkisp1_mipi":0 ==> rkisp1_isp ==> /dev/video0'}, {c:'v4l2-ctl --list-devices',n:'② 找出图节点'},
+{o:'rkisp1 (platform:fdd01100.rkisp):'}, {o:'        /dev/video0        /dev/video1'}, {c:'v4l2-ctl -d /dev/video0 --list-formats-ext',n:'③ sensor 支持的格式与分辨率'},
+{o:"        [0]: 'RG10' (10-bit Bayer RGRG/GBGB)"}, {o:'        Size: Stepwise 64x64 - 3280x2464 with step 8/2'},
+{c:'media-ctl -d /dev/media0 -V \'"imx219 4-0010":0[fmt:SRGGB10_1X10/1920x1080]\'',n:'④ 整条链设成 RAW10/1080p（每一环都要一致）'},
+{c:"v4l2-ctl -d /dev/video0 --set-fmt-video=width=1920,height=1080,pixelformat='RG10'"},
+{c:'v4l2-ctl -d /dev/video0 --stream-mmap --stream-count=5 --stream-to=f.raw',n:'⑤ 开流！抓 5 帧存盘'}, {o:'<  30.01 fps (33.3 ms/frame)'},
+{o:'<  captured 5 frames  →  1920×1080×2.5B = 5.18 MB/帧 ✓'}, {c:'dmesg | grep -iE "csi|mipi|imx219"',n:'⑥ 出问题先看内核错误计数'}, {o:'imx219 4-0010: imx219_power_on: ok'},
+{o:'rkisp1_mipi: err1:0 err2:0          ← ECC/CRC 计数为 0 才算干净'}, {o:'rkisp1_mipi: err1:37 err2:12        ← 计数在涨：settle / lane / 信号完整性 → §10 对症状'}, ];
+const st={li:0,ci:0,wait:.4,vis:false,playing:!reduced,done:false}; const reset=()=>{ st.li=0; st.ci=0; st.wait=.4; st.done=false; body.innerHTML=''; };
+function staticRender(){
+body.innerHTML=''; L.forEach(l=>{
+if(l.c!==undefined){
+const d=document.createElement('div'); d.className='t-line';
+d.innerHTML='<span class="t-prompt">$</span><span class="t-cmd"></span>'+(l.n?'<span class="t-note"># '+l.n+'</span>':''); d.querySelector('.t-cmd').textContent=l.c;
+body.appendChild(d);
+      }else{
+const d=document.createElement('div'); d.className='t-line t-out'; d.textContent=l.o; body.appendChild(d);
+      }
+    });
+  }
+function tick(dt){
+if(!st.vis) return; if(reduced){ if(!st.done){ staticRender(); st.done=true; } return; } if(!st.playing) return; if(st.wait>0){ st.wait-=dt; if(st.wait>0) return; }
+if(st.li>=L.length){ reset(); return; } const l=L[st.li]; if(l.c!==undefined){
+let div=body.querySelector('.t-line[data-i="'+st.li+'"]'); if(!div){
+div=document.createElement('div'); div.className='t-line'; div.dataset.i=st.li;
+div.innerHTML='<span class="t-prompt">$</span><span class="t-cmd"></span><span class="t-note"></span><span class="t-cursor"></span>'; body.appendChild(div);
+      }
+st.ci+=dt*46; const n=Math.min(l.c.length,Math.floor(st.ci)); div.querySelector('.t-cmd').textContent=l.c.slice(0,n); if(n>=l.c.length){
+if(l.n) div.querySelector('.t-note').textContent='# '+l.n; const cu=div.querySelector('.t-cursor'); if(cu) cu.remove(); st.li++; st.ci=0; st.wait=.55;
+if(st.li>=L.length) st.wait=4.5;
+      }
+    }else{
+const d=document.createElement('div'); d.className='t-line t-out'; d.textContent=l.o; body.appendChild(d); st.li++; st.wait=.4; if(st.li>=L.length) st.wait=4.5;
+    }
+body.scrollTop=body.scrollHeight;
+  }
+const m={vis:false,tick}; watch(body,m); ALL.push(m); $('#btnTermReplay').addEventListener('click',()=>{ reset(); st.playing=true; });
+})();
+
+/* ============ §09：症状模拟器（故障注入） ============ */
+(function sim(){
+const cv=$('#simCanvas'); if(!cv) return; let ctx,w; const SW=200, SH=150; const oc=document.createElement('canvas'); oc.width=SW; oc.height=SH; const octx=oc.getContext('2d');
+const base=octx.createImageData(SW,SH); let seed=12345; const rnd=new Float32Array(SW*SH);
+for(let i=0;i<SW*SH;i++){ seed=(seed*1103515245+12345)&0x7fffffff; rnd[i]=seed/0x7fffffff; } const hy=Math.floor(SH*0.52); for(let y=0;y<SH;y++) for(let x=0;x<SW;x++){
+const i=(y*SW+x)*4; let r,g,b; if(y<hy){
+const t=y/hy; r=8+t*16; g=30+t*76; b=24+t*58; const dx=x-SW*0.30, dy=y-hy*0.45, dd=dx*dx+dy*dy; if(dd<196){ r=255; g=176; b=46; } else if(dd<289){ r=110; g=84; b=40; }
+    }else{
+const t=(y-hy)/(SH-hy); r=10+t*20; g=24+t*44; b=14+t*24; if(((x+((y-hy)>>2))%22)<2){ r*=.45; g*=.45; b*=.45; }
+    }
+if(x%25===0||y%19===0){ r*=.72; g*=.72; b*=.72; } base.data[i]=r; base.data[i+1]=g; base.data[i+2]=b; base.data[i+3]=255;
+  }
+const CAP={
+ok:'<b>链路正常</b>：FS → 行长包 ×1080 → FE，ECC/CRC 全过——这就是 v4l2 一帧 5.18 MB 的样子。',
+tear:'<b>图像撕裂</b>：某行长包 <code>CRC</code> 失败被丢弃，或 <code>WC ≠ 宽×Bpp</code> 使行边界逐行漂移——上下半"错切"。查 media-ctl 各 pad 格式一致性 + dmesg CRC 计数。',
+stripe:'<b>花屏条纹</b>：4 条 lane 断 1 根（或 lane 映射 / P/N 极性错）——字节流每 4 个坏 1 个（§06 演示），呈规律竖条纹。查 <code>data-lanes</code> 映射、FPC 焊接、各 lane SoT。',
+tint:'<b>偏色 / 过曝条带</b>：sensor 出 RAW10 却被当 RAW8 解（或位序反）——像素边界错位、颜色整体漂移。查 <code>pixelformat=RG10</code> 与 media pad 的 <code>SRGGB10_1X10</code>。',
+none:'<b>完全无图</b>：settle 窗口错位 / 上电与初始化序列没跑完 / CCI(I²C) 没通。按四步定位法：读 CHIP ID → 看 dmesg → 核 media 链 → 开流。'
+  };
+let cur='ok'; function render(mode){
+cur=mode; const img=octx.createImageData(SW,SH); img.data.set(base.data); const d=img.data; if(mode==='none'){
+for(let i=0;i<d.length;i+=4){ d[i]=6; d[i+1]=9; d[i+2]=8; }
+    }else if(mode==='tear'){
+for(let y=0;y<SH;y++) for(let x=0;x<SW;x++){
+const i=(y*SW+x)*4; if(y>=64&&y<72){
+const v=Math.floor(rnd[y*SW+x]*255); d[i]=v; d[i+1]=Math.floor(v*.8); d[i+2]=Math.floor(v*.6);
+        }else if(y>=72){
+const sx=(x+26)%SW, j=(y*SW+sx)*4; d[i]=base.data[j]; d[i+1]=base.data[j+1]; d[i+2]=base.data[j+2];
+        }
+      }
+    }else if(mode==='stripe'){
+for(let y=0;y<SH;y++) for(let x=0;x<SW;x++){
+if(x%4===2){ const i=(y*SW+x)*4; d[i]=4; d[i+1]=6; d[i+2]=6; }
+      }
+    }else if(mode==='tint'){
+for(let i=0;i<d.length;i+=4){
+d[i]=Math.min(255,d[i]*2.1+70); d[i+1]=d[i+1]*0.45; d[i+2]=Math.min(255,d[i+2]*1.9+50);
+      }
+    }
+octx.putImageData(img,0,0); ctx.imageSmoothingEnabled=false; ctx.clearRect(0,0,w,260); ctx.drawImage(oc,0,0,w,260); if(mode==='none'){
+ctx.fillStyle=COL.red; ctx.font='700 24px '+MONO; ctx.textAlign='center'; ctx.fillText('NO SIGNAL',w/2,132); ctx.font='10px '+MONO; ctx.fillStyle='rgba(255,100,120,.85)';
+ctx.fillText('settle? 上电时序? 初始化序列? CCI 通吗?',w/2,156);
+    }
+$('#simCap').innerHTML=CAP[mode];
+  }
+const resize=()=>{ const f=fitCanvas(cv,260); ctx=f.ctx; w=f.w; render(cur); }; resize(); $('#simSeg').addEventListener('click',e=>{
+const b=e.target.closest('button'); if(!b) return; $('#simSeg').querySelectorAll('button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); render(b.dataset.sim);
+  });
+})();
+
+/* ============ 汇总注册 + 主循环 ============ */
+if(pk) ALL.push(pk); if(raw) ALL.push(raw); if(lane) ALL.push(lane); if(vc) ALL.push(vc);
+
+let lastT=performance.now(); function loop(now){
+const dt=Math.min(.05,(now-lastT)/1000); lastT=now; try{
+for(const m of ALL){ if(m.vis){ m.tick(dt); if(m.draw) m.draw(); } }
+  }catch(err){
+if(!window.__csi2Err){ window.__csi2Err=1; console.error(err); }
+  }
+requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+let rzT; window.addEventListener('resize',()=>{
+clearTimeout(rzT); rzT=setTimeout(()=>{ ALL.forEach(m=>{ if(m.resize) m.resize(); }); },170);
+});
+
+/* ============ 滚动显现 ============ */
+const io=new IntersectionObserver(es=>es.forEach(e=>{
+if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); }
+}),{threshold:.12});
+$$('.reveal').forEach(el=>io.observe(el));
+})();
+</script>
+</main>
+</body>
+</html>
