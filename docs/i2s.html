@@ -500,7 +500,7 @@ footer .f-r sup{font-size:.6em}
 <nav>
   <div class="logo">I²S</div>
   <a href="#s1">概述</a><a href="#s2">信号线</a><a href="#s3">时序动画</a><a href="#s4">数据格式</a><a href="#s5">主从模式</a><a href="#s6">时钟计算</a><a href="#s7">Linux 实战</a><a href="#s8">调试指南</a><a href="#s9">踩坑指南</a>
-  <div class="xnav"><a href="index.html">« HOME</a><a href="i2c.html">I²C</a><a href="spi.html">SPI</a><a href="uart.html">UART</a><a href="ir.html">IR</a><a href="rs485.html">RS-485</a><a href="onewire.html">1-WIRE</a><a href="can.html">CAN</a><a href="dmic.html">DMIC</a><a href="tdm.html">TDM</a><a href="sdio.html">SDIO</a><a href="emmc.html">eMMC</a><a href="ddr.html">DDR</a><a href="rgb.html">RGB</a><a href="lvds.html">LVDS</a><a href="mipi-dsi.html">DSI</a><a href="csi2.html">CSI-2</a><a href="hdmi.html">HDMI</a><a href="usb.html">USB</a><a href="pcie.html">PCIE</a><a href="jtag.html">JTAG</a></div>
+  <button class="pnav-open" aria-label="打开协议导航" title="全部协议">☰ 协议</button>
   <div class="spacer"></div>
   <div class="live"><i></i>LOGIC&nbsp;ANALYZER</div>
 </nav>
@@ -1470,5 +1470,6 @@ const DBG = [
 const io = new IntersectionObserver(es=>es.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target);} }),{threshold:.12});
 document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
 </script>
+<script src="protocol-nav.js" defer></script>
 </body>
 </html>

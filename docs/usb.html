@@ -193,13 +193,7 @@ footer .f-l{font-family:var(--mono);font-size:11.5px;color:var(--faint);line-hei
   <div class="nav-links">
     <a href="#s1">概述</a><a href="#s2">物理层</a><a href="#s3">编码动画</a><a href="#s4">传输类型</a><a href="#s5">控制传输</a><a href="#s6">枚举·描述符</a><a href="#s8">版本·供电</a><a href="#s9">Linux</a><a href="#s10">踩坑</a>
   </div>
-  <div class="xnav"><a href="index.html">« HOME</a>
-<a href="i2c.html">I²C</a><a href="spi.html">SPI</a><a href="uart.html">UART</a><a href="ir.html">IR</a>
-<a href="rs485.html">RS-485</a><a href="onewire.html">1-WIRE</a><a href="can.html">CAN</a>
-<a href="i2s.html">I²S</a><a href="dmic.html">DMIC</a><a href="tdm.html">TDM</a>
-<a href="sdio.html">SDIO</a><a href="emmc.html">eMMC</a><a href="ddr.html">DDR</a>
-<a href="rgb.html">RGB</a><a href="lvds.html">LVDS</a><a href="mipi-dsi.html">DSI</a><a href="csi2.html">CSI-2</a>
-<a href="hdmi.html">HDMI</a><a href="pcie.html">PCIE</a><a href="jtag.html">JTAG</a></div>
+  <button class="pnav-open" aria-label="打开协议导航" title="全部协议">☰ 协议</button>
   <div class="spacer"></div>
   <div class="live"><i></i>HOST&nbsp;POLLED</div>
 </nav>
@@ -1796,5 +1790,6 @@ function loop(now){
 requestAnimationFrame(loop);
 })();
 </script>
+<script src="protocol-nav.js" defer></script>
 </body>
 </html>

@@ -565,7 +565,7 @@ footer .f-r{font-family:var(--disp);font-weight:700;font-size:22px;color:var(--g
     <div class="nav-links">
       <a href="#s1">概述</a><a href="#s2">信号</a><a href="#s4">帧与包</a><a href="#s5">RAW打包</a><a href="#s6">Lane分发</a><a href="#s7">虚拟通道</a><a href="#s8">配置实战</a><a href="#s9">调试实战</a><a href="#s10">速查</a>
     </div>
-    <div class="nav-x"><a href="index.html">« HOME</a><a href="i2c.html">I²C</a><a href="spi.html">SPI</a><a href="uart.html">UART</a><a href="ir.html">IR</a><a href="rs485.html">RS-485</a><a href="onewire.html">1-WIRE</a><a href="can.html">CAN</a><a href="i2s.html">I²S</a><a href="dmic.html">DMIC</a><a href="tdm.html">TDM</a><a href="sdio.html">SDIO</a><a href="emmc.html">eMMC</a><a href="ddr.html">DDR</a><a href="rgb.html">RGB</a><a href="lvds.html">LVDS</a><a href="mipi-dsi.html">DSI</a><a href="hdmi.html">HDMI</a><a href="usb.html">USB</a><a href="pcie.html">PCIE</a><a href="jtag.html">JTAG</a></div>
+    <button class="pnav-open" aria-label="打开协议导航" title="全部协议">☰ 协议</button>
     <div class="spacer"></div>
     <div class="live"><i></i>SENSOR&nbsp;STREAM</div>
   </div>
@@ -1764,5 +1764,6 @@ $$('.reveal').forEach(el=>io.observe(el));
 })();
 </script>
 </main>
+<script src="protocol-nav.js" defer></script>
 </body>
 </html>

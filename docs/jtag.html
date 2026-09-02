@@ -352,7 +352,7 @@ footer{
 <nav>
   <div class="logo">JTAG<b>·</b>LAB</div>
   <a href="#s1">概述</a><a href="#s2">信号线</a><a href="#s3">TAP 状态机</a><a href="#s4">IDCODE 时序</a><a href="#s5">扫描链</a><a href="#s6">边界扫描</a><a href="#s7">SWD</a><a href="#s8">实战</a><a href="#s9">踩坑·速查</a>
-  <div class="xnav"><a href="index.html">« HOME</a><a href="i2c.html">I²C</a><a href="spi.html">SPI</a><a href="uart.html">UART</a><a href="ir.html">IR</a><a href="rs485.html">RS-485</a><a href="onewire.html">1-WIRE</a><a href="can.html">CAN</a><a href="i2s.html">I²S</a><a href="dmic.html">DMIC</a><a href="tdm.html">TDM</a><a href="sdio.html">SDIO</a><a href="emmc.html">eMMC</a><a href="ddr.html">DDR</a><a href="rgb.html">RGB</a><a href="lvds.html">LVDS</a><a href="mipi-dsi.html">DSI</a><a href="csi2.html">CSI-2</a><a href="hdmi.html">HDMI</a><a href="usb.html">USB</a><a href="pcie.html">PCIE</a></div>
+  <button class="pnav-open" aria-label="打开协议导航" title="全部协议">☰ 协议</button>
   <div class="spacer"></div>
   <div class="live"><i></i>BOUNDARY&nbsp;SCAN</div>
 </nav>
@@ -1361,5 +1361,6 @@ if(idc.visible){ if(idc.playing)idc.phase+=idc.speed*dt; idcDraw(); } }catch(err
 requestAnimationFrame(loop); }
 requestAnimationFrame(loop); let rzT; window.addEventListener('resize',()=>{ clearTimeout(rzT); rzT=setTimeout(()=>{ idcFit(); for(const o of MINIS)o.fit(); },150); }); })();
 </script>
+<script src="protocol-nav.js" defer></script>
 </body>
 </html>
